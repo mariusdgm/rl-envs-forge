@@ -57,64 +57,50 @@ class Room(ABC):
 
 class RectangularRoom(Room):
     def __init__(self, area=None, ratio=1, nr_access_points=1, **kwargs):
-        # If area is specified, dynamically determine width and height
         if area:
             tentative_cols = int(math.sqrt(area / ratio))
             tentative_rows = int(ratio * tentative_cols)
 
-            # If the result exceeds the area, adjust rows or cols.
             while tentative_rows * tentative_cols > area:
                 if tentative_rows > tentative_cols:
                     tentative_rows -= 1
                 else:
                     tentative_cols -= 1
 
-            self.rows = tentative_rows
-            self.cols = tentative_cols
+            # Ensure minimum dimensions
+            self.rows = max(tentative_rows, 2)
+            self.cols = max(tentative_cols, 2)
         else: 
-            self.rows = kwargs.get("rows", 10)  # Default values, can be changed
+            self.rows = kwargs.get("rows", 10)
             self.cols = kwargs.get("cols", 10)
 
         super().__init__(area, **kwargs)
-
         self.nr_access_points = nr_access_points
-        
         self.set_access_points()
 
     def get_shape(self):
-        """Return the shape (rows, cols) of the room."""
         return self.rows, self.cols
 
     def get_area(self):
-        """Get the actual usable area of the room."""
         return self.rows * self.cols
 
     def get_rectangular_footprint_area(self):
-        """Get the area of the rectangular footprint of the room."""
         return self.get_area()
 
     def get_perimeter_cells(self):
-        perimeter = []
-
-        # Top and bottom walls
-        for x in range(self.rows):
-            perimeter.append((x, 0))
-            perimeter.append((x, self.cols - 1))
-
-        # Left and right walls, excluding corners
-        for y in range(1, self.cols - 1):
-            perimeter.append((0, y))
-            perimeter.append((self.rows - 1, y))
-            
+        perimeter = np.vstack([
+            np.column_stack((np.zeros(self.cols, dtype=int), np.arange(self.cols))),
+            np.column_stack((np.full(self.cols, self.rows-1, dtype=int), np.arange(self.cols))),
+            np.column_stack((np.arange(1, self.rows-1), np.zeros(self.rows-2, dtype=int))),
+            np.column_stack((np.arange(1, self.rows-1), np.full(self.rows-2, self.cols-1, dtype=int)))
+        ])
         return perimeter
 
     def get_room_mask(self):
-        """Return a mask of the room."""
-        return [[True for _ in range(self.cols)] for _ in range(self.rows)]
+        return np.ones((self.rows, self.cols), dtype=bool)
 
     def set_access_points(self):
-        """Define default access points for the room, based on its shape."""
-        self.access_points = random.sample(self.get_perimeter_cells(), self.nr_access_points)
+        self.access_points = self.get_perimeter_cells()[np.random.choice(self.get_perimeter_cells().shape[0], self.nr_access_points, replace=False)]
 
 class CircularRoom(Room):
     # Implement similar methods for CircularRoom, approximating a circle shape on a grid.
