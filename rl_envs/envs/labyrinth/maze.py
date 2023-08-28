@@ -9,13 +9,14 @@ class Maze:
         self,
         rows,
         cols,
-        nr_rooms=3,
+        nr_desired_rooms=3,
         global_room_ratio=0.5,
         min_room_rows=5,
         min_room_cols=5,
     ):
         self.grid = np.ones((rows, cols), dtype=int) * WALL
-        self.nr_rooms = nr_rooms
+        self.nr_desired_rooms = nr_desired_rooms
+        self.nr_placed_rooms = 0 # in some cases we won't be able to place all rooms we want
         self.global_room_ratio = global_room_ratio
         self.min_room_rows = min_room_rows
         self.min_room_cols = min_room_cols
@@ -68,16 +69,15 @@ class Maze:
         return False
 
     def place_rooms(self):
-        room_count = 0
         total_room_path_area_covered = 0
         target_path_area = self.global_room_ratio * self.grid.size
-        start_avg_room_path_area = target_path_area / self.nr_rooms
+        start_avg_room_path_area = target_path_area / self.nr_desired_rooms
         desired_room_path_area = start_avg_room_path_area
 
         room_factory = RoomFactory()
 
         while (
-            room_count < self.nr_rooms
+            self.nr_placed_rooms < self.nr_desired_rooms
             and total_room_path_area_covered < target_path_area
         ):
             room = room_factory.create_room(desired_area=desired_room_path_area)
@@ -86,7 +86,7 @@ class Maze:
                 room
             ):  # Use levy_flight_place instead of random_walk_place
                 total_room_path_area_covered += room.rows * room.cols
-                room_count += 1
+                self.nr_placed_rooms += 1
 
             # Each time a room is added, or a fail happens, decrease the desired area of the next room trials
             desired_room_path_area = int(0.9 * desired_room_path_area)
@@ -98,6 +98,3 @@ class Maze:
             ) or (desired_room_path_area <= 9):
                 break
 
-    def display(self):
-        mapping = {WALL: "#", PATH: "."}
-        return "\n".join(["".join([mapping[col] for col in row]) for row in self.grid])
