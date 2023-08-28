@@ -1,92 +1,103 @@
 import numpy as np
 import random
-
-from .room import RectangularRoom
+from .room import RoomFactory
 from .constants import WALL, PATH
 
 
 class Maze:
-    def __init__(self, rows, cols, num_rooms=3, padding=1, global_room_ratio=0.5, max_room_generate_retries=10, max_reposition_retries=10, seed=None):
-
-        if seed:
-            random.seed(seed)
-            np.random.seed(seed)
-
-        self.rows = rows
-        self.cols = cols
-        self.num_rooms = num_rooms
-        self.padding = padding
-        self.grid = np.full((rows, cols), WALL, dtype=int)
-        self.rooms = []
+    def __init__(
+        self,
+        rows,
+        cols,
+        nr_rooms=3,
+        global_room_ratio=0.5,
+        min_room_rows=5,
+        min_room_cols=5,
+    ):
+        self.grid = np.ones((rows, cols), dtype=int) * WALL
+        self.nr_rooms = nr_rooms
         self.global_room_ratio = global_room_ratio
-        self.max_room_generate_retries = max_room_generate_retries
-        self.max_reposition_retries = max_reposition_retries
+        self.min_room_rows = min_room_rows
+        self.min_room_cols = min_room_cols
+        self.placed_rooms = []
+        self.place_rooms()
 
-        self.generate_rooms()
+    def is_valid_room_position(self, room, start_row, start_col):
+        end_row, end_col = start_row + room.rows, start_col + room.cols
 
-    def generate_rooms(self):
-        room_ratios = self.generate_room_ratios()
-      
-        total_maze_area = self.rows * self.cols
-
-        for i in range(self.num_rooms):
-            desired_room_area = room_ratios[i] * total_maze_area
-            self.generate_and_place_room(desired_room_area)
-
-    def generate_and_place_room(self, desired_room_area):
-        for _ in range(self.max_room_generate_retries):
-            room = RectangularRoom(area=desired_room_area, ratio=random.uniform(0.2, 1.8))
-            
-            success = self.place_room(room)
-            if success:
-                self.rooms.append(room)
-                return True
-
-    def place_room(self, room):
-        room_rows, room_cols = room.get_shape()
-
-        if self.rows - room_rows - self.padding <= 0 or self.cols - room_cols - self.padding <= 0:
+        # Extract sub-grid and check boundaries
+        if start_row < 1 or start_col < 1 or end_row > self.grid.shape[0]-1 or end_col > self.grid.shape[1]-1:
             return False
-
-        start_row = random.randint(0, self.rows - room_rows - self.padding)
-        start_col = random.randint(0, self.cols - room_cols - self.padding)
-
-        # Check if the room can be placed without overlapping another room
-        subgrid = self.grid[start_row - self.padding : start_row + room_rows + self.padding, start_col - self.padding : start_col + room_cols + self.padding]
         
-        if np.any(subgrid == PATH):
-            return False
+        sub_grid = self.grid[start_row-1:end_row+1, start_col-1:end_col+1]
+        
+        # Check if placing the room would overlap with another room or not maintain separation
+        return np.sum(sub_grid == PATH) == 0
 
-        self.grid[start_row : start_row + room_rows, start_col : start_col + room_cols] = PATH
-        return True
+    def place_room(self, room, start_row, start_col):
+        self.grid[start_row: start_row + room.rows, start_col: start_col + room.cols] = room.grid
 
-    def generate_room_ratios(self):
-        total_ratio = self.global_room_ratio
-        if total_ratio < self.num_rooms * 0.05:
-            raise ValueError("The total ratio is too small for the given number of rooms.")
+    def levy_step_size(self):
+        r = random.random()  # r is between 0 and 1
+        return int(
+            1 / (r**0.5)
+        )  # This will give us a step length L according to inverse square distribution.
 
-        min_room_ratio = max(0.1, total_ratio / (self.num_rooms * 2))
-        max_room_ratio = total_ratio - min_room_ratio * (self.num_rooms - 1)
-        individual_ratios = []
+    def levy_flight_place(self, room):
+        max_attempts = 100
+        attempt = 0
+        position = (
+            random.randint(0, self.grid.shape[0] - 1),
+            random.randint(0, self.grid.shape[1] - 1),
+        )
+        directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]
 
-        for _ in range(self.num_rooms - 1):
-            current_ratio = random.uniform(min_room_ratio, max_room_ratio)
-            individual_ratios.append(current_ratio)
+        while attempt < max_attempts:
+            if self.is_valid_room_position(room, position[0], position[1]):
+                self.place_room(room, position[0], position[1])
+                return True
+            else:
+                step_size = self.levy_step_size()
+                direction = random.choice(directions)
+                position = (
+                    position[0] + direction[0] * step_size,
+                    position[1] + direction[1] * step_size,
+                )
+                attempt += 1
 
-            total_ratio -= current_ratio
-            max_room_ratio = total_ratio - min_room_ratio * (self.num_rooms - len(individual_ratios) - 1)
+        return False
 
-        individual_ratios.append(total_ratio)
+    def place_rooms(self):
+        room_count = 0
+        total_room_path_area_covered = 0
+        target_path_area = self.global_room_ratio * self.grid.size
+        start_avg_room_path_area = target_path_area / self.nr_rooms
+        desired_room_path_area = start_avg_room_path_area
 
-        return individual_ratios
+        room_factory = RoomFactory()
+
+        while (
+            room_count < self.nr_rooms
+            and total_room_path_area_covered < target_path_area
+        ):
+            room = room_factory.create_room(desired_area=desired_room_path_area)
+
+            if self.levy_flight_place(
+                room
+            ):  # Use levy_flight_place instead of random_walk_place
+                total_room_path_area_covered += room.rows * room.cols
+                room_count += 1
+
+            # Each time a room is added, or a fail happens, decrease the desired area of the next room trials
+            desired_room_path_area = int(0.9 * desired_room_path_area)
+
+            # Optional: Add a condition to break the loop if total_path_area exceeds some threshold.
+            # This prevents infinite loops if it's impossible to fit any more rooms.
+            if (
+                total_room_path_area_covered >= self.grid.size * self.global_room_ratio
+            ) or (desired_room_path_area <= 9):
+                break
 
     def display(self):
-        for row in self.grid:
-            print("".join(["#" if cell else "." for cell in row]))
-
-    def _generate_corridors(self):
-        pass
-
-if __name__ == "__main__":
-    m = Maze(50, 50, seed=42)
-    m.display()
+        mapping = {WALL: "#", PATH: "."}
+        return "\n".join(["".join([mapping[col] for col in row]) for row in self.grid])

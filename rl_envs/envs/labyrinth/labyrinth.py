@@ -23,8 +23,7 @@ class Labyrinth(gym.Env):
         maze_global_room_ratio=None,
         maze_min_global_room_ratio=0.1,
         maze_max_global_room_ratio=0.7,
-        maze_max_room_generate_retries=10,
-        maze_max_reposition_retries=10,
+        
     ):
         super().__init__()
 
@@ -50,14 +49,12 @@ class Labyrinth(gym.Env):
             )
 
         self.maze = Maze(
-            self.rows,
-            self.cols,
-            maze_num_rooms,
-            maze_room_padding,
-            maze_global_room_ratio,
-            maze_max_room_generate_retries,
-            maze_max_reposition_retries,
-            self.current_seed,
+            rows = self.rows,
+            cols = self.cols,
+            num_rooms=maze_num_rooms,
+            padding=maze_room_padding,
+            global_room_ratio=maze_global_room_ratio,
+            seed=self.current_seed,
         )
 
         self.screen = pygame.display.set_mode((CELL_SIZE * cols, CELL_SIZE * rows))

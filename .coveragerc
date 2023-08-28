@@ -1,0 +1,12 @@
+[run]
+omit = 
+    */__init__.py
+    constants.py
+
+[report]
+omit = 
+    */__init__.py
+    constants.py
+exclude_lines = 
+    if __name__ == .__main__.:
+    @abstractmethod
