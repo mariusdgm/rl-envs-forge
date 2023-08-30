@@ -3,6 +3,7 @@ import math
 import random
 import numpy as np
 from .constants import WALL, PATH
+from ..common.utils import set_random_seeds
 
 
 class Room(ABC):
@@ -15,6 +16,7 @@ class Room(ABC):
         self.top_left_coord = (0, 0)  # Default to the origin
         self.bottom_right_coord = (rows, cols)
         self.nr_access_points = nr_access_points
+        self.access_points = []
         self.grid = np.ones((rows, cols), dtype=int) * WALL
 
         # If you have specific known attributes, consider unpacking them explicitly here.
@@ -24,6 +26,13 @@ class Room(ABC):
     @property
     def area(self):
         return self.rows * self.cols
+    
+    @property
+    def global_position(self):
+        return self.top_left_coord
+    
+    def set_global_position(self, position):
+        self.top_left_coord = position
 
     def set_coordinates(self, coordinates):
         self.coordinates = coordinates
@@ -59,7 +68,9 @@ class Room(ABC):
 
 
 class RoomFactory:
-    def __init__(self, ratio_range=None):
+    def __init__(self, ratio_range=None, seed=None):
+        self.seed = seed
+        set_random_seeds(seed)
         self.ratio_range = ratio_range
 
     def create_room(

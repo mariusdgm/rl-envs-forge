@@ -1,13 +1,12 @@
 import gymnasium as gym
 
 from .maze import Maze
-from .constants import WALL, PATH, GOAL, START, AGENT, COLORS, CELL_SIZE
+from .constants import WALL, PATH, TARGET, START, AGENT, COLORS, CELL_SIZE
+from ..common.utils import set_random_seeds
 
 import numpy as np
 import random
 import pygame
-
-
 
 
 class Labyrinth(gym.Env):
@@ -19,11 +18,9 @@ class Labyrinth(gym.Env):
         maze_num_rooms=None,
         maze_min_num_rooms=1,
         maze_max_num_rooms=8,
-        maze_room_padding=1,
         maze_global_room_ratio=None,
         maze_min_global_room_ratio=0.1,
         maze_max_global_room_ratio=0.7,
-        
     ):
         super().__init__()
 
@@ -49,10 +46,9 @@ class Labyrinth(gym.Env):
             )
 
         self.maze = Maze(
-            rows = self.rows,
-            cols = self.cols,
-            num_rooms=maze_num_rooms,
-            padding=maze_room_padding,
+            rows=self.rows,
+            cols=self.cols,
+            nr_desired_rooms=maze_num_rooms,
             global_room_ratio=maze_global_room_ratio,
             seed=self.current_seed,
         )
@@ -61,11 +57,7 @@ class Labyrinth(gym.Env):
         pygame.display.set_caption("Labyrinth")
 
         # Use the initial seed for the first maze generation
-        self._set_random_seed(self.current_seed)
-
-    def _set_random_seed(self, seed):
-        random.seed(seed)
-        np.random.seed(seed)
+        set_random_seeds(self.current_seed)
 
     def state(self):
         return self.maze.grid
@@ -102,6 +94,11 @@ class Labyrinth(gym.Env):
         return self.state()
 
     def _draw_maze(self):
+        for mroom in self.maze.rooms:
+            global_coords = mroom.global_position
+            for access_point in mroom.access_points:
+                self.maze.grid[global_coords[0]+access_point[0], global_coords[1]+access_point[1]] = AGENT
+
         for row in range(self.rows):
             for col in range(self.cols):
                 cell_value = self.maze.grid[row, col]
@@ -121,9 +118,13 @@ class Labyrinth(gym.Env):
                 radius = CELL_SIZE // 2
 
                 if cell_value == AGENT:
-                    pygame.draw.circle(self.screen, COLORS['AGENT'], (center_x, center_y), radius)
-                elif cell_value == GOAL:
-                    pygame.draw.circle(self.screen, COLORS['GOAL'], (center_x, center_y), radius)
+                    pygame.draw.circle(
+                        self.screen, COLORS[AGENT], (center_x, center_y), radius
+                    )
+                elif cell_value == TARGET:
+                    pygame.draw.circle(
+                        self.screen, COLORS[TARGET], (center_x, center_y), radius
+                    )
 
         pygame.display.flip()
 

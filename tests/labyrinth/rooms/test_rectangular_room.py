@@ -39,3 +39,9 @@ class TestRectangularRoom:
     def test_room_area(self):
         room = RectangularRoom(rows=5, cols=5)
         assert room.area == 25
+
+    def test_global_position(self):
+        room = RectangularRoom(rows=5, cols=5)
+        assert room.global_position == (0, 0)
+        room.set_global_position((1, 1))
+        assert room.global_position == (1, 1)

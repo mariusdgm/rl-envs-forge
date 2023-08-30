@@ -13,13 +13,13 @@ class TestMaze:
         maze = Maze(50, 50, nr_desired_rooms=5)
         
         # Count number of PATH cells
-        total_path_cells = np.sum(maze.grid == PATH)
+        total_path_cells = np.sum(maze.room_grid == PATH)
         
         # It should be positive if rooms are added
         assert total_path_cells > 0
 
         # It should not exceed the expected ratio
-        assert total_path_cells <= maze.global_room_ratio * maze.grid.size
+        assert total_path_cells <= maze.global_room_ratio * maze.room_grid.size
 
     def test_levy_flight(self):
         maze = Maze(50, 50, nr_desired_rooms=1)
@@ -32,4 +32,7 @@ class TestMaze:
         maze = Maze(50, 50, nr_desired_rooms=20, global_room_ratio=1) # this is impossible to fully build
         assert maze.nr_placed_rooms > 0
 
+    def test_dimensions_too_small(self):
+        with pytest.raises(ValueError):
+            maze = Maze(1, 1)
     
