@@ -2,9 +2,7 @@ import pytest
 from rl_envs.envs.labyrinth.room import RoomFactory
 
 class TestRoomFactory:
-    def setup(self):
-        factory = RoomFactory(ratio_range=(1, 2))
-
+  
     def test_estimate_dimensions(self):
         factory = RoomFactory()
         rows, cols = factory._estimate_dimensions_from_area(100, ratio=1)

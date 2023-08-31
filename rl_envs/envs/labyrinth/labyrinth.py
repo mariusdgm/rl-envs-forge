@@ -1,12 +1,12 @@
 import gymnasium as gym
-
-from .maze import Maze
-from .constants import WALL, PATH, TARGET, START, AGENT, COLORS, CELL_SIZE
-from ..common.utils import set_random_seeds
-
 import numpy as np
 import random
 import pygame
+
+from .maze import Maze
+from .constants import WALL, PATH, TARGET, START, PLAYER, COLORS, CELL_SIZE, Action
+from .display import Display
+from .player import Player
 
 
 class Labyrinth(gym.Env):
@@ -25,11 +25,14 @@ class Labyrinth(gym.Env):
         super().__init__()
 
         self.rows, self.cols = rows, cols
-        self.agent_position = None
-        self.start_position = None
-        self.goal_position = None
-        self.seed_value = seed  # seed passed during initialization
-        self.current_seed = seed  # this will change during every reset
+        self.state = np.ones((rows, cols), dtype=np.uint8) * WALL
+
+        if seed is None:
+            seed = random.randint(0, 1e6)
+        self.seed = seed  # this will change during every reset
+
+        self.py_random = random.Random(seed)
+        self.np_random = np.random.RandomState(seed)
 
         # Define action and observation spaces
         self.action_space = gym.spaces.Discrete(4)  # Up, Right, Down, Left
@@ -37,150 +40,137 @@ class Labyrinth(gym.Env):
             low=0, high=4, shape=(rows, cols), dtype=np.uint8
         )
 
-        if maze_num_rooms is None:
-            maze_num_rooms = random.randint(maze_min_num_rooms, maze_max_num_rooms)
+        self.maze_num_rooms = maze_num_rooms
+        if self.maze_num_rooms is None:
+            self.maze_num_rooms = self.py_random.randint(maze_min_num_rooms, maze_max_num_rooms)
 
-        if maze_global_room_ratio is None:
-            maze_global_room_ratio = random.uniform(
+        self.maze_global_room_ratio = maze_global_room_ratio
+        if self.maze_global_room_ratio is None:
+            self.maze_global_room_ratio = self.py_random.uniform(
                 maze_min_global_room_ratio, maze_max_global_room_ratio
             )
 
+        self.player = Player()
+
+        self.setup_labyrinth()
+
+        self.env_displayer = Display(self.rows, self.cols)
+
+    def setup_labyrinth(self):
+        maze_seed = self.np_random.randint(0, 1e6)
         self.maze = Maze(
             rows=self.rows,
             cols=self.cols,
-            nr_desired_rooms=maze_num_rooms,
-            global_room_ratio=maze_global_room_ratio,
-            seed=self.current_seed,
+            nr_desired_rooms=self.maze_num_rooms,
+            global_room_ratio=self.maze_global_room_ratio,
+            seed=maze_seed,
         )
-
-        self.screen = pygame.display.set_mode((CELL_SIZE * cols, CELL_SIZE * rows))
-        pygame.display.set_caption("Labyrinth")
-
-        # Use the initial seed for the first maze generation
-        set_random_seeds(self.current_seed)
-
-    def state(self):
-        return self.maze.grid
-
-    def _random_start(self, room_cells):
-        """Randomly select a start position from anywhere in the maze."""
-        start_cell = np.random.choice(room_cells)
-        return start_cell
-
-    def _random_goal(self, path, room_cells):
-        """Randomly select a goal position from anywhere in the path except the start position."""
-        while True:
-            goal_position = np.random.choice(path)
-            if not np.array_equal(goal_position, self.start_position):
-                return goal_position
-
-    def _inside_bounds(self, cell):
-        return (0 <= cell).all() and (cell < np.array([self.rows, self.cols])).all()
-
+        self.player.position = self.maze.start_position
+        self.build_state_matrix()
+        
+    def build_state_matrix(self):
+        """Sequentially build the state matrix."""
+        self.state = self.maze.grid.copy()
+        self.state[self.maze.start_position] = START
+        self.state[self.maze.target_position] = TARGET
+        self.state[self.player.position] = PLAYER
+        return self.state
+    
     def step(self, action):
-        # Implement this to handle an action and return the next state, reward, done, and optional info dict
-        pass
+        # Initial reward
+        reward = -0.01
+        done = False
+        truncated = False
 
-    def reset(self):
-        # Increment the seed value
-        if self.current_seed is None:
-            self.current_seed = random.randint(0, 1e6)
-        else:
-            self.current_seed += 1
+        # Check if the action is valid
+        if not self.is_valid_move(self.player, action):
+            reward = -1  # Penalize invalid moves
+            return self.state, reward, done, truncated, {"info": "Invalid move!"}
 
-        # Set new random seed
-        self._set_random_seed(self.current_seed)
+        # Move the agent
+        self.agent_move(action)
 
-        return self.state()
+        # Check if the agent reached the target
+        if self.player.position == self.maze.target_position:
+            reward = 10  # Reward for reaching the target
+            done = True
+            return self.state, reward, done, truncated, {"info": "Reached the target!"}
 
-    def _draw_maze(self):
-        for mroom in self.maze.rooms:
-            global_coords = mroom.global_position
-            for access_point in mroom.access_points:
-                self.maze.grid[global_coords[0]+access_point[0], global_coords[1]+access_point[1]] = AGENT
+        # Flush all info to state matrix
+        self.state = self.build_state_matrix()
 
-        for row in range(self.rows):
-            for col in range(self.cols):
-                cell_value = self.maze.grid[row, col]
-                color = COLORS.get(cell_value)
-
-                pygame.draw.rect(
-                    self.screen,
-                    color,
-                    pygame.Rect(col * CELL_SIZE, row * CELL_SIZE, CELL_SIZE, CELL_SIZE),
-                )
-
-                # Draw pictograms for special states
-                center_x, center_y = (
-                    col * CELL_SIZE + CELL_SIZE // 2,
-                    row * CELL_SIZE + CELL_SIZE // 2,
-                )
-                radius = CELL_SIZE // 2
-
-                if cell_value == AGENT:
-                    pygame.draw.circle(
-                        self.screen, COLORS[AGENT], (center_x, center_y), radius
-                    )
-                elif cell_value == TARGET:
-                    pygame.draw.circle(
-                        self.screen, COLORS[TARGET], (center_x, center_y), radius
-                    )
-
-        pygame.display.flip()
-
+        return self.state, reward, done, truncated, {}
+    
+    def is_valid_move(self, player, action):
+        potential_position = player.potential_next_position(action)
+        is_inside_bounds = (0 <= potential_position[0] < self.rows) and \
+                           (0 <= potential_position[1] < self.cols)
+        if not is_inside_bounds:
+            return False
+        if self.maze.grid[potential_position[0], potential_position[1]] == WALL:
+            return False
+        return True
+    
     def agent_move(self, action):
-        # Determine the new position based on the action
-        if action == 0:  # Up
-            new_position = (self.agent_position[0] - 1, self.agent_position[1])
-        elif action == 1:  # Right
-            new_position = (self.agent_position[0], self.agent_position[1] + 1)
-        elif action == 2:  # Down
-            new_position = (self.agent_position[0] + 1, self.agent_position[1])
-        elif action == 3:  # Left
-            new_position = (self.agent_position[0], self.agent_position[1] - 1)
+        new_position = self.player.potential_next_position(action)
+        self.player.position = new_position
+
+    def reset(self, seed=None):
+        """Reset end and return a differenly seeded result
+
+        Args:
+            seed (int, optional): External seed if a user wants to provide one. Defaults to None.
+
+        """
+        # Increment the seed value
+        if self.seed is None:
+            self.seed = self.py_random.randint(0, 1e6)
         else:
-            raise ValueError("Invalid action!")
+            self.seed += 1
 
-        # Check if the new position is the goal BEFORE updating the maze
-        if new_position == self.goal_position:
-            print("Reached the goal!")
-            self.reset()
-            return
+        self.setup_labyrinth()
 
-        # Check if the new position is a valid move
-        if (
-            0 <= new_position[0] < self.rows
-            and 0 <= new_position[1] < self.cols
-            and self.maze.grid[new_position[0], new_position[1]] != WALL
-        ):
-            # Update the maze to reflect the agent's old and new positions
-            self.maze.grid[self.agent_position[0], self.agent_position[1]] = PATH
-            self.maze.grid[new_position[0], new_position[1]] = AGENT
+    def seed(self, seed=None):
+        self.seed = seed
+        
+    def render(self, mode=None, sleep_time=100):
+        self.env_displayer.draw_state(self.state)
 
-            # Update the agent's position
-            self.agent_position = new_position
+        if mode == "human":
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    quit()
 
-    def render(self, mode="human"):
-        self._draw_maze()
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                quit()
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_UP:
-                    self.agent_move(0)
-                elif event.key == pygame.K_RIGHT:
-                    self.agent_move(1)
-                elif event.key == pygame.K_DOWN:
-                    self.agent_move(2)
-                elif event.key == pygame.K_LEFT:
-                    self.agent_move(3)
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_UP:
+                        _, reward, done, _, info = self.step(Action.UP)
+                    elif event.key == pygame.K_RIGHT:
+                        _, reward, done, _, info = self.step(Action.RIGHT)
+                    elif event.key == pygame.K_DOWN:
+                        _, reward, done, _, info = self.step(Action.DOWN)
+                    elif event.key == pygame.K_LEFT:
+                        _, reward, done, _, info = self.step(Action.LEFT)
+                        
+                    return self.state, reward, done, {}, info
 
-    def close(self):
-        pygame.quit()
+        else:  # mode is not human, so model will play
+            # Sleep for a bit so you can see the change
+            pygame.time.wait(sleep_time)
+            return (None, None, None, None, None)
+            
 
 
 if __name__ == "__main__":
     env = Labyrinth(31, 31)
-    while True:
-        env.render()
+    print_info = True
+
+    done = False
+    while not done:  # Play one episode
+        state, reward, done, _, info = env.render(mode="human")
+
+        if print_info:
+            print(f"Reward: {reward}, Done: {done}, Info: {info}")
+
+        if done:
+            env.reset()

@@ -5,7 +5,6 @@ from collections import deque
 from .room import RoomFactory
 from .constants import WALL, PATH, START, TARGET
 
-from ..common.utils import set_random_seeds
 from ..common.grid_functions import on_line
 
 
@@ -25,8 +24,10 @@ class Maze:
 
         self.rows = rows
         self.cols = cols
-        self.seed = seed
-        set_random_seeds(seed)
+
+        if seed is None:
+            seed = random.randint(0, 1e6)
+        self.py_random = random.Random(seed)
 
         self.grid = np.ones((rows, cols), dtype=int) * WALL
         self.room_grid = np.ones((rows, cols), dtype=int) * WALL
@@ -65,8 +66,8 @@ class Maze:
         attempt = 0
         # define range from 2 to len - (minsize + 2) because we don't want to place rooms too close to edge of maze
         position = (
-            random.randint(2, self.grid.shape[0] - (self.min_room_rows + 2)),
-            random.randint(2, self.grid.shape[1] - (self.min_room_cols + 2)),
+            self.py_random.randint(2, self.grid.shape[0] - (self.min_room_rows + 2)),
+            self.py_random.randint(2, self.grid.shape[1] - (self.min_room_cols + 2)),
         )
         directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]
 
@@ -78,7 +79,7 @@ class Maze:
                 return True
             else:
                 step_size = self.levy_step_size()
-                direction = random.choice(directions)
+                direction = self.py_random.choice(directions)
                 position = (
                     position[0] + direction[0] * step_size,
                     position[1] + direction[1] * step_size,
@@ -94,7 +95,8 @@ class Maze:
         start_avg_room_path_area = target_path_area / self.nr_desired_rooms
         desired_room_path_area = start_avg_room_path_area
 
-        room_factory = RoomFactory(seed=self.seed)
+        room_factory_seed = self.py_random.randint(0, 1e6)
+        room_factory = RoomFactory(seed=room_factory_seed)
 
         while (
             self.nr_placed_rooms < self.nr_desired_rooms
@@ -140,7 +142,7 @@ class Maze:
         ] = room.grid
 
     def levy_step_size(self):
-        r = random.random()  # r is between 0 and 1
+        r = self.py_random.random()  # r is between 0 and 1
         return int(
             1 / (r**0.5)
         )  # This will give us a step length L according to inverse square distribution.
@@ -149,22 +151,22 @@ class Maze:
 
     def choose_start_position(self):
         """Choose a random position on the perimeter of the maze grid."""
-        side = random.choice(["top", "bottom", "left", "right"])
+        side = self.py_random.choice(["top", "bottom", "left", "right"])
 
         if side == "top":
-            return (0, random.randint(0, self.grid.shape[1] - 1))
+            return (0, self.py_random.randint(0, self.grid.shape[1] - 1))
         elif side == "bottom":
-            return (self.grid.shape[0] - 1, random.randint(0, self.grid.shape[1] - 1))
+            return (self.grid.shape[0] - 1, self.py_random.randint(0, self.grid.shape[1] - 1))
         elif side == "left":
-            return (random.randint(0, self.grid.shape[0] - 1), 0)
+            return (self.py_random.randint(0, self.grid.shape[0] - 1), 0)
         else:  # 'right'
-            return (random.randint(0, self.grid.shape[0] - 1), self.grid.shape[1] - 1)
+            return (self.py_random.randint(0, self.grid.shape[0] - 1), self.grid.shape[1] - 1)
 
     def choose_target_position(self):
         """Choose a random target position in one of the generated rooms."""
     
         # Shuffle the rooms to ensure random selection without replacement
-        shuffled_rooms = random.sample(self.rooms, len(self.rooms))
+        shuffled_rooms = self.py_random.sample(self.rooms, len(self.rooms))
         
         for random_room in shuffled_rooms:
             room_top_left_row, room_top_left_col = random_room.global_position
@@ -172,7 +174,7 @@ class Maze:
             # Create a list of all possible cell positions in the room
             all_positions = [(row, col) for row in range(random_room.rows) for col in range(random_room.cols)]
             # Shuffle these positions to randomly select without replacement
-            random.shuffle(all_positions)
+            self.py_random.shuffle(all_positions)
             
             for (row, col) in all_positions:
                 # Target must be on an empty room tile and not in the perimeter
@@ -222,7 +224,7 @@ class Maze:
 
         while walls:
             # Randomly select a wall from the list
-            current_position, direction = random.choice(walls)
+            current_position, direction = self.py_random.choice(walls)
 
             next_pos = (
                 current_position[0] + direction[0],

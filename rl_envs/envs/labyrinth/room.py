@@ -3,13 +3,15 @@ import math
 import random
 import numpy as np
 from .constants import WALL, PATH
-from ..common.utils import set_random_seeds
 
 
 class RoomFactory:
     def __init__(self, ratio_range=None, seed=None):
-        self.seed = seed
-        set_random_seeds(seed)
+        if seed is None:
+            seed = random.randint(0, 1e6)
+            
+        self.py_random = random.Random(seed)
+        self.np_random = np.random.RandomState(seed)
         self.ratio_range = ratio_range
 
     def create_room(
@@ -30,7 +32,7 @@ class RoomFactory:
         """Estimate room dimensions based on desired area and given ratio."""
 
         if self.ratio_range:
-            ratio = random.uniform(*self.ratio_range)
+            ratio = self.py_random.uniform(*self.ratio_range)
         else:
             ratio = ratio
 
@@ -50,12 +52,18 @@ class RoomFactory:
 
 
 class Room(ABC):
-    def __init__(self, rows=None, cols=None, nr_access_points=1):
+    def __init__(self, rows=None, cols=None, nr_access_points=1, seed=None):
         """The main way of building a shape will start from the desired area we want the room to have,
         but alternative constructors are possible."""
 
         self.rows = rows
         self.cols = cols
+        
+        if seed is None:
+            seed = random.randint(0, 1e6)
+
+        self.np_random = np.random.RandomState(seed)
+
         self.top_left_coord = (0, 0)  # Default to the origin
         self.bottom_right_coord = (rows, cols)
         self.nr_access_points = nr_access_points
@@ -91,10 +99,10 @@ class Room(ABC):
     def set_access_points(self):
         """Define default access points for the room, based on its shape.
 
-        Access points should be represented as a list of (x, y) tuples.
+        Access points should be represented as a set of (x, y) tuples.
         """
         perimeter_cells = self.get_perimeter_cells()
-        chosen_indices = np.random.choice(
+        chosen_indices = self.np_random.choice(
             len(perimeter_cells),
             self.nr_access_points,
             replace=False
