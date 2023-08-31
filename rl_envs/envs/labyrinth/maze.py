@@ -8,6 +8,99 @@ from .constants import WALL, PATH, START, TARGET
 from ..common.grid_functions import on_line
 
 
+class MazeFactory:
+    def __init__(
+        self,
+        rows,
+        cols,
+        num_rooms=None,
+        num_rooms_range=(1, 8),
+        global_room_ratio=None,
+        global_room_ratio_range=(0.1, 0.8),
+        access_points_per_room=None,
+        access_points_per_room_range=(1, 4),
+        room_types=None,
+        room_ratio=None,
+        room_ratio_range=(0.5, 1.5),
+        seed=None,
+    ):
+        """
+        Maze builder to randomize the generated maze.
+
+        Arguments num_rooms, global_room_ratio, access_points_per_room
+        are used to fix specific values, otherwise the values are drawn from the minimum and maximum distibutions.
+
+        room_types is used to determine what types of rooms are to be added in the maze, if None, the random seletion
+        considers all the implemented room types.
+
+        Args:
+
+        """
+
+        self.rows = rows
+        self.cols = cols
+
+        self.num_rooms = num_rooms
+        self.num_rooms_range = num_rooms_range
+
+        self.global_room_ratio = global_room_ratio
+        self.global_room_ratio_range = global_room_ratio_range
+
+        self.access_points_per_room = access_points_per_room
+        self.access_points_per_room_range = access_points_per_room_range
+
+        self.room_types = room_types
+
+        self.room_ratio = room_ratio
+        self.room_ratio_range = room_ratio_range
+
+        if seed is None:
+            seed = random.randint(0, 1e6)
+        self.py_random = random.Random(seed)
+        self.np_random = np.random.RandomState(seed)
+
+    def create_maze(self):
+        # Decide the number of rooms
+        if self.num_rooms:
+            num_rooms = self.num_rooms
+        else:
+            num_rooms = self.py_random.randint(
+                self.num_rooms_range[0], self.num_rooms_range[1]
+            )
+
+        # Decide the global room ratio
+        if self.global_room_ratio:
+            if self.global_room_ratio > 1:
+                raise ValueError("Global room ratio must be less than 1.")
+            global_room_ratio = self.global_room_ratio
+        else:
+            if (
+                self.global_room_ratio_range[0] < 0
+                or self.global_room_ratio_range[1] > 1
+            ):
+                raise ValueError(
+                    f"Global room ratio range must be between 0 and 1, but got {self.global_room_ratio_range}."
+                )
+            global_room_ratio = self.py_random.uniform(
+                self.global_room_ratio_range[0], self.global_room_ratio_range[1]
+            )
+
+        maze_seed = self.np_random.randint(0, 1e6)
+        maze = Maze(
+            rows=self.rows,
+            cols=self.cols,
+            nr_desired_rooms=num_rooms,
+            global_room_ratio=global_room_ratio,
+            access_points_per_room=self.access_points_per_room,
+            access_points_per_room_range=self.access_points_per_room_range,
+            room_types=self.room_types,
+            room_ratio=self.room_ratio,
+            room_ratio_range=self.room_ratio_range,
+            seed=maze_seed,
+        )
+        return maze
+
+
 class Maze:
     def __init__(
         self,
@@ -15,12 +108,17 @@ class Maze:
         cols,
         nr_desired_rooms=3,
         global_room_ratio=0.5,
-        min_room_rows=3,
-        min_room_cols=3,
+        access_points_per_room=None,
+        access_points_per_room_range=(1, 4),
+        room_types=None,
+        room_ratio=None,
+        room_ratio_range=(0.5, 1.5),
         seed=None,
     ):
         if rows < 10 or cols < 10:
-            raise ValueError("Maze dimensions must be at least 10x10.")
+            raise ValueError(
+                "Maze dimensions must be at least 10x10, otherwise the maze generation logic risks breaking."
+            )
 
         self.rows = rows
         self.cols = cols
@@ -31,21 +129,28 @@ class Maze:
 
         self.grid = np.ones((rows, cols), dtype=int) * WALL
         self.room_grid = np.ones((rows, cols), dtype=int) * WALL
-        self.corridor_grid = (
-            np.ones((rows, cols), dtype=int) * WALL
-        )  # mask just for the generated corridors
+        self.corridor_grid = np.ones((rows, cols), dtype=int) * WALL
 
         self.rooms = []
         self.nr_desired_rooms = nr_desired_rooms
-        self.nr_placed_rooms = (
-            0  # in some cases we won't be able to place all rooms we want
-        )
+
+        # in some cases we won't be able to place all rooms we want so track them
+        self.nr_placed_rooms = 0
         self.global_room_ratio = global_room_ratio
-        self.min_room_rows = min_room_rows
-        self.min_room_cols = min_room_cols
 
         self.start_position = None
         self.target_position = None
+
+        # Make Room Factory
+        room_factory_seed = self.py_random.randint(0, 1e6)
+        self.room_factory = RoomFactory(
+            access_points_nr=access_points_per_room,
+            access_points_range=access_points_per_room_range,
+            room_types=room_types,
+            ratio=room_ratio,
+            ratio_range=room_ratio_range,
+            seed=room_factory_seed,
+        )
 
         self._build_maze()
 
@@ -64,10 +169,27 @@ class Maze:
         that it does not overlap with other rooms."""
         max_attempts = 100
         attempt = 0
+
+        margin_padding = 2
+
         # define range from 2 to len - (minsize + 2) because we don't want to place rooms too close to edge of maze
+        row_padding = room.rows + margin_padding
+        col_padding = room.cols + margin_padding
+
+        bottom_right_possible_row_coord = self.grid.shape[0] - row_padding
+        bottom_right_possible_col_coord = self.grid.shape[1] - col_padding
+
+        if (
+            bottom_right_possible_row_coord < margin_padding
+            or bottom_right_possible_col_coord < margin_padding
+        ):
+            # This proposed room is too big
+            return False
+
+        #### Attempt to find a viable position ####
         position = (
-            self.py_random.randint(2, self.grid.shape[0] - (self.min_room_rows + 2)),
-            self.py_random.randint(2, self.grid.shape[1] - (self.min_room_cols + 2)),
+            self.py_random.randint(margin_padding, bottom_right_possible_row_coord),
+            self.py_random.randint(margin_padding, bottom_right_possible_col_coord),
         )
         directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]
 
@@ -95,14 +217,11 @@ class Maze:
         start_avg_room_path_area = target_path_area / self.nr_desired_rooms
         desired_room_path_area = start_avg_room_path_area
 
-        room_factory_seed = self.py_random.randint(0, 1e6)
-        room_factory = RoomFactory(seed=room_factory_seed)
-
         while (
             self.nr_placed_rooms < self.nr_desired_rooms
             and total_room_path_area_covered < target_path_area
         ):
-            room = room_factory.create_room(desired_area=desired_room_path_area)
+            room = self.room_factory.create_room(desired_area=desired_room_path_area)
 
             if self.levy_flight_place(room):
                 total_room_path_area_covered += room.rows * room.cols
@@ -144,7 +263,7 @@ class Maze:
     def levy_step_size(self):
         r = self.py_random.random()  # r is between 0 and 1
         return int(
-            1 / (r**0.5)
+            1 / ((r + 0.001) ** 0.5)
         )  # This will give us a step length L according to inverse square distribution.
 
     ##### Corridor generation #####
@@ -156,29 +275,41 @@ class Maze:
         if side == "top":
             return (0, self.py_random.randint(0, self.grid.shape[1] - 1))
         elif side == "bottom":
-            return (self.grid.shape[0] - 1, self.py_random.randint(0, self.grid.shape[1] - 1))
+            return (
+                self.grid.shape[0] - 1,
+                self.py_random.randint(0, self.grid.shape[1] - 1),
+            )
         elif side == "left":
             return (self.py_random.randint(0, self.grid.shape[0] - 1), 0)
         else:  # 'right'
-            return (self.py_random.randint(0, self.grid.shape[0] - 1), self.grid.shape[1] - 1)
+            return (
+                self.py_random.randint(0, self.grid.shape[0] - 1),
+                self.grid.shape[1] - 1,
+            )
 
     def choose_target_position(self):
         """Choose a random target position in one of the generated rooms."""
-    
+
         # Shuffle the rooms to ensure random selection without replacement
         shuffled_rooms = self.py_random.sample(self.rooms, len(self.rooms))
-        
+
         for random_room in shuffled_rooms:
             room_top_left_row, room_top_left_col = random_room.global_position
-            
+
             # Create a list of all possible cell positions in the room
-            all_positions = [(row, col) for row in range(random_room.rows) for col in range(random_room.cols)]
+            all_positions = [
+                (row, col)
+                for row in range(random_room.rows)
+                for col in range(random_room.cols)
+            ]
             # Shuffle these positions to randomly select without replacement
             self.py_random.shuffle(all_positions)
-            
-            for (row, col) in all_positions:
+
+            for row, col in all_positions:
                 # Target must be on an empty room tile and not in the perimeter
-                if (random_room.grid[row, col] == PATH) and ((row, col) not in random_room.get_perimeter_cells()):
+                if (random_room.grid[row, col] == PATH) and (
+                    (row, col) not in random_room.get_perimeter_cells()
+                ):
                     return (room_top_left_row + row, room_top_left_col + col)
 
         # If the function hasn't returned by this point, then no valid target position was found in any room
@@ -331,8 +462,6 @@ class Maze:
                 if connection:
                     plot_path_from_to(global_access_point, connection)
 
-    
-
     def is_line_segment_intersecting_room(self, p1, p2):
         """Check if the line segment p1p2 intersects any room cell."""
         for room in self.rooms:
@@ -396,7 +525,7 @@ class Maze:
 
         # If we reached here, we didn't find a corridor
         return None
-    
+
     #### Validate maze ####
     def is_valid_maze(self):
         """Validate if all access points are reachable from the starting point.
@@ -408,7 +537,9 @@ class Maze:
         queue = deque([start_point])
 
         # Convert access points to a set for faster lookup
-        access_points_to_find = {tuple(point) for room in self.rooms for point in room.access_points}
+        access_points_to_find = {
+            tuple(point) for room in self.rooms for point in room.access_points
+        }
 
         while queue:
             current_point = queue.popleft()
@@ -428,7 +559,9 @@ class Maze:
 
         # If the loop completes without finding all access points, the maze is invalid
         if access_points_to_find:
-            raise ValueError("Not all access points are reachable from the start point.")
+            raise ValueError(
+                "Not all access points are reachable from the start point."
+            )
         return True
 
     def get_neighbors(self, x, y):
@@ -436,6 +569,10 @@ class Maze:
         neighbors = []
         for dx, dy in [(1, 0), (-1, 0), (0, 1), (0, -1)]:
             nx, ny = x + dx, y + dy
-            if 0 <= nx < self.rows and 0 <= ny < self.cols and self.grid[nx][ny] == PATH:
+            if (
+                0 <= nx < self.rows
+                and 0 <= ny < self.cols
+                and self.grid[nx][ny] == PATH
+            ):
                 neighbors.append((nx, ny))
         return neighbors

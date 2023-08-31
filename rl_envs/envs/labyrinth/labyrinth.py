@@ -3,7 +3,7 @@ import numpy as np
 import random
 import pygame
 
-from .maze import Maze
+from .maze import MazeFactory
 from .constants import WALL, PATH, TARGET, START, PLAYER, COLORS, CELL_SIZE, Action
 from .display import Display
 from .player import Player
@@ -14,14 +14,33 @@ class Labyrinth(gym.Env):
         self,
         rows,
         cols,
-        seed=None,
         maze_num_rooms=None,
-        maze_min_num_rooms=1,
-        maze_max_num_rooms=8,
+        maze_num_rooms_range=(1, 8),
         maze_global_room_ratio=None,
-        maze_min_global_room_ratio=0.1,
-        maze_max_global_room_ratio=0.7,
+        maze_global_room_ratio_range=(0.1, 0.8),
+        room_access_points=None,
+        room_access_points_range=(1, 4),
+        room_types=None,
+        room_ratio=None,
+        room_ratio_range=(0.5, 1.5),
+        reward_schema=None,
+        seed=None,
+
     ):
+        """
+        Labyrinth environment for reinforcement learning.
+
+        Arguments maze_num_rooms, maze_global_room_ratio, room_access_points 
+        are used to fix specific values, otherwise the values are drawn from the minimum and maximum distibutions.
+        
+        room_types is used to determine what types of rooms are to be added in the maze, if None, the random seletion
+        considers all the implemented room types
+
+        Args:
+           
+
+        """
+        
         super().__init__()
 
         self.rows, self.cols = rows, cols
@@ -40,16 +59,26 @@ class Labyrinth(gym.Env):
             low=0, high=4, shape=(rows, cols), dtype=np.uint8
         )
 
-        self.maze_num_rooms = maze_num_rooms
-        if self.maze_num_rooms is None:
-            self.maze_num_rooms = self.py_random.randint(maze_min_num_rooms, maze_max_num_rooms)
+        if not reward_schema:
+            self.reward_schema = {
+                "neutral_reward": -0.01,
+                "wall_collision_reward": -1,
+                "target_reached_reward": 10,
+            }
 
-        self.maze_global_room_ratio = maze_global_room_ratio
-        if self.maze_global_room_ratio is None:
-            self.maze_global_room_ratio = self.py_random.uniform(
-                maze_min_global_room_ratio, maze_max_global_room_ratio
-            )
-
+        # Make Maze Factory
+        self.maze_factory = MazeFactory(rows=self.rows,
+                                        cols=self.cols,
+                                        seed=self.seed,
+                                        num_rooms=maze_num_rooms,
+                                        num_rooms_range=maze_num_rooms_range,
+                                        global_room_ratio=maze_global_room_ratio,
+                                        global_room_ratio_range=maze_global_room_ratio_range,
+                                        access_points_per_room=room_access_points,
+                                        access_points_per_room_range=room_access_points_range,
+                                        room_types=room_types,
+                                        room_ratio=room_ratio,
+                                        room_ratio_range=room_ratio_range,)
         self.player = Player()
 
         self.setup_labyrinth()
@@ -58,13 +87,7 @@ class Labyrinth(gym.Env):
 
     def setup_labyrinth(self):
         maze_seed = self.np_random.randint(0, 1e6)
-        self.maze = Maze(
-            rows=self.rows,
-            cols=self.cols,
-            nr_desired_rooms=self.maze_num_rooms,
-            global_room_ratio=self.maze_global_room_ratio,
-            seed=maze_seed,
-        )
+        self.maze = self.maze_factory.create_maze()
         self.player.position = self.maze.start_position
         self.build_state_matrix()
         
@@ -78,13 +101,13 @@ class Labyrinth(gym.Env):
     
     def step(self, action):
         # Initial reward
-        reward = -0.01
+        reward = self.reward_schema["neutral_reward"]
         done = False
         truncated = False
 
         # Check if the action is valid
         if not self.is_valid_move(self.player, action):
-            reward = -1  # Penalize invalid moves
+            reward = self.reward_schema["wall_collision_reward"]
             return self.state, reward, done, truncated, {"info": "Invalid move!"}
 
         # Move the agent
@@ -92,7 +115,7 @@ class Labyrinth(gym.Env):
 
         # Check if the agent reached the target
         if self.player.position == self.maze.target_position:
-            reward = 10  # Reward for reaching the target
+            reward = self.reward_schema["target_reached_reward"]
             done = True
             return self.state, reward, done, truncated, {"info": "Reached the target!"}
 
@@ -134,6 +157,9 @@ class Labyrinth(gym.Env):
         self.seed = seed
         
     def render(self, mode=None, sleep_time=100):
+        reward, done, info = None, None, None
+        key_press = False
+
         self.env_displayer.draw_state(self.state)
 
         if mode == "human":
@@ -143,6 +169,12 @@ class Labyrinth(gym.Env):
                     quit()
 
                 if event.type == pygame.KEYDOWN:
+                    key_press = True
+
+                    if event.key == pygame.K_ESCAPE:
+                        pygame.quit()
+                        quit()
+
                     if event.key == pygame.K_UP:
                         _, reward, done, _, info = self.step(Action.UP)
                     elif event.key == pygame.K_RIGHT:
@@ -151,25 +183,37 @@ class Labyrinth(gym.Env):
                         _, reward, done, _, info = self.step(Action.DOWN)
                     elif event.key == pygame.K_LEFT:
                         _, reward, done, _, info = self.step(Action.LEFT)
-                        
-                    return self.state, reward, done, {}, info
 
+                        
         else:  # mode is not human, so model will play
             # Sleep for a bit so you can see the change
             pygame.time.wait(sleep_time)
-            return (None, None, None, None, None)
             
+        return self.state, reward, done, {}, info, key_press
+    
+    def human_play(self, print_info=False):
+        """Continously display environment and allow user to play.
+        Exit by closing the window or pressing ESC.
+        """
+        done = False
+        while not done:  # Play one episode
+            state, reward, done, _, info, key_pressed = env.render(mode="human")
 
+            if print_info and key_pressed:
+                print(f"Reward: {reward}, Done: {done}, Info: {info}")
 
+            if done:
+                env.reset()
+        
 if __name__ == "__main__":
     env = Labyrinth(31, 31)
     print_info = True
 
     done = False
-    while not done:  # Play one episode
-        state, reward, done, _, info = env.render(mode="human")
+    while True:  # Play one episode
+        state, reward, done, _, info, key_pressed = env.render(mode="human")
 
-        if print_info:
+        if print_info and key_pressed:
             print(f"Reward: {reward}, Done: {done}, Info: {info}")
 
         if done:
