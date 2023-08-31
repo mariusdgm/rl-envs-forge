@@ -26,16 +26,6 @@ class TestRectangularRoom:
         for point in room.access_points:
             assert point in room.get_perimeter_cells()
 
-    def test_set_coordinates(self):
-        room = RectangularRoom(rows=5, cols=5)
-        room.set_coordinates([(0, 0), (0, 1), (0, 2), (0, 3), (0, 4)])
-        assert room.get_coordinates() == [(0, 0), (0, 1), (0, 2), (0, 3), (0, 4)]
-
-    def test_get_coordinates(self):
-        room = RectangularRoom(rows=5, cols=5)
-        room.set_coordinates([(0, 0), (0, 1), (0, 2), (0, 3), (0, 4)])
-        assert room.get_coordinates() == [(0, 0), (0, 1), (0, 2), (0, 3), (0, 4)]
-
     def test_room_area(self):
         room = RectangularRoom(rows=5, cols=5)
         assert room.area == 25
@@ -43,5 +33,5 @@ class TestRectangularRoom:
     def test_global_position(self):
         room = RectangularRoom(rows=5, cols=5)
         assert room.global_position == (0, 0)
-        room.set_global_position((1, 1))
+        room.global_position = (1, 1)
         assert room.global_position == (1, 1)

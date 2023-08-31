@@ -6,67 +6,6 @@ from .constants import WALL, PATH
 from ..common.utils import set_random_seeds
 
 
-class Room(ABC):
-    def __init__(self, rows=None, cols=None, nr_access_points=1, **kwargs):
-        """The main way of building a shape will start from the desired area we want the room to have,
-        but alternative constructors are possible."""
-
-        self.rows = rows
-        self.cols = cols
-        self.top_left_coord = (0, 0)  # Default to the origin
-        self.bottom_right_coord = (rows, cols)
-        self.nr_access_points = nr_access_points
-        self.access_points = []
-        self.grid = np.ones((rows, cols), dtype=int) * WALL
-
-        # If you have specific known attributes, consider unpacking them explicitly here.
-        # For instance: self.width = kwargs.get("width", None)
-        self.kwargs = kwargs
-
-    @property
-    def area(self):
-        return self.rows * self.cols
-    
-    @property
-    def global_position(self):
-        return self.top_left_coord
-    
-    def set_global_position(self, position):
-        self.top_left_coord = position
-
-    def set_coordinates(self, coordinates):
-        self.coordinates = coordinates
-
-    def get_coordinates(self):
-        return self.coordinates
-
-    @property
-    def shape(self):
-        return self.rows, self.cols
-
-    @abstractmethod
-    def generate_room_layout(self):
-        pass
-
-    @abstractmethod
-    def get_perimeter_cells(self):
-        """Get a list of the coordinates of the perimeter cells."""
-        pass
-
-    def set_access_points(self):
-        """Define default access points for the room, based on its shape.
-
-        Access points should be represented as a list of (x, y) tuples.
-        """
-        self.access_points = self.get_perimeter_cells()[
-            np.random.choice(
-                self.get_perimeter_cells().shape[0],
-                self.nr_access_points,
-                replace=False,
-            )
-        ]
-
-
 class RoomFactory:
     def __init__(self, ratio_range=None, seed=None):
         self.seed = seed
@@ -110,10 +49,65 @@ class RoomFactory:
         return RectangularRoom(rows=rows, cols=cols, nr_access_points=nr_access_points)
 
 
-class RectangularRoom(Room):
-    def __init__(self, rows=10, cols=10, nr_access_points=1, **kwargs):
-        super().__init__(rows=rows, cols=cols, **kwargs)
+class Room(ABC):
+    def __init__(self, rows=None, cols=None, nr_access_points=1):
+        """The main way of building a shape will start from the desired area we want the room to have,
+        but alternative constructors are possible."""
+
+        self.rows = rows
+        self.cols = cols
+        self.top_left_coord = (0, 0)  # Default to the origin
+        self.bottom_right_coord = (rows, cols)
         self.nr_access_points = nr_access_points
+        self.access_points = set()
+        self.grid = np.ones((rows, cols), dtype=int) * WALL
+
+
+    @property
+    def area(self):
+        return self.rows * self.cols
+    
+    @property
+    def global_position(self):
+        return self.top_left_coord
+    
+    @global_position.setter
+    def global_position(self, position):
+        self.top_left_coord = position
+
+    @property
+    def shape(self):
+        return self.rows, self.cols
+
+    @abstractmethod
+    def generate_room_layout(self):
+        pass
+
+    @abstractmethod
+    def get_perimeter_cells(self):
+        """Get a list of the coordinates of the perimeter cells."""
+        pass
+
+    def set_access_points(self):
+        """Define default access points for the room, based on its shape.
+
+        Access points should be represented as a list of (x, y) tuples.
+        """
+        perimeter_cells = self.get_perimeter_cells()
+        chosen_indices = np.random.choice(
+            len(perimeter_cells),
+            self.nr_access_points,
+            replace=False
+        )
+        self.access_points = {perimeter_cells[i] for i in chosen_indices}
+
+class RectangularRoom(Room):
+    def __init__(self, rows=5, cols=5, nr_access_points=1, min_rows=3, min_cols=3):
+        # Enforce minimum dimensions specific for this class
+        rows = max(rows, min_rows)
+        cols = max(cols, min_cols)
+        super().__init__(rows=rows, cols=cols, nr_access_points=nr_access_points)
+
         self.generate_room_layout()
         self.set_access_points()
 
@@ -129,7 +123,7 @@ class RectangularRoom(Room):
         right = [(i, self.cols - 1) for i in range(1, self.rows - 1)]
 
         perimeter = top + bottom + left + right
-        return np.array(perimeter)
+        return perimeter
 
 
 class CircularRoom(Room):

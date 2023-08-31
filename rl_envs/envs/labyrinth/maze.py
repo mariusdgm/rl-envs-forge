@@ -6,6 +6,7 @@ from .room import RoomFactory
 from .constants import WALL, PATH, START, TARGET
 
 from ..common.utils import set_random_seeds
+from ..common.grid_functions import on_line
 
 
 class Maze:
@@ -33,14 +34,17 @@ class Maze:
             np.ones((rows, cols), dtype=int) * WALL
         )  # mask just for the generated corridors
 
+        self.rooms = []
         self.nr_desired_rooms = nr_desired_rooms
         self.nr_placed_rooms = (
             0  # in some cases we won't be able to place all rooms we want
         )
-        self.rooms = []
         self.global_room_ratio = global_room_ratio
         self.min_room_rows = min_room_rows
         self.min_room_cols = min_room_cols
+
+        self.start_position = None
+        self.target_position = None
 
         self._build_maze()
 
@@ -69,7 +73,7 @@ class Maze:
         while attempt < max_attempts:
             if self.is_valid_room_position(room, position[0], position[1]):
                 self.rooms.append(room)
-                room.set_global_position(position)
+                room.global_position = position
                 self.materialize_room(room, position[0], position[1])
                 return True
             else:
@@ -158,45 +162,29 @@ class Maze:
 
     def choose_target_position(self):
         """Choose a random target position in one of the generated rooms."""
-        random_room = random.choice(self.rooms)
-        room_top_left_row, room_top_left_col = random_room.global_position
-        attempts = 0
-        while True:
-            row = random.randint(0, random_room.rows - 1)
-            col = random.randint(0, random_room.cols - 1)
-            # Target must be on empty room tile and not in the perimeter
-            if (random_room.grid[row, col] == PATH) and (
-                not np.any(
-                    np.all(random_room.get_perimeter_cells() == (row, col), axis=1)
-                )
-            ):
-                return (room_top_left_row + row, room_top_left_col + col)
+    
+        # Shuffle the rooms to ensure random selection without replacement
+        shuffled_rooms = random.sample(self.rooms, len(self.rooms))
+        
+        for random_room in shuffled_rooms:
+            room_top_left_row, room_top_left_col = random_room.global_position
+            
+            # Create a list of all possible cell positions in the room
+            all_positions = [(row, col) for row in range(random_room.rows) for col in range(random_room.cols)]
+            # Shuffle these positions to randomly select without replacement
+            random.shuffle(all_positions)
+            
+            for (row, col) in all_positions:
+                # Target must be on an empty room tile and not in the perimeter
+                if (random_room.grid[row, col] == PATH) and ((row, col) not in random_room.get_perimeter_cells()):
+                    return (room_top_left_row + row, room_top_left_col + col)
 
-            if attempts > 1000:
-                raise ValueError(
-                    f"Could not find a valid target position in {random_room}, of type {type(random_room)}"
-                )
+        # If the function hasn't returned by this point, then no valid target position was found in any room
+        raise ValueError("Could not find a valid target position in any room.")
 
     def place_start_end_positions(self):
         self.start_position = self.choose_start_position()
         self.target_position = self.choose_target_position()
-
-        self.grid[self.start_position] = START
-        self.grid[self.target_position] = TARGET
-
-    def can_move_in_direction(self, grid, position, direction):
-        rows, cols = grid.shape
-        next_pos = (position[0] + direction[0] * 2, position[1] + direction[1] * 2)
-        intermediary_pos = (position[0] + direction[0], position[1] + direction[1])
-
-        if (
-            0 <= next_pos[0] < rows
-            and 0 <= next_pos[1] < cols
-            and grid[next_pos[0], next_pos[1]] == WALL
-            and grid[intermediary_pos[0], intermediary_pos[1]] == WALL
-        ):
-            return True
-        return False
 
     def generate_corridor_maze(self):
         grid = np.full((self.rows, self.cols), WALL)
@@ -341,24 +329,7 @@ class Maze:
                 if connection:
                     plot_path_from_to(global_access_point, connection)
 
-    def on_line(self, p, q, r):
-        """Check if point q lies on the line segment pr"""
-
-        # 1. Check for collinearity
-        area = (q[1] - p[1]) * (r[0] - q[0]) - (q[0] - p[0]) * (r[1] - q[1])
-        if area != 0:
-            return False
-
-        # 2. Check if q is inside the bounding box
-        if (
-            q[0] <= max(p[0], r[0])
-            and q[0] >= min(p[0], r[0])
-            and q[1] <= max(p[1], r[1])
-            and q[1] >= min(p[1], r[1])
-        ):
-            return True
-
-        return False
+    
 
     def is_line_segment_intersecting_room(self, p1, p2):
         """Check if the line segment p1p2 intersects any room cell."""
@@ -375,7 +346,7 @@ class Maze:
                         if global_cell_pos == p1:
                             continue
 
-                        if self.on_line(p1, global_cell_pos, p2):
+                        if on_line(p1, global_cell_pos, p2):
                             return True
         return False
 
@@ -384,7 +355,6 @@ class Maze:
         Used for the rare case when a room could end up being unconnected because
         the access point is on the opposite side of all paths.
         """
-
         current_pos = start_pos
         attempt = 0
         directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]
@@ -424,3 +394,46 @@ class Maze:
 
         # If we reached here, we didn't find a corridor
         return None
+    
+    #### Validate maze ####
+    def is_valid_maze(self):
+        """Validate if all access points are reachable from the starting point.
+        Sanity check function, was not included in the constructor but can be used after generation.
+        """
+
+        start_point = self.start_position  # Assuming you have a start_point attribute
+        visited = set()
+        queue = deque([start_point])
+
+        # Convert access points to a set for faster lookup
+        access_points_to_find = {tuple(point) for room in self.rooms for point in room.access_points}
+
+        while queue:
+            current_point = queue.popleft()
+
+            # If the current point is an access point, remove from our target set
+            if current_point in access_points_to_find:
+                access_points_to_find.remove(current_point)
+
+            # If all access points have been found, the maze is valid
+            if not access_points_to_find:
+                return True
+
+            for neighbor in self.get_neighbors(*current_point):
+                if neighbor not in visited:
+                    visited.add(neighbor)
+                    queue.append(neighbor)
+
+        # If the loop completes without finding all access points, the maze is invalid
+        if access_points_to_find:
+            raise ValueError("Not all access points are reachable from the start point.")
+        return True
+
+    def get_neighbors(self, x, y):
+        """Get neighboring PATH cells of a given cell (x, y)."""
+        neighbors = []
+        for dx, dy in [(1, 0), (-1, 0), (0, 1), (0, -1)]:
+            nx, ny = x + dx, y + dy
+            if 0 <= nx < self.rows and 0 <= ny < self.cols and self.grid[nx][ny] == PATH:
+                neighbors.append((nx, ny))
+        return neighbors
