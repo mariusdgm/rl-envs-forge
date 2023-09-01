@@ -1,3 +1,5 @@
+from typing import List, Tuple, Union, Optional
+
 import gymnasium as gym
 import numpy as np
 import random
@@ -12,19 +14,19 @@ from .player import Player
 class Labyrinth(gym.Env):
     def __init__(
         self,
-        rows,
-        cols,
-        maze_nr_desired_rooms=None,
-        maze_nr_desired_rooms_range=(1, 8),
-        maze_global_room_ratio=None,
-        maze_global_room_ratio_range=(0.1, 0.8),
-        room_access_points=None,
-        room_access_points_range=(1, 4),
-        room_types=None,
-        room_ratio=None,
-        room_ratio_range=(0.5, 1.5),
-        reward_schema=None,
-        seed=None,
+        rows: int,
+        cols: int,
+        maze_nr_desired_rooms: Optional[int] = None,
+        maze_nr_desired_rooms_range: Tuple[int, int] = (1, 8),
+        maze_global_room_ratio: Optional[float] = None,
+        maze_global_room_ratio_range: Tuple[float, float] = (0.1, 0.8),
+        room_access_points: Optional[int] = None,
+        room_access_points_range: Tuple[int, int] = (1, 4),
+        room_types: Optional[List[str]] = None,
+        room_ratio: Optional[Union[int, float]] = None,
+        room_ratio_range: Tuple[Union[int, float], Union[int, float]] = (0.5, 1.5),
+        reward_schema: Optional[dict] = None,  # Assuming it's a dictionary; adjust if not
+        seed: Optional[int] = None,
     ):
         """
         Labyrinth environment for reinforcement learning.
@@ -36,6 +38,19 @@ class Labyrinth(gym.Env):
         considers all the implemented room types
 
         Args:
+            rows (int): The number of rows in the labyrinth.
+            cols (int): The number of columns in the labyrinth.
+            maze_nr_desired_rooms (int, optional): The desired number of rooms in the maze. Defaults to None.
+            maze_nr_desired_rooms_range (tuple, optional): The range of desired number of rooms. Defaults to (1, 8).
+            maze_global_room_ratio (float, optional): The global room ratio in the maze. Defaults to None.
+            maze_global_room_ratio_range (tuple, optional): The range of global room ratio. Defaults to (0.1, 0.8).
+            room_access_points (int, optional): The number of access points in each room. Defaults to None.
+            room_access_points_range (tuple, optional): The range of access points per room. Defaults to (1, 4).
+            room_types (list, optional): The types of rooms to be added in the maze. Defaults to None.
+            room_ratio (float, optional): The room ratio. Defaults to None.
+            room_ratio_range (tuple, optional): The range of room ratio. Defaults to (0.5, 1.5).
+            reward_schema (dict, optional): A dictionary defining the reward schema for the labyrinth. Defaults to None.
+            seed (int, optional): The seed to use for generating random numbers. Defaults to None.
 
 
         """
@@ -80,7 +95,7 @@ class Labyrinth(gym.Env):
 
         self.setup_labyrinth()
 
-        self.env_displayer = Display(self.rows, self.cols)
+        self.env_displayer = None # only initialize if render is needed
 
     def setup_labyrinth(self):
         self.make_maze_factory()
@@ -173,6 +188,10 @@ class Labyrinth(gym.Env):
         self.seed = seed
 
     def render(self, mode=None, sleep_time=100):
+        if self.env_displayer is None:
+            # Initialize only if render is needed
+            self.env_displayer = Display(self.rows, self.cols)
+
         reward, done, info = None, None, None
         key_press = False
 

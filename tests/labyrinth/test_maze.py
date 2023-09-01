@@ -96,7 +96,11 @@ class TestMaze:
         assert len(maze.rooms) > 0
 
     def test_grow_path_from(self):
-        """Testing the fall back mechanism, this code is not covered in other tests..."""
+        """Testing the fall back mechanism, 
+        this code is not covered in other tests because the
+        standard generation procedure seems to already fully connect the 
+        tested mazes. Probably could help more in small mazes (under 10x10),
+        but those are not recommended and 10x10 is enforced as minimum size at the moment."""
         # Initialize the maze
         maze = Maze(rows=10, cols=10)
 

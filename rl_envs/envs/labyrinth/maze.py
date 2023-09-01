@@ -1,6 +1,8 @@
 import numpy as np
 import random
 from collections import deque
+from typing import List, Tuple, Union, Optional
+
 
 from .room import RoomFactory
 from .constants import WALL, PATH, START, TARGET
@@ -11,18 +13,18 @@ from ..common.grid_functions import on_line
 class MazeFactory:
     def __init__(
         self,
-        rows,
-        cols,
-        nr_desired_rooms=None,
-        nr_desired_rooms_range=(1, 8),
-        global_room_ratio=None,
-        global_room_ratio_range=(0.1, 0.8),
-        access_points_per_room=None,
-        access_points_per_room_range=(1, 4),
-        room_types=None,
-        room_ratio=None,
-        room_ratio_range=(0.5, 1.5),
-        seed=None,
+        rows: int,
+        cols: int,
+        nr_desired_rooms: Optional[int] = None,
+        nr_desired_rooms_range: Tuple[int, int] = (1, 8),
+        global_room_ratio: Optional[float] = None,
+        global_room_ratio_range: Tuple[float, float] = (0.1, 0.8),
+        access_points_per_room: Optional[int] = None,
+        access_points_per_room_range: Tuple[int, int] = (1, 4),
+        room_types: Optional[List[str]] = None,
+        room_ratio: Optional[Union[int, float]] = None,
+        room_ratio_range: Tuple[Union[int, float], Union[int, float]] = (0.5, 1.5),
+        seed: Optional[int] = None,
     ):
         """
         Maze builder to randomize the generated maze.
@@ -34,6 +36,18 @@ class MazeFactory:
         considers all the implemented room types.
 
         Args:
+            rows (int): The number of rows in the maze.
+            cols (int): The number of columns in the maze.
+            nr_desired_rooms (int, optional): The desired number of rooms in the maze. Defaults to None.
+            nr_desired_rooms_range (tuple, optional): The range of desired number of rooms. Defaults to (1, 8).
+            global_room_ratio (float, optional): The global room ratio in the maze. Defaults to None.
+            global_room_ratio_range (tuple, optional): The range of global room ratio. Defaults to (0.1, 0.8).
+            access_points_per_room (int, optional): The number of access points in each room. Defaults to None.
+            access_points_per_room_range (tuple, optional): The range of access points per room. Defaults to (1, 4).
+            room_types (list, optional): The types of rooms to be added in the maze. Defaults to None.
+            room_ratio (float, optional): The room ratio. Defaults to None.
+            room_ratio_range (tuple, optional): The range of room ratio. Defaults to (0.5, 1.5).
+            seed (int, optional): The seed to use for generating random numbers. Defaults to None.
 
         """
 
@@ -107,17 +121,31 @@ class MazeFactory:
 class Maze:
     def __init__(
         self,
-        rows,
-        cols,
-        nr_desired_rooms=3,
-        global_room_ratio=0.5,
-        access_points_per_room=None,
-        access_points_per_room_range=(1, 4),
-        room_types=None,
-        room_ratio=None,
-        room_ratio_range=(0.5, 1.5),
-        seed=None,
-    ):
+        rows: int,
+        cols: int,
+        nr_desired_rooms: int = 3,
+        global_room_ratio: float = 0.5,
+        access_points_per_room: Optional[int] = None,
+        access_points_per_room_range: Tuple[int, int] = (1, 4),
+        room_types: Optional[List[str]] = None,
+        room_ratio: Optional[Union[int, float]] = None,
+        room_ratio_range: Tuple[Union[int, float], Union[int, float]] = (0.5, 1.5),
+        seed: Optional[int] = None,
+    ) -> None:
+        """Construct a Maze object representing a maze layout.
+
+        Args:
+            rows (int): The number of rows in the maze.
+            cols (int): The number of columns in the maze.
+            nr_desired_rooms (int, optional): The desired number of rooms in the maze. Defaults to 3.
+            global_room_ratio (float, optional): The global room ratio in the maze. Defaults to 0.5.
+            access_points_per_room (int, optional): The number of access points in each room. Defaults to None.
+            access_points_per_room_range (tuple, optional): The range of access points per room. Defaults to (1, 4).
+            room_types (list, optional): The types of rooms to be added in the maze. Defaults to None.
+            room_ratio (float, optional): The room ratio. Defaults to None.
+            room_ratio_range (tuple, optional): The range of room ratio. Defaults to (0.5, 1.5).
+            seed (int, optional): The seed to use for generating random numbers. Defaults to None.
+        """
         if rows < 10 or cols < 10:
             raise ValueError(
                 "Maze dimensions must be at least 10x10, otherwise the maze generation logic risks breaking."

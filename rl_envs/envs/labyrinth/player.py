@@ -1,7 +1,9 @@
+from typing import Tuple
+
 from rl_envs.envs.labyrinth.constants import Action
 
 class Player:
-    def __init__(self, start_position=None):
+    def __init__(self, start_position: Tuple[int, int]=None):
         self.position = start_position
         
     def potential_next_position(self, action):
@@ -15,4 +17,5 @@ class Player:
         elif action == Action.LEFT:  # Left
             return (self.position[0], self.position[1] - 1)
         else:
-            raise ValueError("Invalid action!")
+            # Do nothing
+            return (self.position[0], self.position[1])

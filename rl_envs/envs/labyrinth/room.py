@@ -1,23 +1,42 @@
 from abc import ABC, abstractmethod, abstractclassmethod
+from typing import List, Tuple, Union, Optional
 import math
 import random
 import numpy as np
+
 from .constants import WALL, PATH
 
 
 class RoomFactory:
     def __init__(
         self,
-        access_points_nr=None,
-        access_points_range=(1, 4),
-        room_types=None,
-        ratio=None,
-        ratio_range=(0.5, 1.5),
-        seed=None,
-    ):
+        access_points_nr: Optional[int] = None,
+        access_points_range: Tuple[int, int] = (1, 4),
+        room_types: Optional[List[str]] = None,
+        ratio: Optional[Union[int, float]] = None,
+        ratio_range: Tuple[Union[int, float], Union[int, float]] = (0.5, 1.5),
+        seed: Optional[int] = None,
+    ) -> None:
+        """Construct a RoomFactory object for generating room layouts.
+
+        Arguments `access_points_nr`, `ratio` are used to fix specific values,
+        otherwise the values are drawn from the minimum and maximum distributions.
+
+        Argument `room_types` is used to determine what types of rooms are to be added.
+        If `None`, the random selection considers all the implemented room types.
+
+        Args:
+            access_points_nr (int, optional): The number of access points in the room. Defaults to None.
+            access_points_range (tuple, optional): The range of access points per room. Defaults to (1, 4).
+            room_types (list, optional): The types of rooms to be added. Defaults to None.
+            ratio (float, optional): The room ratio. Defaults to None.
+            ratio_range (tuple, optional): The range of room ratio. Defaults to (0.5, 1.5).
+            seed (int, optional): The seed to use for generating random numbers. Defaults to None.
+        """
         self.seed = seed
         if self.seed is None:
             self.seed = random.randint(0, 1e6)
+        self.room_seed = self.seed
 
         self.py_random = random.Random(self.seed)
         self.np_random = np.random.RandomState(self.seed)
@@ -36,20 +55,23 @@ class RoomFactory:
         self.ratio_range = ratio_range
 
     def create_room(
-        self, rows=None, cols=None, desired_area=None,
+        self,
+        rows=None,
+        cols=None,
+        desired_area=None,
     ):
         if desired_area:
             if desired_area <= 3:
                 raise ValueError(
                     f"Attempted to create a room with area {desired_area} but desired area must be greater than 3."
                 )
-            
+
             # Setup ratio
             if self.ratio:
                 ratio = self.ratio
             else:
                 ratio = self.py_random.uniform(*self.ratio_range)
-                
+
             rows, cols = self._estimate_dimensions_from_area(desired_area, ratio)
 
         # Setup number of access points
@@ -59,13 +81,16 @@ class RoomFactory:
             nr_access_points = self.py_random.randint(
                 self.access_points_range[0], self.access_points_range[1]
             )
-    
+
+        # increment room seed to seed each room differently
+        self.room_seed += 1
+
         room_type = self.py_random.choice(self.room_types)
 
         if room_type == "rectangular":
-            return self.create_rectangular_room(rows=rows, 
-                                                cols=cols, 
-                                                nr_access_points=nr_access_points)
+            return self.create_rectangular_room(
+                rows=rows, cols=cols, nr_access_points=nr_access_points
+            )
 
     def _estimate_dimensions_from_area(self, desired_area, ratio=1):
         """Estimate room dimensions based on desired area and given ratio."""
@@ -77,22 +102,32 @@ class RoomFactory:
 
     def create_rectangular_room(self, rows=None, cols=None, nr_access_points=1):
         """Create a rectangular room using given rows, columns or desired area."""
-        room_seed = self.seed + 1
-        return RectangularRoom(rows=rows, cols=cols, nr_access_points=nr_access_points, seed=room_seed)
+        return RectangularRoom(
+            rows=rows, cols=cols, nr_access_points=nr_access_points, seed=self.room_seed
+        )
 
 
 class Room(ABC):
     def __init__(
         self,
-        rows=None,
-        cols=None,
-        nr_access_points=1,
-        min_rows=3,
-        min_cols=3,
-        seed=None,
-    ):
-        """The main way of building a shape will start from the desired area we want the room to have,
-        but alternative constructors are possible."""
+        rows: Optional[int] = None,
+        cols: Optional[int] = None,
+        nr_access_points: int = 1,
+        min_rows: int = 3,
+        min_cols: int = 3,
+        seed: Optional[int] = None,
+    ) -> None:
+        """
+        Base Room class.
+
+        Args:
+            rows (int, optional): The number of rows in the room. Defaults to None.
+            cols (int, optional): The number of columns in the room. Defaults to None.
+            nr_access_points (int, optional): The number of access points for the room. Defaults to 1.
+            min_rows (int, optional): Minimum rows for the room. Defaults to 3.
+            min_cols (int, optional): Minimum columns for the room. Defaults to 3.
+            seed (int, optional): Seed value for random operations. Defaults to None.
+        """
 
         self.rows = max(rows, min_rows)
         self.cols = max(cols, min_cols)
@@ -147,7 +182,15 @@ class Room(ABC):
 
 
 class RectangularRoom(Room):
-    def __init__(self, rows=5, cols=5, nr_access_points=1, min_rows=3, min_cols=3, seed=None):
+    def __init__(
+        self,
+        rows: int = 5,
+        cols: int = 5,
+        nr_access_points: int = 1,
+        min_rows: int = 3,
+        min_cols: int = 3,
+        seed: Optional[int] = None,
+    ) -> None:
         super().__init__(
             rows=rows,
             cols=cols,
@@ -156,6 +199,16 @@ class RectangularRoom(Room):
             min_cols=min_cols,
             seed=seed,
         )
+        """Construct a RectangularRoom object representing a rectangular room.
+
+        Args:
+            rows (int, optional): The number of rows in the room. Defaults to 5.
+            cols (int, optional): The number of columns in the room. Defaults to 5.
+            nr_access_points (int, optional): The number of access points in the room. Defaults to 1.
+            min_rows (int, optional): The minimum number of rows for the room. Defaults to 3.
+            min_cols (int, optional): The minimum number of columns for the room. Defaults to 3.
+            seed (int, optional): The seed to use for generating random numbers. Defaults to None.
+        """
 
         self.generate_room_layout()
         self.set_access_points()
