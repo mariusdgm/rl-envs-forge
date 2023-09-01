@@ -13,8 +13,8 @@ class MazeFactory:
         self,
         rows,
         cols,
-        num_rooms=None,
-        num_rooms_range=(1, 8),
+        nr_desired_rooms=None,
+        nr_desired_rooms_range=(1, 8),
         global_room_ratio=None,
         global_room_ratio_range=(0.1, 0.8),
         access_points_per_room=None,
@@ -40,8 +40,8 @@ class MazeFactory:
         self.rows = rows
         self.cols = cols
 
-        self.num_rooms = num_rooms
-        self.num_rooms_range = num_rooms_range
+        self.nr_desired_rooms = nr_desired_rooms
+        self.nr_desired_rooms_range = nr_desired_rooms_range
 
         self.global_room_ratio = global_room_ratio
         self.global_room_ratio_range = global_room_ratio_range
@@ -61,17 +61,19 @@ class MazeFactory:
 
     def create_maze(self):
         # Decide the number of rooms
-        if self.num_rooms:
-            num_rooms = self.num_rooms
+        if self.nr_desired_rooms:
+            num_rooms = self.nr_desired_rooms
         else:
             num_rooms = self.py_random.randint(
-                self.num_rooms_range[0], self.num_rooms_range[1]
+                self.nr_desired_rooms_range[0], self.nr_desired_rooms_range[1]
             )
 
         # Decide the global room ratio
         if self.global_room_ratio:
             if self.global_room_ratio > 1:
-                raise ValueError("Global room ratio must be less than 1.")
+                raise ValueError(
+                    "Global room ratio must be less than 1, but got {self.global_room_ratio}."
+                )
             global_room_ratio = self.global_room_ratio
         else:
             if (
@@ -217,24 +219,30 @@ class Maze:
         start_avg_room_path_area = target_path_area / self.nr_desired_rooms
         desired_room_path_area = start_avg_room_path_area
 
+        # Because of the desired_room_path_area = max(9, desired_room_path_area),
+        # we need to also check for a maximum attempt counter
+        attempts = 0
+        max_attempts = 100
+
+        room_sizes = []
         while (
             self.nr_placed_rooms < self.nr_desired_rooms
             and total_room_path_area_covered < target_path_area
+            and attempts < max_attempts
         ):
-            room = self.room_factory.create_room(desired_area=desired_room_path_area)
+            # In some cases when the global ratio is small and we want many rooms,
+            # the start_avg is small from the very start so we need to enforce minimum area
+            desired_room_path_area = max(9, desired_room_path_area)
 
+            room = self.room_factory.create_room(desired_area=desired_room_path_area)
+            room_sizes.append((room.rows, room.cols))
             if self.levy_flight_place(room):
                 total_room_path_area_covered += room.rows * room.cols
                 self.nr_placed_rooms += 1
 
             # Each time a room is added, or a fail happens, decrease the desired area of the next room trials
             desired_room_path_area = int(0.9 * desired_room_path_area)
-
-            # Infinite loop avoidance
-            if (
-                total_room_path_area_covered >= self.grid.size * self.global_room_ratio
-            ) or (desired_room_path_area <= 9):
-                break
+            attempts += 1
 
     def is_valid_room_position(self, room, start_row, start_col):
         end_row, end_col = start_row + room.rows, start_col + room.cols
@@ -313,7 +321,7 @@ class Maze:
                     return (room_top_left_row + row, room_top_left_col + col)
 
         # If the function hasn't returned by this point, then no valid target position was found in any room
-        raise ValueError("Could not find a valid target position in any room.")
+        raise ValueError(f"Could not find a valid target position in any room.")
 
     def place_start_end_positions(self):
         self.start_position = self.choose_start_position()
@@ -381,70 +389,7 @@ class Maze:
         self.corridor_grid = grid
 
     def connect_rooms_to_paths(self):
-        directions = [(1, 0), (-1, 0), (0, 1), (0, -1)]
-
-        def is_inside_any_room(pos, exception=None):
-            for room in self.rooms:
-                if (
-                    room.global_position[0]
-                    <= pos[0]
-                    < room.global_position[0] + room.rows
-                    and room.global_position[1]
-                    <= pos[1]
-                    < room.global_position[1] + room.cols
-                ):
-                    if exception and pos == exception:
-                        return False
-                    return True
-            return False
-
-        def bfs_to_find_closest_path(access_point):
-            visited = np.zeros((self.rows, self.cols), dtype=bool)
-            queue = deque([access_point])
-
-            # If the access point is already on a corridor path
-            if self.corridor_grid[access_point[0], access_point[1]] == PATH:
-                return access_point
-
-            while queue:
-                current = queue.popleft()
-
-                for d in directions:
-                    new_pos = (current[0] + d[0], current[1] + d[1])
-
-                    # Check boundaries
-                    if 0 <= new_pos[0] < self.rows and 0 <= new_pos[1] < self.cols:
-                        # If the new position is an existing path, we found a connection
-                        if self.corridor_grid[new_pos[0], new_pos[1]] == PATH:
-                            return new_pos
-
-                        # If not visited, not a room cell, not inside any room (excluding the access point), and not yet part of the corridor
-                        if (
-                            not visited[new_pos[0], new_pos[1]]
-                            and not is_inside_any_room(new_pos, exception=access_point)
-                            and self.corridor_grid[new_pos[0], new_pos[1]] == WALL
-                        ):
-                            visited[new_pos[0], new_pos[1]] = True
-                            queue.append(new_pos)
-
-            return None
-
-        def plot_path_from_to(p1, p2):
-            # Directly connect if the cells are adjacent
-            if abs(p1[0] - p2[0]) <= 1 and abs(p1[1] - p2[1]) <= 1:
-                self.corridor_grid[p2[0], p2[1]] = PATH
-                return
-
-            while p1 != p2:
-                # First adjust horizontally
-                if p1[1] != p2[1]:
-                    p1 = (p1[0], p1[1] + np.sign(p2[1] - p1[1]))
-                # Then adjust vertically
-                else:
-                    p1 = (p1[0] + np.sign(p2[0] - p1[0]), p1[1])
-
-                if not is_inside_any_room(p1, exception=None):
-                    self.corridor_grid[p1[0], p1[1]] = PATH
+        """Connect the rooms to the corridors via the shortest path."""
 
         for room in self.rooms:
             for access_point in room.access_points:
@@ -452,7 +397,7 @@ class Maze:
                     room.global_position[0] + access_point[0],
                     room.global_position[1] + access_point[1],
                 )
-                connection = bfs_to_find_closest_path(global_access_point)
+                connection = self.bfs_to_find_closest_path(global_access_point)
 
                 if not connection:
                     # If BFS failed to find a connection, try growing a path
@@ -460,7 +405,59 @@ class Maze:
 
                 # If we found a connection, draw a path to it
                 if connection:
-                    plot_path_from_to(global_access_point, connection)
+                    self.plot_path_from_to(global_access_point, connection)
+
+    def bfs_to_find_closest_path(self, access_point):
+        directions = [(1, 0), (-1, 0), (0, 1), (0, -1)]
+
+        visited = np.zeros((self.rows, self.cols), dtype=bool)
+        queue = deque([access_point])
+
+        # If the access point is already on a corridor path
+        if self.corridor_grid[access_point[0], access_point[1]] == PATH:
+            return access_point
+
+        while queue:
+            current = queue.popleft()
+
+            for d in directions:
+                new_pos = (current[0] + d[0], current[1] + d[1])
+
+                # Check boundaries
+                if 0 <= new_pos[0] < self.rows and 0 <= new_pos[1] < self.cols:
+                    # If the new position is an existing path, we found a connection
+                    if self.corridor_grid[new_pos[0], new_pos[1]] == PATH:
+                        return new_pos
+
+                    # If not visited, not a room cell, not inside any room (excluding the access point), and not yet part of the corridor
+                    if (
+                        not visited[new_pos[0], new_pos[1]]
+                        and not self.is_inside_any_room(new_pos, exception=access_point)
+                        and self.corridor_grid[new_pos[0], new_pos[1]] == WALL
+                    ):
+                        visited[new_pos[0], new_pos[1]] = True
+                        queue.append(new_pos)
+
+        return None
+
+    def plot_path_from_to(self, p1, p2):
+        # Directly connect if the cells are adjacent and not diagonally so
+        diff_x = abs(p1[0] - p2[0])
+        diff_y = abs(p1[1] - p2[1])
+        if diff_x <= 1 and diff_y <= 1 and not (diff_x == 1 and diff_y == 1):
+            self.corridor_grid[p2[0], p2[1]] = PATH
+            return
+
+        while p1 != p2:
+            # First adjust horizontally
+            if p1[1] != p2[1]:
+                p1 = (p1[0], p1[1] + np.sign(p2[1] - p1[1]))
+            # Then adjust vertically
+            else:
+                p1 = (p1[0] + np.sign(p2[0] - p1[0]), p1[1])
+
+            if not self.is_inside_any_room(p1, exception=None):
+                self.corridor_grid[p1[0], p1[1]] = PATH
 
     def is_line_segment_intersecting_room(self, p1, p2):
         """Check if the line segment p1p2 intersects any room cell."""
@@ -481,44 +478,87 @@ class Maze:
                             return True
         return False
 
-    def grow_path_from(self, start_pos, max_attempts=1000):
-        """Grow a path from start_pos until it reaches a corridor or max_attempts are reached.
-        Used for the rare case when a room could end up being unconnected because
-        the access point is on the opposite side of all paths.
-        """
+    def direction_cost(self, current_pos, direction, target_pos):
+        new_pos = (current_pos[0] + direction[0], current_pos[1] + direction[1])
+        base_cost = abs(new_pos[0] - target_pos[0]) + abs(new_pos[1] - target_pos[1])
+
+        # Penalize if the new position is close to a room.
+        if self.is_inside_any_room(new_pos):
+            base_cost += 10
+
+        return base_cost
+
+    def grow_path_from(
+        self, start_pos, max_attempts=5000
+    ):  # Temporarily increased max_attempts
+        """Grow a path from start_pos until it reaches a corridor or max_attempts are reached."""
+
         current_pos = start_pos
         attempt = 0
         directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]
 
+        visited = set()
+        visited.add(start_pos)
+
+        # Get a list of all corridor positions
+        corridor_positions = np.argwhere(self.corridor_grid == PATH)
+
         while attempt < max_attempts:
             potential_directions = []
+
+            # Get the closest corridor position to the current position
+            distances = [
+                np.linalg.norm(np.array(current_pos) - np.array(corridor_pos))
+                for corridor_pos in corridor_positions
+            ]
+            closest_corridor_pos = corridor_positions[np.argmin(distances)]
 
             for d in directions:
                 new_pos = (current_pos[0] + d[0], current_pos[1] + d[1])
 
+                if new_pos in visited:
+                    continue
+
                 # Check boundaries
-                if 0 <= new_pos[0] < self.rows and 0 <= new_pos[1] < self.cols:
-                    # If the new position is an existing path, we found a connection
-                    if self.corridor_grid[new_pos[0], new_pos[1]] == PATH:
-                        # Validate this path before returning
+                if not (0 <= new_pos[0] < self.rows and 0 <= new_pos[1] < self.cols):
+                    continue  # Go to the next direction if this is out of bounds
+
+                # If the new position is an existing path, validate and then return
+                if self.corridor_grid[new_pos[0], new_pos[1]] == PATH:
+                    diff_x = new_pos[0] - current_pos[0]
+                    diff_y = new_pos[1] - current_pos[1]
+
+                    # If this is not diagonal, then validate
+                    if not (abs(diff_x) == 1 and abs(diff_y) == 1):
                         if not self.is_line_segment_intersecting_room(
                             start_pos, new_pos
                         ):
                             return new_pos
-                    # If not inside any room and not yet part of the corridor
-                    elif (
-                        not self.is_inside_any_room(new_pos)
-                        and self.corridor_grid[new_pos[0], new_pos[1]] == WALL
-                    ):
-                        potential_directions.append(new_pos)
+                    continue  # Go to the next direction
+
+                # If not inside any room and not yet part of the corridor
+                if (
+                    not self.is_inside_any_room(new_pos)
+                    and self.corridor_grid[new_pos[0], new_pos[1]] == WALL
+                ):
+                    potential_directions.append(
+                        (
+                            new_pos,
+                            self.direction_cost(current_pos, d, closest_corridor_pos),
+                        )
+                    )
+
+            # Sort the potential directions by their cost
+            potential_directions.sort(key=lambda x: x[1])
 
             if not potential_directions:
-                # No valid moves, break out
                 break
 
-            # Select the best direction (you can use a heuristic here, or just choose one for now)
-            next_pos = potential_directions[0]
+            # Select the best direction
+            next_pos = potential_directions[0][0]
+            visited.add(next_pos)
 
+            # Update the grid
             self.corridor_grid[next_pos[0], next_pos[1]] = PATH
             current_pos = next_pos
             attempt += 1
@@ -526,43 +566,51 @@ class Maze:
         # If we reached here, we didn't find a corridor
         return None
 
+    def is_inside_any_room(self, pos, exception=None):
+        """Check if a position is inside any of the rooms in the maze."""
+
+        for room in self.rooms:
+            # Check if the position is within the global boundaries of the room
+            if (
+                room.global_position[0] <= pos[0] < room.global_position[0] + room.rows
+                and room.global_position[1]
+                <= pos[1]
+                < room.global_position[1] + room.cols
+            ):
+                # If the position is the exception, consider it not inside the room
+                if exception and pos == exception:
+                    continue
+                # Otherwise, it's inside this room
+                return True
+
+        # If we reached here, the position isn't inside any room
+        return False
+
     #### Validate maze ####
     def is_valid_maze(self):
         """Validate if all access points are reachable from the starting point.
         Sanity check function, was not included in the constructor but can be used after generation.
         """
-
-        start_point = self.start_position  # Assuming you have a start_point attribute
-        visited = set()
+        start_point = self.start_position
+        visited = set([start_point])
         queue = deque([start_point])
-
-        # Convert access points to a set for faster lookup
-        access_points_to_find = {
-            tuple(point) for room in self.rooms for point in room.access_points
-        }
 
         while queue:
             current_point = queue.popleft()
-
-            # If the current point is an access point, remove from our target set
-            if current_point in access_points_to_find:
-                access_points_to_find.remove(current_point)
-
-            # If all access points have been found, the maze is valid
-            if not access_points_to_find:
-                return True
-
             for neighbor in self.get_neighbors(*current_point):
                 if neighbor not in visited:
                     visited.add(neighbor)
                     queue.append(neighbor)
 
-        # If the loop completes without finding all access points, the maze is invalid
-        if access_points_to_find:
-            raise ValueError(
-                "Not all access points are reachable from the start point."
-            )
-        return True
+        # Check if all PATH cells have been visited
+        all_path_cells = {
+            (x, y)
+            for x in range(self.rows)
+            for y in range(self.cols)
+            if self.grid[x][y] == PATH
+        }
+
+        return visited == all_path_cells
 
     def get_neighbors(self, x, y):
         """Get neighboring PATH cells of a given cell (x, y)."""

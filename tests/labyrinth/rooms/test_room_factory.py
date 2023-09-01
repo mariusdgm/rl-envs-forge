@@ -31,3 +31,9 @@ class TestRoomFactory:
         factory = RoomFactory(ratio_range=(0.3, 3))
         with pytest.raises(ValueError):
             room = factory.create_room(desired_area=1)
+
+    def test_fixed_access_points_and_ratio(self):
+        factory = RoomFactory(access_points_nr=3, ratio=0.5)
+        room = factory.create_room(desired_area=100)
+        assert len(room.access_points) == 3
+        assert room.rows == room.cols/2

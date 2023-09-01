@@ -69,11 +69,6 @@ class RoomFactory:
     def _estimate_dimensions_from_area(self, desired_area, ratio=1):
         """Estimate room dimensions based on desired area and given ratio."""
 
-        if self.ratio_range:
-            ratio = self.py_random.uniform(*self.ratio_range)
-        else:
-            ratio = ratio
-
         cols = int(math.sqrt(desired_area / ratio))
         rows = int(ratio * cols)
 

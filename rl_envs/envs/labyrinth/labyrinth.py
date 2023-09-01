@@ -14,8 +14,8 @@ class Labyrinth(gym.Env):
         self,
         rows,
         cols,
-        maze_num_rooms=None,
-        maze_num_rooms_range=(1, 8),
+        maze_nr_desired_rooms=None,
+        maze_nr_desired_rooms_range=(1, 8),
         maze_global_room_ratio=None,
         maze_global_room_ratio_range=(0.1, 0.8),
         room_access_points=None,
@@ -69,16 +69,16 @@ class Labyrinth(gym.Env):
         # Make Maze Factory
         self.maze_factory = MazeFactory(rows=self.rows,
                                         cols=self.cols,
-                                        seed=self.seed,
-                                        num_rooms=maze_num_rooms,
-                                        num_rooms_range=maze_num_rooms_range,
+                                        nr_desired_rooms=maze_nr_desired_rooms,
+                                        nr_desired_rooms_range=maze_nr_desired_rooms_range,
                                         global_room_ratio=maze_global_room_ratio,
                                         global_room_ratio_range=maze_global_room_ratio_range,
                                         access_points_per_room=room_access_points,
                                         access_points_per_room_range=room_access_points_range,
                                         room_types=room_types,
                                         room_ratio=room_ratio,
-                                        room_ratio_range=room_ratio_range,)
+                                        room_ratio_range=room_ratio_range,
+                                        seed=self.seed)
         self.player = Player()
 
         self.setup_labyrinth()
