@@ -15,11 +15,12 @@ class RoomFactory:
         ratio_range=(0.5, 1.5),
         seed=None,
     ):
-        if seed is None:
-            seed = random.randint(0, 1e6)
+        self.seed = seed
+        if self.seed is None:
+            self.seed = random.randint(0, 1e6)
 
-        self.py_random = random.Random(seed)
-        self.np_random = np.random.RandomState(seed)
+        self.py_random = random.Random(self.seed)
+        self.np_random = np.random.RandomState(self.seed)
 
         self.access_points_nr = access_points_nr
         self.access_points_range = access_points_range
@@ -74,10 +75,10 @@ class RoomFactory:
 
         return rows, cols
 
-    def create_rectangular_room(self, rows=None, cols=None, nr_access_points=1, ):
+    def create_rectangular_room(self, rows=None, cols=None, nr_access_points=1):
         """Create a rectangular room using given rows, columns or desired area."""
-
-        return RectangularRoom(rows=rows, cols=cols, nr_access_points=nr_access_points)
+        room_seed = self.seed + 1
+        return RectangularRoom(rows=rows, cols=cols, nr_access_points=nr_access_points, seed=room_seed)
 
 
 class Room(ABC):
@@ -96,10 +97,11 @@ class Room(ABC):
         self.rows = max(rows, min_rows)
         self.cols = max(cols, min_cols)
 
-        if seed is None:
-            seed = random.randint(0, 1e6)
+        self.seed = seed
+        if self.seed is None:
+            self.seed = random.randint(0, 1e6)
 
-        self.np_random = np.random.RandomState(seed)
+        self.np_random = np.random.RandomState(self.seed)
 
         self.top_left_coord = (0, 0)  # Default to the origin
         self.bottom_right_coord = (self.rows, self.cols)

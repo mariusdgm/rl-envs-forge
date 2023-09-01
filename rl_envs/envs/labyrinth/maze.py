@@ -54,10 +54,11 @@ class MazeFactory:
         self.room_ratio = room_ratio
         self.room_ratio_range = room_ratio_range
 
-        if seed is None:
-            seed = random.randint(0, 1e6)
-        self.py_random = random.Random(seed)
-        self.np_random = np.random.RandomState(seed)
+        self.seed = seed
+        if self.seed is None:
+            self.seed = random.randint(0, 1e6)
+        self.py_random = random.Random(self.seed)
+        self.np_random = np.random.RandomState(self.seed)
 
     def create_maze(self):
         # Decide the number of rooms
@@ -87,7 +88,7 @@ class MazeFactory:
                 self.global_room_ratio_range[0], self.global_room_ratio_range[1]
             )
 
-        maze_seed = self.np_random.randint(0, 1e6)
+        maze_seed = self.seed + 1
         maze = Maze(
             rows=self.rows,
             cols=self.cols,
@@ -125,9 +126,10 @@ class Maze:
         self.rows = rows
         self.cols = cols
 
-        if seed is None:
-            seed = random.randint(0, 1e6)
-        self.py_random = random.Random(seed)
+        self.seed = seed
+        if self.seed is None:
+            self.seed = random.randint(0, 1e6)
+        self.py_random = random.Random(self.seed)
 
         self.grid = np.ones((rows, cols), dtype=int) * WALL
         self.room_grid = np.ones((rows, cols), dtype=int) * WALL
@@ -144,7 +146,7 @@ class Maze:
         self.target_position = None
 
         # Make Room Factory
-        room_factory_seed = self.py_random.randint(0, 1e6)
+        room_factory_seed = self.seed + 1
         self.room_factory = RoomFactory(
             access_points_nr=access_points_per_room,
             access_points_range=access_points_per_room_range,

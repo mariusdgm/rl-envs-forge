@@ -201,7 +201,7 @@ class TestMazeFactory:
         maze_factory.create_maze()
         assert maze_factory.global_room_ratio == 0.6
 
-    @pytest.mark.skip(reason="Testing other things")
+    @pytest.mark.skip(reason="Takes a bit long to run")
     def test_bulk_mazes_are_valid(self):
         maze_factory = MazeFactory(rows=20, cols=20)
         for _ in range(1000):
