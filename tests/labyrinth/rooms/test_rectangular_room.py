@@ -5,7 +5,6 @@ from rl_envs.envs.labyrinth.constants import *
 
 
 class TestRectangularRoom:
-
     def test_generate_room_layout(self):
         room = RectangularRoom(rows=5, cols=5)
         assert room.rows == 5
@@ -18,7 +17,12 @@ class TestRectangularRoom:
         perimeter = room.get_perimeter_cells()
         assert (0, 0) in perimeter
         assert (4, 4) in perimeter
-        # ... additional perimeter checks if necessary.
+
+    @pytest.mark.skip
+    def test_get_perimeter_cells_padding(self):
+        room = RectangularRoom(rows=5, cols=5)
+        perimeter = room.get_perimeter_cells(padding=2)
+        pass
 
     def test_set_access_points(self):
         room = RectangularRoom(rows=5, cols=5, nr_access_points=3)

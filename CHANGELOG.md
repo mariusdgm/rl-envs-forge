@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
  
+ - Added new corridor generation setting
+ - Added postprocessing step for the maze corridors
+
 ## [0.1.0] - 01.09.2023
 ### Added
 - Initial release of rl_envs - Labyrinth

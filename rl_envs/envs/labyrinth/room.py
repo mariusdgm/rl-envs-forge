@@ -165,7 +165,7 @@ class Room(ABC):
         pass
 
     @abstractmethod
-    def get_perimeter_cells(self):
+    def get_perimeter_cells(self, padding=0):
         """Get a list of the coordinates of the perimeter cells."""
         pass
 
@@ -179,6 +179,10 @@ class Room(ABC):
             len(perimeter_cells), self.nr_access_points, replace=False
         )
         self.access_points = {perimeter_cells[i] for i in chosen_indices}
+
+    @abstractmethod
+    def generate_inner_area_mask(self, total_rows, total_cols):
+        pass
 
 
 class RectangularRoom(Room):
@@ -216,16 +220,24 @@ class RectangularRoom(Room):
     def generate_room_layout(self):
         self.grid[:] = PATH
 
-    def get_perimeter_cells(self):
-        top = [(0, i) for i in range(self.cols)]
-        bottom = [(self.rows - 1, i) for i in range(self.cols)]
+    def get_perimeter_cells(self, padding=0):
+        # Top perimeter with padding
+        top = [(-padding, j) for j in range(-padding, self.cols + padding)]
 
-        # careful of adding corners a second time (start from 1 instead of 0)
-        left = [(i, 0) for i in range(1, self.rows - 1)]
-        right = [(i, self.cols - 1) for i in range(1, self.rows - 1)]
+        # Bottom perimeter with padding
+        bottom = [(self.rows - 1 + padding, j) for j in range(-padding, self.cols + padding)]
+
+        # Left perimeter with padding (avoiding overlapping corners with top and bottom)
+        left = [(i, -padding) for i in range(self.rows) if i not in [0, self.rows - 1]]
+
+        # Right perimeter with padding (avoiding overlapping corners with top and bottom)
+        right = [(i, self.cols - 1 + padding) for i in range(self.rows) if i not in [0, self.rows - 1]]
 
         perimeter = top + bottom + left + right
         return perimeter
+    
+    def generate_inner_area_mask(self):
+        return np.ones((self.rows, self.cols), dtype=bool)
 
 
 class CircularRoom(Room):

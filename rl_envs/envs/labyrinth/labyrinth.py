@@ -234,7 +234,8 @@ class Labyrinth(gym.Env):
             state, reward, done, _, info, key_pressed = env.render(mode="human")
 
             if print_info and key_pressed:
-                print(f"Reward: {reward}, Done: {done}, Info: {info}")
+
+                print(f"Reward: {reward}, Done: {done}, Info: {info}, Seed: {self.seed}")
 
             if done:
                 env.reset()
@@ -242,14 +243,4 @@ class Labyrinth(gym.Env):
 
 if __name__ == "__main__":
     env = Labyrinth(31, 31)
-    print_info = True
-
-    done = False
-    while True:  # Play one episode
-        state, reward, done, _, info, key_pressed = env.render(mode="human")
-
-        if print_info and key_pressed:
-            print(f"Reward: {reward}, Done: {done}, Info: {info}")
-
-        if done:
-            env.reset()
+    env.human_play(print_info=True)

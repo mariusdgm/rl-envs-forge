@@ -2,12 +2,19 @@ import numpy as np
 import random
 from collections import deque
 from typing import List, Tuple, Union, Optional
-
+from enum import Enum
 
 from .room import RoomFactory
 from .constants import WALL, PATH, START, TARGET
 
 from ..common.grid_functions import on_line
+
+
+class MoveStatus(Enum):
+    VALID_MOVE = 1
+    MAZE_BOUNDARY = 2
+    ROOM_BOUNDARY = 3
+    INVALID = 4
 
 
 class MazeFactory:
@@ -130,6 +137,7 @@ class Maze:
         room_types: Optional[List[str]] = None,
         room_ratio: Optional[Union[int, float]] = None,
         room_ratio_range: Tuple[Union[int, float], Union[int, float]] = (0.5, 1.5),
+        grid_connect_corridors: Optional[bool] = False,
         seed: Optional[int] = None,
     ) -> None:
         """Construct a Maze object representing a maze layout.
@@ -144,6 +152,7 @@ class Maze:
             room_types (list, optional): The types of rooms to be added in the maze. Defaults to None.
             room_ratio (float, optional): The room ratio. Defaults to None.
             room_ratio_range (tuple, optional): The range of room ratio. Defaults to (0.5, 1.5).
+            grid_connect_corridors (bool, optional): Option to grid connect corridor paths. Defaults to False.
             seed (int, optional): The seed to use for generating random numbers. Defaults to None.
         """
         if rows < 10 or cols < 10:
@@ -184,6 +193,9 @@ class Maze:
             seed=room_factory_seed,
         )
 
+        # Corridor generationg settings
+        self.grid_connect_corridors = grid_connect_corridors
+
         self._build_maze()
 
     def _build_maze(self):
@@ -193,6 +205,7 @@ class Maze:
         self.place_start_end_positions()
         self.generate_corridor_maze()
         self.connect_rooms_to_paths()
+        self.post_process_maze()
         self.grid = np.where(self.corridor_grid == PATH, PATH, self.grid)
 
     ##### Room generation and placement #####
@@ -286,6 +299,7 @@ class Maze:
         ):
             return False
 
+        # Basically add a padding of 1
         sub_grid = self.room_grid[
             start_row - 1 : end_row + 1, start_col - 1 : end_col + 1
         ]
@@ -357,29 +371,9 @@ class Maze:
         self.start_position = self.choose_start_position()
         self.target_position = self.choose_target_position()
 
-    def generate_corridor_maze(self):
+    def generate_corridor_maze_old(self):
         grid = np.full((self.rows, self.cols), WALL)
         directions = [(2, 0), (-2, 0), (0, 2), (0, -2)]
-
-        def is_valid_position(position, direction):
-            new_pos = (position[0] + direction[0], position[1] + direction[1])
-            if 0 <= new_pos[0] < self.rows and 0 <= new_pos[1] < self.cols:
-                if (
-                    grid[new_pos[0], new_pos[1]] == WALL
-                    and self.room_grid[new_pos[0], new_pos[1]] == WALL
-                ):
-                    # Check for room padding
-                    for dx in [-1, 0, 1]:
-                        for dy in [-1, 0, 1]:
-                            if (
-                                0 <= new_pos[0] + dx < self.rows
-                                and 0 <= new_pos[1] + dy < self.cols
-                                and self.room_grid[new_pos[0] + dx, new_pos[1] + dy]
-                                == PATH
-                            ):
-                                return False
-                    return True
-            return False
 
         # Initialize the starting position
         current_position = self.start_position
@@ -388,7 +382,8 @@ class Maze:
         walls = []
 
         for d in directions:
-            if is_valid_position(current_position, d):
+            pos_valid, move_status = self.is_valid_position(grid, current_position, d)
+            if pos_valid:
                 walls.append((current_position, d))
 
         while walls:
@@ -400,23 +395,134 @@ class Maze:
                 current_position[1] + direction[1],
             )
 
-            if grid[next_pos[0], next_pos[1]] == WALL:
-                # Carve a passage through the wall to join the two cells
-                grid[
-                    current_position[0] + direction[0] // 2,
-                    current_position[1] + direction[1] // 2,
-                ] = PATH
+            intermediary_pos = (
+                current_position[0] + direction[0] // 2,
+                current_position[1] + direction[1] // 2,
+            )
+
+            is_valid, status = self.is_valid_position(grid, current_position, direction)
+            if is_valid:
+                grid[intermediary_pos[0], intermediary_pos[1]] = PATH
                 grid[next_pos[0], next_pos[1]] = PATH
 
-                # Add the neighboring walls of the new cell to the wall list
                 for d in directions:
-                    if is_valid_position(next_pos, d):
+                    pos_valid, move_status = self.is_valid_position(grid, next_pos, d)
+                    if pos_valid:
                         walls.append((next_pos, d))
+
+            elif status in [MoveStatus.ROOM_BOUNDARY, MoveStatus.MAZE_BOUNDARY]:
+                print(f"Reached here {status}")
+                grid[intermediary_pos[0], intermediary_pos[1]] = PATH
+
+            if not is_valid and self.grid_connect_corridors:
+                # This will lead to creating a grid like structure because it connects corridors
+                # The resulting corridors have virtually no more dead ends
+                if grid[
+                    intermediary_pos[0], intermediary_pos[1]
+                ] == WALL and not self.is_adjacent_to_room(intermediary_pos):
+                    grid[intermediary_pos[0], intermediary_pos[1]] = PATH
 
             # Remove the wall from the list
             walls.remove((current_position, direction))
 
         self.corridor_grid = grid
+        return True
+
+    def generate_corridor_maze(self):
+        grid = np.full((self.rows, self.cols), WALL)
+        directions = [(2, 0), (-2, 0), (0, 2), (0, -2)]
+
+        # Initialize the starting position
+        current_position = self.start_position
+        grid[current_position] = PATH
+
+        walls = []
+
+        for d in directions:
+            pos_valid, move_status = self.is_valid_position(grid, current_position, d)
+            if pos_valid or move_status in [
+                MoveStatus.ROOM_BOUNDARY,
+                MoveStatus.MAZE_BOUNDARY,
+            ]:
+                walls.append((current_position, d))
+
+        while walls:
+            # Randomly select a wall from the list
+            current_position, direction = self.py_random.choice(walls)
+
+            next_pos = (
+                current_position[0] + direction[0],
+                current_position[1] + direction[1],
+            )
+
+            intermediary_pos = (
+                current_position[0] + direction[0] // 2,
+                current_position[1] + direction[1] // 2,
+            )
+
+            is_valid, status = self.is_valid_position(grid, current_position, direction)
+
+            if is_valid:
+                grid[intermediary_pos[0], intermediary_pos[1]] = PATH
+                grid[next_pos[0], next_pos[1]] = PATH
+
+                for d in directions:
+                    pos_valid, move_status = self.is_valid_position(grid, next_pos, d)
+                    if pos_valid:
+                        walls.append((next_pos, d))
+
+            if not is_valid and self.grid_connect_corridors:
+                if (
+                    0 <= intermediary_pos[0] < self.rows
+                    and 0 <= intermediary_pos[1] < self.cols
+                    and grid[intermediary_pos[0], intermediary_pos[1]] == WALL
+                    and not self.is_adjacent_to_room(intermediary_pos)
+                ):
+                    grid[intermediary_pos[0], intermediary_pos[1]] = PATH
+
+            # Remove the wall from the list
+            walls.remove((current_position, direction))
+
+        self.corridor_grid = grid
+        return True
+
+    def is_adjacent_to_room(self, position):
+        for dx in [-1, 0, 1]:
+            for dy in [-1, 0, 1]:
+                if (
+                    0 <= position[0] + dx < self.rows
+                    and 0 <= position[1] + dy < self.cols
+                    and self.room_grid[position[0] + dx, position[1] + dy] == PATH
+                ):
+                    return True
+        return False
+
+    def is_valid_position(self, grid, position, direction):
+        new_pos = (position[0] + direction[0], position[1] + direction[1])
+
+        # Detect if new position is out of maze bounds
+        if not (0 <= new_pos[0] < self.rows and 0 <= new_pos[1] < self.cols):
+            return (False, MoveStatus.MAZE_BOUNDARY)
+
+        # Detect if new position or its neighbors are a path (either corridor or room)
+        if (
+            grid[new_pos[0], new_pos[1]] == PATH
+            or self.room_grid[new_pos[0], new_pos[1]] == PATH
+        ):
+            return (False, MoveStatus.INVALID)
+
+        # Check for room padding
+        for dx in [-1, 0, 1]:
+            for dy in [-1, 0, 1]:
+                x, y = new_pos[0] + dx, new_pos[1] + dy
+                if (
+                    0 <= x < self.rows
+                    and 0 <= y < self.cols
+                    and self.room_grid[x, y] == PATH
+                ):
+                    return (False, MoveStatus.ROOM_BOUNDARY)
+
+        return (True, MoveStatus.VALID_MOVE)
 
     def connect_rooms_to_paths(self):
         """Connect the rooms to the corridors via the shortest path."""
@@ -615,6 +721,74 @@ class Maze:
 
         # If we reached here, the position isn't inside any room
         return False
+
+    def post_process_maze(self):
+        # Initialize the global room mask
+        self.generate_global_room_mask()
+
+        # First, process the maze borders
+        for i in range(self.rows):
+            for j in [0, self.cols - 1]:  # Left and right borders
+                self._attempt_fill_path((i, j))
+
+        for j in range(self.cols):
+            for i in [0, self.rows - 1]:  # Top and bottom borders
+                self._attempt_fill_path((i, j))
+
+        # Then, process the areas around the rooms
+        for room in self.rooms:
+            perimeter_cells = room.get_perimeter_cells(padding=2)
+            for cell in perimeter_cells:
+                # Translate to global maze coordinates
+                global_pos = (
+                    cell[0] + room.global_position[0],
+                    cell[1] + room.global_position[1],
+                )
+                self._attempt_fill_path(global_pos)
+
+    def _attempt_fill_path(self, pos):
+        if pos[0] < 0 or pos[0] >= self.rows or pos[1] < 0 or pos[1] >= self.cols:
+            return
+
+        adjacent_dirs = [(0, 1), (0, -1), (1, 0), (-1, 0)]
+        all_directions = adjacent_dirs + [(1, 1), (-1, 1), (-1, -1), (1, -1)]
+
+        path_count = sum(
+            [
+                1
+                for dx, dy in adjacent_dirs
+                if 0 <= pos[0] + dx < self.rows
+                and 0 <= pos[1] + dy < self.cols
+                and self.corridor_grid[pos[0] + dx, pos[1] + dy] == PATH
+            ]
+        )
+
+        inside_or_adjacent_to_room = False
+        for dx, dy in all_directions:
+            new_pos = (pos[0] + dx, pos[1] + dy)
+            if 0 <= new_pos[0] < self.rows and 0 <= new_pos[1] < self.cols:
+                if self.global_room_mask[new_pos[0], new_pos[1]]:
+                    inside_or_adjacent_to_room = True
+                    break
+
+        if not inside_or_adjacent_to_room and path_count == 1:
+            self.corridor_grid[pos[0], pos[1]] = PATH
+
+    def generate_global_room_mask(self):
+        self.global_room_mask = np.zeros((self.rows, self.cols), dtype=bool)
+
+        for room in self.rooms:
+            local_mask = room.generate_inner_area_mask()
+            global_position = room.global_position
+
+            for i in range(local_mask.shape[0]):
+                for j in range(local_mask.shape[1]):
+                    self.global_room_mask[
+                        global_position[0] + i, global_position[1] + j
+                    ] |= local_mask[i, j]
+
+    def _is_valid_position(self, pos):
+        return 0 <= pos[0] < self.rows and 0 <= pos[1] < self.cols
 
     #### Validate maze ####
     def is_valid_maze(self):
