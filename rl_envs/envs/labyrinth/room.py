@@ -225,17 +225,22 @@ class RectangularRoom(Room):
         top = [(-padding, j) for j in range(-padding, self.cols + padding)]
 
         # Bottom perimeter with padding
-        bottom = [(self.rows - 1 + padding, j) for j in range(-padding, self.cols + padding)]
+        bottom = [
+            (self.rows - 1 + padding, j) for j in range(-padding, self.cols + padding)
+        ]
 
-        # Left perimeter with padding (avoiding overlapping corners with top and bottom)
-        left = [(i, -padding) for i in range(self.rows) if i not in [0, self.rows - 1]]
+        # Left perimeter with padding (excluding the corners)
+        left = [(i, -padding) for i in range(1 - padding, self.rows - 1 + padding)]
 
-        # Right perimeter with padding (avoiding overlapping corners with top and bottom)
-        right = [(i, self.cols - 1 + padding) for i in range(self.rows) if i not in [0, self.rows - 1]]
+        # Right perimeter with padding (excluding the corners)
+        right = [
+            (i, self.cols - 1 + padding)
+            for i in range(1 - padding, self.rows - 1 + padding)
+        ]
 
         perimeter = top + bottom + left + right
         return perimeter
-    
+
     def generate_inner_area_mask(self):
         return np.ones((self.rows, self.cols), dtype=bool)
 

@@ -96,20 +96,21 @@ class TestMaze:
         assert len(maze.rooms) > 0
 
     def test_grow_path_from(self):
-        """Testing the fall back mechanism, 
+        """Testing the fall back mechanism,
         this code is not covered in other tests because the
-        standard generation procedure seems to already fully connect the 
+        standard generation procedure seems to already fully connect the
         tested mazes. Probably could help more in small mazes (under 10x10),
-        but those are not recommended and 10x10 is enforced as minimum size at the moment."""
+        but those are not recommended and 10x10 is enforced as minimum size at the moment.
+        """
         # Initialize the maze
         maze = Maze(rows=10, cols=10)
 
         # Clear any pre-existing rooms and grids
         maze.rooms = []
         maze.grid.fill(WALL)
-        maze.room_grid.fill(WALL)  
+        maze.room_grid.fill(WALL)
         maze.corridor_grid.fill(WALL)
-        maze.start_position = (maze.rows-1, maze.cols-1)
+        maze.start_position = (maze.rows - 1, maze.cols - 1)
 
         # Insert our specific test room
         room = Mock()
@@ -123,7 +124,9 @@ class TestMaze:
         # Overlay the room onto maze.room_grid and maze.grid
         for i in range(room.rows):
             for j in range(room.cols):
-                maze.room_grid[room.global_position[0] + i, room.global_position[1] + j] = room.grid[i, j]
+                maze.room_grid[
+                    room.global_position[0] + i, room.global_position[1] + j
+                ] = room.grid[i, j]
         maze.grid = np.where(maze.room_grid == PATH, PATH, maze.grid)
 
         # Run the corridor generation function
@@ -153,6 +156,41 @@ class TestMaze:
 
         assert maze.is_valid_maze() is True
 
+    def test_grid_connect_option_true(self):
+        total_paths_with_option = 0
+        total_paths_without_option = 0
+
+        num_runs = 10
+
+        for i in range(num_runs):
+            maze = Maze(rows=10, cols=10, grid_connect_corridors=True, seed=i)
+            total_paths_with_option += maze.corridor_grid.sum()
+            
+            maze_without_option = Maze(rows=10, cols=10, grid_connect_corridors=False, seed=i)
+            total_paths_without_option += maze_without_option.corridor_grid.sum()
+
+        assert total_paths_with_option > total_paths_without_option
+
+    def test_grid_connect_option_false(self):
+        for i in range(10):
+            maze = Maze(rows=10, cols=10, grid_connect_corridors=False, seed=i)
+
+            # Generate another maze with the same seed and grid_connect_corridors=False
+            another_maze = Maze(rows=10, cols=10, grid_connect_corridors=False, seed=i)
+
+            # Assert that the corridor grids are the same for both mazes with the same seed and option
+            assert np.array_equal(maze.corridor_grid, another_maze.corridor_grid)
+
+    def test_invalid_grid_connect_option(self):
+        with pytest.raises(ValueError):
+            factory = MazeFactory(
+                rows=10, cols=10, grid_connect_corridors_option="invalid_value"
+            )
+
+        with pytest.raises(ValueError):
+            factory = MazeFactory(rows=10, cols=10)
+            factory.grid_connect_corridors_option = "invalid_value"
+            factory.create_maze()
 
 
 class TestMazeFactory:
@@ -205,9 +243,23 @@ class TestMazeFactory:
         maze_factory.create_maze()
         assert maze_factory.global_room_ratio == 0.6
 
-    @pytest.mark.skip(reason="Takes a bit long to run")
+    # @pytest.mark.skip(reason="Takes a bit long to run")
     def test_bulk_mazes_are_valid(self):
-        maze_factory = MazeFactory(rows=20, cols=20)
+        maze_factory = MazeFactory(
+            rows=20, cols=20, grid_connect_corridors_option="random"
+        )
         for _ in range(1000):
             maze = maze_factory.create_maze()
             assert maze.is_valid_maze(), "Invalid maze detected!"
+
+    def test_grid_connect_option_random(self):
+        factory = MazeFactory(rows=20, cols=20, seed=42)
+
+        paths = []
+        for _ in range(10):  # Running 10 tests to make randomness more evident
+            factory.grid_connect_corridors_option = "random"
+            maze = factory.create_maze()
+            paths_count = maze.corridor_grid.sum()
+            paths.append(paths_count)
+
+        assert len(set(paths)) > 1

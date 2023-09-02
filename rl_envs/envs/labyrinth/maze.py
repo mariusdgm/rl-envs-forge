@@ -31,6 +31,7 @@ class MazeFactory:
         room_types: Optional[List[str]] = None,
         room_ratio: Optional[Union[int, float]] = None,
         room_ratio_range: Tuple[Union[int, float], Union[int, float]] = (0.5, 1.5),
+        grid_connect_corridors_option: Union[bool, str] = False,
         seed: Optional[int] = None,
     ):
         """
@@ -54,6 +55,11 @@ class MazeFactory:
             room_types (list, optional): The types of rooms to be added in the maze. Defaults to None.
             room_ratio (float, optional): The room ratio. Defaults to None.
             room_ratio_range (tuple, optional): The range of room ratio. Defaults to (0.5, 1.5).
+            grid_connect_corridors_option (Union[bool, str], optional): Option to decide the nature of corridor paths connectivity.
+                - If `True`, corridors will be grid-connected.
+                - If `False`, corridors will not be grid-connected.
+                - If `"random"`, the choice will be made randomly.
+                Defaults to False.
             seed (int, optional): The seed to use for generating random numbers. Defaults to None.
 
         """
@@ -81,6 +87,8 @@ class MazeFactory:
         self.py_random = random.Random(self.seed)
         self.np_random = np.random.RandomState(self.seed)
 
+        self.grid_connect_corridors_option = grid_connect_corridors_option
+        self._check_grid_connect_option()
     def create_maze(self):
         # Decide the number of rooms
         if self.nr_desired_rooms:
@@ -109,6 +117,12 @@ class MazeFactory:
                 self.global_room_ratio_range[0], self.global_room_ratio_range[1]
             )
 
+        self._check_grid_connect_option()
+        if self.grid_connect_corridors_option == "random":
+            grid_connect_corridors = self.py_random.choice([True, False])
+        else:
+            grid_connect_corridors = self.grid_connect_corridors_option
+
         maze_seed = self.seed + 1
         maze = Maze(
             rows=self.rows,
@@ -120,9 +134,14 @@ class MazeFactory:
             room_types=self.room_types,
             room_ratio=self.room_ratio,
             room_ratio_range=self.room_ratio_range,
+            grid_connect_corridors=grid_connect_corridors,
             seed=maze_seed,
         )
         return maze
+    
+    def _check_grid_connect_option(self):
+        if self.grid_connect_corridors_option not in [True, False, "random"]:
+            raise ValueError("Invalid value for grid_connect_corridors_option.")
 
 
 class Maze:
@@ -152,7 +171,10 @@ class Maze:
             room_types (list, optional): The types of rooms to be added in the maze. Defaults to None.
             room_ratio (float, optional): The room ratio. Defaults to None.
             room_ratio_range (tuple, optional): The range of room ratio. Defaults to (0.5, 1.5).
-            grid_connect_corridors (bool, optional): Option to grid connect corridor paths. Defaults to False.
+            grid_connect_corridors (bool, optional): Option to decide the nature of corridor paths connectivity.
+                - If `True`, corridors will be grid-connected.
+                - If `False`, corridors will not be grid-connected.
+                Defaults to False.
             seed (int, optional): The seed to use for generating random numbers. Defaults to None.
         """
         if rows < 10 or cols < 10:
@@ -204,8 +226,8 @@ class Maze:
 
         self.place_start_end_positions()
         self.generate_corridor_maze()
-        self.connect_rooms_to_paths()
-        self.post_process_maze()
+        # self.connect_rooms_to_paths()
+        # self.post_process_maze()
         self.grid = np.where(self.corridor_grid == PATH, PATH, self.grid)
 
     ##### Room generation and placement #####
@@ -429,6 +451,11 @@ class Maze:
         return True
 
     def generate_corridor_maze(self):
+        """Generate corridors using an adaptation of Prim's algorithm.
+        
+        Builds the corridor around the rooms, so afterwards, 
+        the access points of the rooms need to be connected to the corridors.
+        """
         grid = np.full((self.rows, self.cols), WALL)
         directions = [(2, 0), (-2, 0), (0, 2), (0, -2)]
 
@@ -726,16 +753,25 @@ class Maze:
         # Initialize the global room mask
         self.generate_global_room_mask()
 
-        # First, process the maze borders
+        # Collect border cells
+        border_cells = []
+
         for i in range(self.rows):
             for j in [0, self.cols - 1]:  # Left and right borders
-                self._attempt_fill_path((i, j))
+                border_cells.append((i, j))
 
         for j in range(self.cols):
             for i in [0, self.rows - 1]:  # Top and bottom borders
-                self._attempt_fill_path((i, j))
+                border_cells.append((i, j))
 
-        # Then, process the areas around the rooms
+        self.py_random.shuffle(border_cells)  # Shuffle border cells
+
+        for cell in border_cells:
+            self._attempt_fill_path(cell)
+
+        # Collect the perimeter cells of all rooms
+        room_perimeter_cells = []
+
         for room in self.rooms:
             perimeter_cells = room.get_perimeter_cells(padding=2)
             for cell in perimeter_cells:
@@ -744,7 +780,12 @@ class Maze:
                     cell[0] + room.global_position[0],
                     cell[1] + room.global_position[1],
                 )
-                self._attempt_fill_path(global_pos)
+                room_perimeter_cells.append(global_pos)
+
+        self.py_random.shuffle(room_perimeter_cells)  # Shuffle perimeter cells
+
+        for cell in room_perimeter_cells:
+            self._attempt_fill_path(cell)
 
     def _attempt_fill_path(self, pos):
         if pos[0] < 0 or pos[0] >= self.rows or pos[1] < 0 or pos[1] >= self.cols:
