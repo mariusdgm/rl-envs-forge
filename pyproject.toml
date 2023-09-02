@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "rl-envs"
+version = "0.1.0"
+description = "Environments for reinforcement learning"
+authors = ["mariusdgm"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+gymnasium = "^0.29.1"
+numpy = "^1.24.1"
+pygame = "^2.5.1"
+setuptools = "^68.0.0"
+
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4.1"
+pytest-cov = "^4.1.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
