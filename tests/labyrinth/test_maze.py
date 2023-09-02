@@ -245,12 +245,18 @@ class TestMazeFactory:
 
     # @pytest.mark.skip(reason="Takes a bit long to run")
     def test_bulk_mazes_are_valid(self):
-        maze_factory = MazeFactory(
-            rows=20, cols=20, grid_connect_corridors_option="random"
-        )
-        for _ in range(1000):
-            maze = maze_factory.create_maze()
-            assert maze.is_valid_maze(), "Invalid maze detected!"
+        for seed in range(100):
+            random.seed(seed)
+            rows = random.randint(10, 50)
+            cols = random.randint(10, 50)
+
+            maze_factory = MazeFactory(
+                rows=rows, cols=cols, grid_connect_corridors_option="random"
+            )
+
+            for generation in range(10):
+                maze = maze_factory.create_maze()
+                assert maze.is_valid_maze(), f"Invalid maze detected! Seed: {seed}, Generation: {generation}"
 
     def test_grid_connect_option_random(self):
         factory = MazeFactory(rows=20, cols=20, seed=42)

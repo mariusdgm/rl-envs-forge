@@ -226,8 +226,8 @@ class Maze:
 
         self.place_start_end_positions()
         self.generate_corridor_maze()
-        # self.connect_rooms_to_paths()
-        # self.post_process_maze()
+        self.connect_rooms_to_paths()
+        self.post_process_maze()
         self.grid = np.where(self.corridor_grid == PATH, PATH, self.grid)
 
     ##### Room generation and placement #####

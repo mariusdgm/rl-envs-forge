@@ -18,12 +18,6 @@ class TestRectangularRoom:
         assert (0, 0) in perimeter
         assert (4, 4) in perimeter
 
-    @pytest.mark.skip
-    def test_get_perimeter_cells_padding(self):
-        room = RectangularRoom(rows=5, cols=5)
-        perimeter = room.get_perimeter_cells(padding=2)
-        pass
-
     def test_set_access_points(self):
         room = RectangularRoom(rows=5, cols=5, nr_access_points=3)
         assert len(room.access_points) == 3
