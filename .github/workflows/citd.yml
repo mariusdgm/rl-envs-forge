@@ -55,26 +55,23 @@ jobs:
     - name: Extract version from pyproject.toml
       run: echo "PROJECT_VERSION=$(poetry version --short)" >> $GITHUB_ENV
   
-    - name: Check if tag already exists
-      run: |
-        if git rev-parse "v${{ env.PROJECT_VERSION }}" >/dev/null 2>&1; then
-          echo "Error: Tag v${{ env.PROJECT_VERSION }} already exists. Please increment the version in pyproject.toml."
-          exit 1
-        fi
-  
     - name: Set up Git credentials
       run: |
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
   
-    - name: Set Git remote using GITHUB_TOKEN
-      run: |
-        git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+    - name: Change remote URL to include token
+      run: git remote set-url origin https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
   
     - name: Create a new tag
       run: |
-        git tag v${{ env.PROJECT_VERSION }}
-        git push origin "v${{ env.PROJECT_VERSION }}"
+        if ! git rev-parse v${{ env.PROJECT_VERSION }} >/dev/null 2>&1; then
+          git tag v${{ env.PROJECT_VERSION }}
+          git push origin v${{ env.PROJECT_VERSION }}
+        else
+          echo "Tag v${{ env.PROJECT_VERSION }} already exists. Exiting."
+          exit 1
+        fi
 
   deploy:
     needs: tag
