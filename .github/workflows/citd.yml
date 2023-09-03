@@ -53,10 +53,15 @@ jobs:
     - name: Extract version from pyproject.toml
       run: echo "PROJECT_VERSION=$(poetry version --short)" >> $GITHUB_ENV
 
+    - name: Set up Git credentials
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+
     - name: Create a new tag
       run: |
         git tag v${{ env.PROJECT_VERSION }}
-        git push origin v${{ env.PROJECT_VERSION }}
+        git push https://${{secrets.GITHUB_TOKEN}}@github.com/${{github.repository}}.git --tags
 
   deploy:
     needs: tag
