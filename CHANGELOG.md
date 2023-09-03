@@ -7,7 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
  
-
+## [0.2.1] - 03.09.2023
+ - Bugfix of human_play 
+ 
 ## [0.2.0] - 03.09.2023
  - Added new corridor generation setting
  - Added postprocessing step for the maze corridors
