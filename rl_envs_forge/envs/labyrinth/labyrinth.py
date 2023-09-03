@@ -6,7 +6,7 @@ import random
 import pygame
 
 from .maze import MazeFactory
-from .constants import WALL, PATH, TARGET, START, PLAYER, COLORS, CELL_SIZE, Action
+from .constants import WALL, PATH, TARGET, START, PLAYER, Action
 from .display import Display
 from .player import Player
 
@@ -26,7 +26,9 @@ class Labyrinth(gym.Env):
         room_types: Optional[List[str]] = None,
         room_ratio: Optional[Union[int, float]] = None,
         room_ratio_range: Tuple[Union[int, float], Union[int, float]] = (0.5, 1.5),
-        reward_schema: Optional[dict] = None,  # Assuming it's a dictionary; adjust if not
+        reward_schema: Optional[
+            dict
+        ] = None,  # Assuming it's a dictionary; adjust if not
         seed: Optional[int] = None,
     ):
         """
@@ -102,7 +104,7 @@ class Labyrinth(gym.Env):
 
         self.setup_labyrinth()
 
-        self.env_displayer = None # only initialize if render is needed
+        self.env_displayer = None  # only initialize if render is needed
 
     def setup_labyrinth(self):
         self.make_maze_factory()
@@ -224,6 +226,10 @@ class Labyrinth(gym.Env):
                     elif event.key == pygame.K_LEFT:
                         _, reward, done, _, info = self.step(Action.LEFT)
 
+                elif event.type == pygame.VIDEORESIZE:
+                    self.env_displayer.resize(event.w, event.h)
+                    self.env_displayer.draw_state(self.state)
+
         else:  # mode is not human, so model will play
             # Sleep for a bit so you can see the change
             pygame.time.wait(sleep_time)
@@ -235,17 +241,27 @@ class Labyrinth(gym.Env):
         Exit by closing the window or pressing ESC.
         """
         done = False
-        while not done:  # Play one episode
+        first_info_printed = True
+        while True:
             state, reward, done, _, info, key_pressed = self.render(mode="human")
 
-            if print_info and key_pressed:
+            if print_info and first_info_printed:
+                init_message = (
+                    f"Initialized environment with seed: {self.seed}, "
+                    f"rows: {self.rows}, cols: {self.cols}, "
+                    f"maze_nr_desired_rooms: {self.maze_nr_desired_rooms}, maze_global_room_ratio: {self.maze_global_room_ratio}."
+                )
+                print(init_message)
+                first_info_printed = False
 
-                print(f"Reward: {reward}, Done: {done}, Info: {info}, Seed: {self.seed}")
+            if print_info and key_pressed:
+                print(f"Reward: {reward}, Done: {done}, Info: {info}")
 
             if done:
+                first_info_printed = True
                 self.reset()
 
 
 if __name__ == "__main__":
-    env = Labyrinth(31, 31)
+    env = Labyrinth(20, 20)
     env.human_play(print_info=True)

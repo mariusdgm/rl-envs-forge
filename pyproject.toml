@@ -2,7 +2,7 @@
 name = "rl-envs-forge"
 version = "0.2.1"
 description = "Environments for reinforcement learning"
-authors = ["mariusdgm"]
+authors = ["mariusdgm <marius.dragomir.dgr@gmail.com>"]
 license = "MIT"
 readme = "README.md"
 

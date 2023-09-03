@@ -13,14 +13,3 @@ TARGET = 2
 START = 3
 PLAYER = 4
 
-### Display relevant constants
-# Colors mapped to maze objects for easy reference
-COLORS = {
-    WALL: (0, 0, 0),
-    PATH: (255, 255, 255),
-    PLAYER: (255, 0, 0),
-    TARGET: (0, 255, 0),
-    START: (0, 0, 255)
-}
-
-CELL_SIZE = 40
