@@ -1,6 +1,6 @@
 from typing import Tuple
 
-from rl_envs.envs.labyrinth.constants import Action
+from rl_envs_forge.envs.labyrinth.constants import Action
 
 class Player:
     def __init__(self, start_position: Tuple[int, int]=None):

@@ -14,5 +14,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.0] - 01.09.2023
 ### Added
-- Initial release of rl_envs - Labyrinth
+- Initial release of rl_envs_forge - Labyrinth
 - Labyrinth - a 2D gridworld with randomly generated rectangular rooms, maze like paths, a starting position and a target position

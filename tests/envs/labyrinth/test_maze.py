@@ -3,8 +3,8 @@ from unittest.mock import Mock
 import numpy as np
 import random
 
-from rl_envs.envs.labyrinth.maze import Maze, MazeFactory
-from rl_envs.envs.labyrinth.constants import WALL, PATH
+from rl_envs_forge.envs.labyrinth.maze import Maze, MazeFactory
+from rl_envs_forge.envs.labyrinth.constants import WALL, PATH
 
 
 class TestMaze:

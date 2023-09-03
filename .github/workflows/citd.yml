@@ -30,7 +30,7 @@ jobs:
         poetry install
 
     - name: Run tests with coverage
-      run: poetry run pytest --cov=rl_envs --cov-report=term-missing
+      run: poetry run pytest --cov=rl_envs_forge --cov-report=term-missing
 
   tag:
     needs: test

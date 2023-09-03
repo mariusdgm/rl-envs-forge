@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
-from rl_envs.envs.labyrinth.labyrinth import Labyrinth
-from rl_envs.envs.labyrinth.constants import *
+from rl_envs_forge.envs.labyrinth.labyrinth import Labyrinth
+from rl_envs_forge.envs.labyrinth.constants import *
 
 
 class TestLabyrinth:

@@ -2,7 +2,7 @@ import pytest
 import numpy as np
 import random
 
-from rl_envs.envs.common.grid_functions import on_line
+from rl_envs_forge.envs.common.grid_functions import on_line
 
 class TestGridFucntions:    
 
