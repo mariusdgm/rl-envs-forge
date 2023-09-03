@@ -61,7 +61,7 @@ jobs:
     - name: Create a new tag
       run: |
         git tag v${{ env.PROJECT_VERSION }}
-        git push https://${{secrets.GITHUB_TOKEN}}@github.com/${{github.repository}}.git --tags
+        git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git --tags
 
   deploy:
     needs: tag
