@@ -1,0 +1,81 @@
+name: CI/CD Workflow
+
+on:
+  push:
+    branches:
+      - main
+      - "*" # For all other branches
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.10.6
+
+    - name: Install Poetry
+      run: |
+        curl -sSL https://install.python-poetry.org | python3 -
+
+    - name: Install dependencies
+      run: |
+        poetry config virtualenvs.create true
+        poetry install
+
+    - name: Run tests with coverage
+      run: poetry run pytest --cov=rl_envs --cov-report=term-missing
+
+  tag:
+    needs: test
+    if: github.ref == 'refs/heads/main' # Ensures this only runs on the main branch
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.x'
+
+    - name: Install Poetry
+      run: |
+        curl -sSL https://install.python-poetry.org | python3 -
+
+    - name: Extract version from pyproject.toml
+      run: echo "PROJECT_VERSION=$(poetry version --short)" >> $GITHUB_ENV
+
+    - name: Create a new tag
+      run: |
+        git tag v${{ env.PROJECT_VERSION }}
+        git push origin v${{ env.PROJECT_VERSION }}
+
+  deploy:
+    needs: tag
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.x'
+
+    - name: Install Poetry
+      run: |
+        curl -sSL https://install.python-poetry.org | python3 -
+
+    - name: Build and publish
+      run: |
+        poetry build
+        poetry publish --username ${{ secrets.PYPI_USERNAME }} --password ${{ secrets.PYPI_PASSWORD }}

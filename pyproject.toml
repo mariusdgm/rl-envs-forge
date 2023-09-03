@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "rl-envs"
-version = "0.1.0"
+version = "0.2.0"
 description = "Environments for reinforcement learning"
 authors = ["mariusdgm"]
 license = "MIT"
