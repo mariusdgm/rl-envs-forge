@@ -1,5 +1,11 @@
 import pytest
 import numpy as np
+import os
+import random
+
+# So we avoid the screen appearing during testing
+os.environ['SDL_VIDEODRIVER'] = 'dummy'
+
 from rl_envs_forge.envs.labyrinth.labyrinth import Labyrinth
 from rl_envs_forge.envs.labyrinth.constants import *
 
@@ -8,7 +14,7 @@ class TestLabyrinth:
     @pytest.fixture
     def labyrinth(self):
         return Labyrinth(31, 31)
-
+    
     @pytest.fixture
     def movement_labyrinth(self):
         lab = Labyrinth(31, 31)
@@ -93,3 +99,23 @@ class TestLabyrinth:
         assert np.array_equal(initial_state, post_reset_state)
 
 
+    def test_render(self):
+        env = Labyrinth(20, 20)
+        
+        try:
+            # Render the environment for a few frames
+            for _ in range(10):
+                # Choose a random action
+                action = random.choice(list(Action))
+
+                # Apply the action
+                env.step(action)
+
+                env.render(mode=None, window_size=(800, 600), animate=True)
+
+            # If we reach here, it means there were no exceptions while rendering
+            assert True
+
+        except Exception as e:
+            assert False, e
+    

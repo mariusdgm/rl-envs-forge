@@ -1,6 +1,6 @@
 import pytest
 import numpy as np
-from rl_envs_forge.envs.labyrinth.room import RectangularRoom
+from rl_envs_forge.envs.labyrinth.maze.room import RectangularRoom
 from rl_envs_forge.envs.labyrinth.constants import *
 
 

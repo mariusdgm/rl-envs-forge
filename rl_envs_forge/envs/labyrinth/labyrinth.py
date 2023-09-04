@@ -5,10 +5,10 @@ import numpy as np
 import random
 import pygame
 
-from .maze import MazeFactory
-from .constants import WALL, PATH, TARGET, START, PLAYER, COLORS, CELL_SIZE, Action
-from .display import Display
-from .player import Player
+from .maze.maze import MazeFactory
+from .constants import WALL, PATH, TARGET, START, PLAYER, Action
+from .display.display import EnvDisplay
+from .entities.player import Player
 
 
 class Labyrinth(gym.Env):
@@ -26,7 +26,9 @@ class Labyrinth(gym.Env):
         room_types: Optional[List[str]] = None,
         room_ratio: Optional[Union[int, float]] = None,
         room_ratio_range: Tuple[Union[int, float], Union[int, float]] = (0.5, 1.5),
-        reward_schema: Optional[dict] = None,  # Assuming it's a dictionary; adjust if not
+        reward_schema: Optional[
+            dict
+        ] = None,  # Assuming it's a dictionary; adjust if not
         seed: Optional[int] = None,
     ):
         """
@@ -102,12 +104,13 @@ class Labyrinth(gym.Env):
 
         self.setup_labyrinth()
 
-        self.env_displayer = None # only initialize if render is needed
+        self.env_displayer = None  # only initialize if render is needed
 
     def setup_labyrinth(self):
         self.make_maze_factory()
         self.maze = self.maze_factory.create_maze()
         self.player.position = self.maze.start_position
+        self.player.rendered_position = self.player.position
         self.build_state_matrix()
 
     def make_maze_factory(self):
@@ -192,37 +195,63 @@ class Labyrinth(gym.Env):
 
         self.setup_labyrinth()
 
-    def render(self, mode=None, sleep_time=100):
+    def render(self, mode=None, sleep_time=100, window_size=(800, 800), animate=True):
         if self.env_displayer is None:
             # Initialize only if render is needed
-            self.env_displayer = Display(self.rows, self.cols)
+            self.env_displayer = EnvDisplay(
+                self.rows,
+                self.cols,
+                window_width=window_size[0],
+                window_height=window_size[1],
+                labyrinth=self,
+            )
 
+        self.env_displayer.draw_state(animate=animate)
         reward, done, info = None, None, None
-        key_press = False
-
-        self.env_displayer.draw_state(self.state)
+        key_press = None
 
         if mode == "human":
+
             for event in pygame.event.get():
+                new_action = None
+
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     quit()
 
                 if event.type == pygame.KEYDOWN:
                     key_press = True
-
                     if event.key == pygame.K_ESCAPE:
                         pygame.quit()
                         quit()
-
-                    if event.key == pygame.K_UP:
-                        _, reward, done, _, info = self.step(Action.UP)
+                    elif event.key == pygame.K_UP:
+                        new_action = Action.UP
                     elif event.key == pygame.K_RIGHT:
-                        _, reward, done, _, info = self.step(Action.RIGHT)
+                        new_action = Action.RIGHT
                     elif event.key == pygame.K_DOWN:
-                        _, reward, done, _, info = self.step(Action.DOWN)
+                        new_action = Action.DOWN
                     elif event.key == pygame.K_LEFT:
-                        _, reward, done, _, info = self.step(Action.LEFT)
+                        new_action = Action.LEFT
+
+                    if new_action is not None:
+                        _, reward, done, _, info = self.interpret_direction_action(new_action)
+
+                        if animate:
+                            while not self.player._positions_are_close(
+                                self.player.rendered_position, self.player.position
+                            ):
+                                self.player.moving = True
+                                self.player.move_render_position()
+                                self.env_displayer.draw_state(animate=animate)
+                                pygame.time.wait(
+                                    int(sleep_time / 10)
+                                )  # Faster refresh for smoother animation
+
+                        self.player.moving = False
+
+                elif event.type == pygame.VIDEORESIZE:
+                    self.env_displayer.resize(event.w, event.h)
+                    self.env_displayer.draw_state(animate=animate)
 
         else:  # mode is not human, so model will play
             # Sleep for a bit so you can see the change
@@ -230,22 +259,39 @@ class Labyrinth(gym.Env):
 
         return self.state, reward, done, {}, info, key_press
 
-    def human_play(self, print_info=False):
+    def interpret_direction_action(self, action):
+        if action == Action.RIGHT or action == Action.LEFT:
+            self.player.face_orientation = action
+        return self.step(action)
+
+    def human_play(self, print_info=False, window_size=(800, 800), animate=True):
         """Continously display environment and allow user to play.
         Exit by closing the window or pressing ESC.
         """
         done = False
-        while not done:  # Play one episode
-            state, reward, done, _, info, key_pressed = self.render(mode="human")
+        first_info_printed = True
+        while True:
+            state, reward, done, _, info, key_pressed = self.render(
+                mode="human", window_size=window_size, animate=animate
+            )
+
+            if print_info and first_info_printed:
+                init_message = (
+                    f"Initialized environment with seed: {self.seed}, "
+                    f"rows: {self.rows}, cols: {self.cols}, "
+                    f"maze_nr_desired_rooms: {self.maze_nr_desired_rooms}, maze_global_room_ratio: {self.maze_global_room_ratio}."
+                )
+                print(init_message)
+                first_info_printed = False
 
             if print_info and key_pressed:
-
-                print(f"Reward: {reward}, Done: {done}, Info: {info}, Seed: {self.seed}")
+                print(f"Reward: {reward}, Done: {done}, Info: {info}")
 
             if done:
+                first_info_printed = True
                 self.reset()
 
 
 if __name__ == "__main__":
-    env = Labyrinth(31, 31)
-    env.human_play(print_info=True)
+    env = Labyrinth(20, 20)
+    env.human_play(print_info=True, animate=True)
