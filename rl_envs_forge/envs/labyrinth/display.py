@@ -1,3 +1,4 @@
+import os
 import pygame
 
 from rl_envs_forge.envs.labyrinth.constants import *
@@ -16,7 +17,7 @@ class Display:
     BORDER_PADDING = 5
 
     def __init__(
-        self, rows: int, cols: int, window_width: int = 800, window_height: int = 800
+        self, rows: int, cols: int, window_width: int = 800, window_height: int = 800, labyrinth = None
     ):
         """
         Args:
@@ -24,6 +25,7 @@ class Display:
             cols (int): The number of columns in the display.
             window_width (int): Width of the window.
             window_height (int): Height of the window.
+            labyrinth (Laabyrinth): The labyrinth to display.
         """
         self.rows = rows
         self.cols = cols
@@ -33,6 +35,19 @@ class Display:
         self.cell_height = None
         self.additional_padding_x = None
         self.additional_padding_y = None
+        self.labyrinth = labyrinth
+
+        self.target_sprite = pygame.image.load(os.path.join('assets', 'labyrinth', 'sprites', 'flag.png'))
+        sprite_sheet = pygame.image.load(os.path.join('assets', 'labyrinth', 'sprites', 'player.png'))
+        frame_height = sprite_sheet.get_height() // 2  
+        self.player_frames = [
+            sprite_sheet.subsurface(pygame.Rect(0, 0, sprite_sheet.get_width(), frame_height)),
+            sprite_sheet.subsurface(pygame.Rect(0, frame_height, sprite_sheet.get_width(), frame_height))
+        ]
+
+        self.player_idle_image = self.player_frames[0]
+        self.player_animation_image = self.player_frames[1]
+        
 
         self._compute_sizes_and_paddings()
 
@@ -58,7 +73,13 @@ class Display:
             self.window_height - round(total_cell_height) - 2 * Display.BORDER_PADDING
         ) // 2
 
-    def draw_state(self, state):
+    def draw_state(self, state, animate=True):
+        """Display the state of the env
+
+        Args:
+            state (2D Numpy array): The discrete state of the environment
+            animate (bool, optional): Wether to animate movement of agents. Defaults to True.
+        """
         # 1. Fill background with border color
         self.screen.fill(Display.BORDER_COLOR)
 
@@ -68,27 +89,72 @@ class Display:
         additional_padding_x = (self.screen.get_width() - total_cell_width) // 2
         additional_padding_y = (self.screen.get_height() - total_cell_height) // 2
 
-        # 2. Draw the cells
-        for row in range(state.shape[0]):
-            for col in range(state.shape[1]):
-                cell_value = state[row, col]
-                self.draw_cell(
-                    row, col, cell_value, additional_padding_x, additional_padding_y
-                )
+        # 2. Draw maze
+        self.draw_maze(state, additional_padding_x, additional_padding_y)
 
-        # 3. Draw the grid
+        # 3. Draw target
+        self.draw_target_at_position(self.labyrinth.maze.target_position) 
+
+        # 4. Draw the grid
         self.draw_grid(
             state.shape[0], state.shape[1], additional_padding_x, additional_padding_y
         )
+        
+        #### Draw special features
+        # 5. Draw player
+        # TODO: Fix player rendering
+        if animate:
+            # Draw player based on its rendered position
+            self.draw_player(self.labyrinth.player.rendered_position)
+        else:
+            # Draw player based on its discrete state position
+            self.draw_player(self.labyrinth.player.position)
 
-        boundary_rect = pygame.Rect(
-            self.additional_padding_x + Display.BORDER_PADDING,
-            self.additional_padding_y + Display.BORDER_PADDING,
-            self.cols * self.cell_width,
-            self.rows * self.cell_height,
-        )
-    
         pygame.display.flip()
+
+    def draw_player(self, position):
+        x, y = self._calculate_position_coords(*position)
+        image = self.get_player_sprite()
+        centered_x = x + (self.BORDER_PADDING / 2)
+        centered_y = y + (self.BORDER_PADDING / 2)        
+        self.screen.blit(image, (centered_x, centered_y))
+
+    def get_player_sprite(self):
+        sprite = self.player_animation_image if self.labyrinth.player.moving else self.player_idle_image
+        desired_width = self.cell_width * 0.9
+        desired_height = self.cell_height * 0.9
+        sprite = pygame.transform.scale(sprite, (desired_width, desired_height))
+        if self.labyrinth.player.heading_direction == Action.RIGHT or self.labyrinth.player.heading_direction == Action.DOWN:
+            sprite = pygame.transform.flip(sprite, True, False)
+        return sprite
+
+    def draw_target_at_position(self, position):
+        x, y = self._calculate_position_coords(*position)
+        sprite = self.get_target_sprite()
+        self.screen.blit(sprite, (x, y))
+
+    def get_target_sprite(self):
+        desired_width = self.cell_width * 0.9
+        desired_height = self.cell_height * 0.9
+        sprite = pygame.transform.scale(self.target_sprite, (desired_width, desired_height))
+        return sprite
+
+    def _calculate_position_coords(self, row, col):
+        """
+        Translate a logical grid position (row, col) to pixel coordinates.
+        """
+        x = self.additional_padding_x*2 + col * self.cell_width
+        y = self.additional_padding_y*2 + row * self.cell_height
+        return x, y
+
+    def draw_maze(self, state, additional_padding_x, additional_padding_y):
+        for row in range(len(state)):
+            for col in range(len(state[row])):
+                cell_value = state[row][col]
+                if cell_value == WALL:
+                    self.draw_cell(row, col, WALL, additional_padding_x, additional_padding_y)
+                else:
+                    self.draw_cell(row, col, PATH, additional_padding_x, additional_padding_y)
 
     def draw_cell(
         self, row, col, cell_value, additional_padding_x, additional_padding_y
@@ -104,36 +170,7 @@ class Display:
             color,
             pygame.Rect(x, y, round(self.cell_width), round(self.cell_height)),
         )
-
-        # Draw pictograms for special states
-        center_x = x + self.cell_width // 2
-        center_y = y + self.cell_height // 2
-
-        radius_x = self.cell_width // 2
-        radius_y = self.cell_height // 2
-
-        if cell_value == "PLAYER":
-            pygame.draw.ellipse(
-                self.screen,
-                self.STATE_COLORS["PLAYER"],
-                (
-                    center_x - radius_x,
-                    center_y - radius_y,
-                    self.cell_width,
-                    self.cell_height,
-                ),
-            )
-        elif cell_value == "TARGET":
-            pygame.draw.ellipse(
-                self.screen,
-                self.STATE_COLORS["TARGET"],
-                (
-                    center_x - radius_x,
-                    center_y - radius_y,
-                    self.cell_width,
-                    self.cell_height,
-                ),
-            )
+        
 
     def draw_grid(self, rows, cols, additional_padding_x, additional_padding_y):
         for col in range(1, cols):

@@ -110,6 +110,8 @@ class Labyrinth(gym.Env):
         self.make_maze_factory()
         self.maze = self.maze_factory.create_maze()
         self.player.position = self.maze.start_position
+        self.player.target_position = self.player.position
+        self.player.rendered_position = self.player.position
         self.build_state_matrix()
 
     def make_maze_factory(self):
@@ -194,10 +196,10 @@ class Labyrinth(gym.Env):
 
         self.setup_labyrinth()
 
-    def render(self, mode=None, sleep_time=100):
+    def render(self, mode=None, sleep_time=100, window_size=(800, 800), animate=True):
         if self.env_displayer is None:
             # Initialize only if render is needed
-            self.env_displayer = Display(self.rows, self.cols)
+            self.env_displayer = Display(self.rows, self.cols, window_width=window_size[0], window_height=window_size[1], labyrinth=self)
 
         reward, done, info = None, None, None
         key_press = False
@@ -210,6 +212,13 @@ class Labyrinth(gym.Env):
                     pygame.quit()
                     quit()
 
+                while not self.player._positions_are_close(self.player.rendered_position, self.player.target_position):
+                    self.player.moving = True
+                    self.player.move_towards_target()
+                    self.env_displayer.draw_state(self.state, self.player, animate=animate)
+                    pygame.time.wait(int(sleep_time/5))  # Faster refresh for smoother animation
+                self.player.moving = False
+
                 if event.type == pygame.KEYDOWN:
                     key_press = True
 
@@ -218,12 +227,16 @@ class Labyrinth(gym.Env):
                         quit()
 
                     if event.key == pygame.K_UP:
+                        self.player.heading_direction = Action.UP
                         _, reward, done, _, info = self.step(Action.UP)
                     elif event.key == pygame.K_RIGHT:
+                        self.player.heading_direction = Action.RIGHT
                         _, reward, done, _, info = self.step(Action.RIGHT)
                     elif event.key == pygame.K_DOWN:
+                        self.player.heading_direction = Action.DOWN
                         _, reward, done, _, info = self.step(Action.DOWN)
                     elif event.key == pygame.K_LEFT:
+                        self.player.heading_direction = Action.LEFT
                         _, reward, done, _, info = self.step(Action.LEFT)
 
                 elif event.type == pygame.VIDEORESIZE:
@@ -236,14 +249,14 @@ class Labyrinth(gym.Env):
 
         return self.state, reward, done, {}, info, key_press
 
-    def human_play(self, print_info=False):
+    def human_play(self, print_info=False, window_size=(800, 800)):
         """Continously display environment and allow user to play.
         Exit by closing the window or pressing ESC.
         """
         done = False
         first_info_printed = True
         while True:
-            state, reward, done, _, info, key_pressed = self.render(mode="human")
+            state, reward, done, _, info, key_pressed = self.render(mode="human", window_size=window_size)
 
             if print_info and first_info_printed:
                 init_message = (
