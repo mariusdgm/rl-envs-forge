@@ -1,6 +1,6 @@
 import pytest
 from rl_envs_forge.envs.labyrinth.constants import Action
-from rl_envs_forge.envs.labyrinth.player import Player  # Adjust the import based on your folder structure
+from rl_envs_forge.envs.labyrinth.entities.player import Player  # Adjust the import based on your folder structure
 
 def test_player_potential_next_position():
     player = Player(start_position=(5, 5))

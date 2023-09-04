@@ -5,9 +5,9 @@ from typing import List, Tuple, Union, Optional
 from enum import Enum
 
 from .room import RoomFactory
-from .constants import WALL, PATH, START, TARGET
+from ..constants import WALL, PATH, START, TARGET
 
-from ..common.grid_functions import on_line
+from ...common.grid_functions import on_line
 
 
 class MoveStatus(Enum):
@@ -89,6 +89,7 @@ class MazeFactory:
 
         self.grid_connect_corridors_option = grid_connect_corridors_option
         self._check_grid_connect_option()
+
     def create_maze(self):
         # Decide the number of rooms
         if self.nr_desired_rooms:
@@ -138,7 +139,7 @@ class MazeFactory:
             seed=maze_seed,
         )
         return maze
-    
+
     def _check_grid_connect_option(self):
         if self.grid_connect_corridors_option not in [True, False, "random"]:
             raise ValueError("Invalid value for grid_connect_corridors_option.")
@@ -452,8 +453,8 @@ class Maze:
 
     def generate_corridor_maze(self):
         """Generate corridors using an adaptation of Prim's algorithm.
-        
-        Builds the corridor around the rooms, so afterwards, 
+
+        Builds the corridor around the rooms, so afterwards,
         the access points of the rooms need to be connected to the corridors.
         """
         grid = np.full((self.rows, self.cols), WALL)

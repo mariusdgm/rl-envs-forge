@@ -1,5 +1,5 @@
 import pytest 
-from rl_envs_forge.envs.labyrinth.room import RoomFactory
+from rl_envs_forge.envs.labyrinth.maze.room import RoomFactory
 
 class TestRoomFactory:
   

@@ -5,10 +5,10 @@ import numpy as np
 import random
 import pygame
 
-from .maze import MazeFactory
+from .maze.maze import MazeFactory
 from .constants import WALL, PATH, TARGET, START, PLAYER, Action
-from .display import Display
-from .player import Player
+from .display.display import EnvDisplay
+from .entities.player import Player
 
 
 class Labyrinth(gym.Env):
@@ -199,12 +199,18 @@ class Labyrinth(gym.Env):
     def render(self, mode=None, sleep_time=100, window_size=(800, 800), animate=True):
         if self.env_displayer is None:
             # Initialize only if render is needed
-            self.env_displayer = Display(self.rows, self.cols, window_width=window_size[0], window_height=window_size[1], labyrinth=self)
+            self.env_displayer = EnvDisplay(
+                self.rows,
+                self.cols,
+                window_width=window_size[0],
+                window_height=window_size[1],
+                labyrinth=self,
+            )
 
         reward, done, info = None, None, None
         key_press = False
 
-        self.env_displayer.draw_state(self.state)
+        self.env_displayer.draw_state()
 
         if mode == "human":
             for event in pygame.event.get():
@@ -212,11 +218,15 @@ class Labyrinth(gym.Env):
                     pygame.quit()
                     quit()
 
-                while not self.player._positions_are_close(self.player.rendered_position, self.player.target_position):
+                while not self.player._positions_are_close(
+                    self.player.rendered_position, self.player.target_position
+                ):
                     self.player.moving = True
                     self.player.move_towards_target()
-                    self.env_displayer.draw_state(self.state, self.player, animate=animate)
-                    pygame.time.wait(int(sleep_time/5))  # Faster refresh for smoother animation
+                    self.env_displayer.draw_state(animate=animate)
+                    pygame.time.wait(
+                        int(sleep_time / 5)
+                    )  # Faster refresh for smoother animation
                 self.player.moving = False
 
                 if event.type == pygame.KEYDOWN:
@@ -227,17 +237,23 @@ class Labyrinth(gym.Env):
                         quit()
 
                     if event.key == pygame.K_UP:
-                        self.player.heading_direction = Action.UP
-                        _, reward, done, _, info = self.step(Action.UP)
+                        _, reward, done, _, info = self.interpret_direction_action(
+                            Action.UP
+                        )
                     elif event.key == pygame.K_RIGHT:
-                        self.player.heading_direction = Action.RIGHT
-                        _, reward, done, _, info = self.step(Action.RIGHT)
+                        _, reward, done, _, info = self.interpret_direction_action(
+                            Action.RIGHT
+                        )
+
                     elif event.key == pygame.K_DOWN:
-                        self.player.heading_direction = Action.DOWN
-                        _, reward, done, _, info = self.step(Action.DOWN)
+                        _, reward, done, _, info = self.interpret_direction_action(
+                            Action.DOWN
+                        )
+
                     elif event.key == pygame.K_LEFT:
-                        self.player.heading_direction = Action.LEFT
-                        _, reward, done, _, info = self.step(Action.LEFT)
+                        _, reward, done, _, info = self.interpret_direction_action(
+                            Action.LEFT
+                        )
 
                 elif event.type == pygame.VIDEORESIZE:
                     self.env_displayer.resize(event.w, event.h)
@@ -249,14 +265,21 @@ class Labyrinth(gym.Env):
 
         return self.state, reward, done, {}, info, key_press
 
-    def human_play(self, print_info=False, window_size=(800, 800)):
+    def interpret_direction_action(self, action):
+        self.player.heading_direction = action
+        self.player.target_position = self.player.potential_next_position(action)
+        return self.step(action)
+
+    def human_play(self, print_info=False, window_size=(800, 800), animate=True):
         """Continously display environment and allow user to play.
         Exit by closing the window or pressing ESC.
         """
         done = False
         first_info_printed = True
         while True:
-            state, reward, done, _, info, key_pressed = self.render(mode="human", window_size=window_size)
+            state, reward, done, _, info, key_pressed = self.render(
+                mode="human", window_size=window_size, animate=animate
+            )
 
             if print_info and first_info_printed:
                 init_message = (

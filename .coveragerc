@@ -7,7 +7,6 @@ omit =
 omit = 
     */__init__.py
     constants.py
-    display.py
 
 # Skip render and human play because they cover display code
 exclude_lines = 

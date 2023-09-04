@@ -4,7 +4,7 @@ import math
 import random
 import numpy as np
 
-from .constants import WALL, PATH
+from ..constants import WALL, PATH
 
 
 class RoomFactory:

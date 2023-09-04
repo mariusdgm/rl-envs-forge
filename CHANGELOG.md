@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
  - Added grid lines
  - Added maze padding
  - Added screen resize functionality
+ - Added sprites
+ - Added mini animation
 ## [0.2.1] - 03.09.2023
 ### Bugfix
  - Bugfix of human_play 
