@@ -12,5 +12,3 @@ omit =
 exclude_lines = 
     if __name__ == .__main__.:
     @abstractmethod
-    def render
-    def human_play 

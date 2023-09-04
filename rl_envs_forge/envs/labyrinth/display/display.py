@@ -4,6 +4,16 @@ from abc import ABC, abstractmethod
 
 from ..constants import *
 
+class EntityDisplayer(ABC):
+    def __init__(self, entity):
+        self.entity = entity
+
+    @abstractmethod
+    def get_sprite(self) -> pygame.Surface:
+        """
+        Return the pygame surface representing the current state of the entity.
+        """
+        pass
 
 class EnvDisplay:
     STATE_COLORS = {
@@ -189,15 +199,3 @@ class EnvDisplay:
         self.screen = pygame.display.set_mode(
             (self.window_width, self.window_height), pygame.RESIZABLE
         )
-
-
-class EntityDisplayer(ABC):
-    def __init__(self, entity):
-        self.entity = entity
-
-    @abstractmethod
-    def get_sprite(self) -> pygame.Surface:
-        """
-        Return the pygame surface representing the current state of the entity.
-        """
-        pass

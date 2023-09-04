@@ -50,7 +50,7 @@ class Player:
         elif action == Action.LEFT:  # Left
             potential_position[1] -= 1
 
-        return potential_position
+        return tuple(potential_position)
 
     def move_render_position(self):
         """Move the rendered_position towards position."""
