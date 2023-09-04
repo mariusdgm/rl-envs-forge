@@ -68,10 +68,10 @@ class EnvDisplay:
 
         self.additional_padding_x = (
             self.window_width - round(total_cell_width) - 2 * EnvDisplay.BORDER_PADDING
-        ) // 2
+        ) 
         self.additional_padding_y = (
             self.window_height - round(total_cell_height) - 2 * EnvDisplay.BORDER_PADDING
-        ) // 2
+        ) 
 
     def draw_state(self, animate=True):
         """Display the state of the env
@@ -113,9 +113,10 @@ class EnvDisplay:
         desired_height = self.cell_height * 0.9
         sprite = pygame.transform.scale(sprite, (desired_width, desired_height))
 
-        centered_x = x + (self.BORDER_PADDING / 4)
-        centered_y = y + (self.BORDER_PADDING / 4)
-        self.screen.blit(sprite, (centered_x, centered_y))
+        # micro-adjustement
+        x = x + (self.BORDER_PADDING / 4)
+        y = y + (self.BORDER_PADDING / 4)
+        self.screen.blit(sprite, (x, y))
 
     
 

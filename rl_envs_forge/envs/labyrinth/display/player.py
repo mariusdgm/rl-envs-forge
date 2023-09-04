@@ -4,6 +4,7 @@ import pygame
 from .display import EntityDisplayer
 from ..constants import Action
 
+
 class PlayerDisplayer(EntityDisplayer):
     def __init__(self, entity):
         super().__init__(entity)
@@ -24,18 +25,10 @@ class PlayerDisplayer(EntityDisplayer):
         self.idle_sprite = self.player_frames[0]
         self.moving_sprite = self.player_frames[1]
 
-
     def get_sprite(self) -> pygame.Surface:
-        sprite = (
-            self.moving_sprite
-            if self.entity.moving
-            else self.idle_sprite
-        )
-        
-        if (
-            self.entity.heading_direction == Action.RIGHT
-            or self.entity.heading_direction == Action.DOWN
-        ):
+        sprite = self.moving_sprite if self.entity.moving else self.idle_sprite
+
+        if self.entity.face_orientation == Action.RIGHT:
             sprite = pygame.transform.flip(sprite, True, False)
-        
+
         return sprite

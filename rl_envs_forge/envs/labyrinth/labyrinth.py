@@ -110,7 +110,6 @@ class Labyrinth(gym.Env):
         self.make_maze_factory()
         self.maze = self.maze_factory.create_maze()
         self.player.position = self.maze.start_position
-        self.player.target_position = self.player.position
         self.player.rendered_position = self.player.position
         self.build_state_matrix()
 
@@ -207,57 +206,52 @@ class Labyrinth(gym.Env):
                 labyrinth=self,
             )
 
+        self.env_displayer.draw_state(animate=animate)
         reward, done, info = None, None, None
-        key_press = False
-
-        self.env_displayer.draw_state()
+        key_press = None
 
         if mode == "human":
+
             for event in pygame.event.get():
+                new_action = None
+
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     quit()
 
-                while not self.player._positions_are_close(
-                    self.player.rendered_position, self.player.target_position
-                ):
-                    self.player.moving = True
-                    self.player.move_towards_target()
-                    self.env_displayer.draw_state(animate=animate)
-                    pygame.time.wait(
-                        int(sleep_time / 5)
-                    )  # Faster refresh for smoother animation
-                self.player.moving = False
-
                 if event.type == pygame.KEYDOWN:
                     key_press = True
-
                     if event.key == pygame.K_ESCAPE:
                         pygame.quit()
                         quit()
-
-                    if event.key == pygame.K_UP:
-                        _, reward, done, _, info = self.interpret_direction_action(
-                            Action.UP
-                        )
+                    elif event.key == pygame.K_UP:
+                        new_action = Action.UP
                     elif event.key == pygame.K_RIGHT:
-                        _, reward, done, _, info = self.interpret_direction_action(
-                            Action.RIGHT
-                        )
-
+                        new_action = Action.RIGHT
                     elif event.key == pygame.K_DOWN:
-                        _, reward, done, _, info = self.interpret_direction_action(
-                            Action.DOWN
-                        )
-
+                        new_action = Action.DOWN
                     elif event.key == pygame.K_LEFT:
-                        _, reward, done, _, info = self.interpret_direction_action(
-                            Action.LEFT
-                        )
+                        new_action = Action.LEFT
+
+                    if new_action is not None:
+                        _, reward, done, _, info = self.interpret_direction_action(new_action)
+
+                        if animate:
+                            while not self.player._positions_are_close(
+                                self.player.rendered_position, self.player.position
+                            ):
+                                self.player.moving = True
+                                self.player.move_render_position()
+                                self.env_displayer.draw_state(animate=animate)
+                                pygame.time.wait(
+                                    int(sleep_time / 10)
+                                )  # Faster refresh for smoother animation
+
+                        self.player.moving = False
 
                 elif event.type == pygame.VIDEORESIZE:
                     self.env_displayer.resize(event.w, event.h)
-                    self.env_displayer.draw_state(self.state)
+                    self.env_displayer.draw_state(animate=animate)
 
         else:  # mode is not human, so model will play
             # Sleep for a bit so you can see the change
@@ -266,8 +260,8 @@ class Labyrinth(gym.Env):
         return self.state, reward, done, {}, info, key_press
 
     def interpret_direction_action(self, action):
-        self.player.heading_direction = action
-        self.player.target_position = self.player.potential_next_position(action)
+        if action == Action.RIGHT or action == Action.LEFT:
+            self.player.face_orientation = action
         return self.step(action)
 
     def human_play(self, print_info=False, window_size=(800, 800), animate=True):
@@ -300,4 +294,4 @@ class Labyrinth(gym.Env):
 
 if __name__ == "__main__":
     env = Labyrinth(20, 20)
-    env.human_play(print_info=True)
+    env.human_play(print_info=True, animate=True)
