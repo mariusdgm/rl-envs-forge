@@ -60,7 +60,6 @@ class Labyrinth(gym.Env):
             reward_schema (dict, optional): A dictionary defining the reward schema for the labyrinth. Defaults to None.
             seed (int, optional): The seed to use for generating random numbers. Defaults to None.
 
-
         """
 
         super().__init__()
@@ -141,10 +140,16 @@ class Labyrinth(gym.Env):
         return self.state
 
     def step(self, action):
+        action = Action(action)
+
         # Initial reward
         reward = self.reward_schema["neutral_reward"]
         done = False
         truncated = False
+
+        # Make the agent sprite turn
+        if action == Action.LEFT or action == Action.RIGHT:
+            self.player.face_orientation = action
 
         # Check if the action is valid
         if not self.is_valid_move(self.player, action):
@@ -195,7 +200,25 @@ class Labyrinth(gym.Env):
 
         self.setup_labyrinth()
 
-    def render(self, mode=None, sleep_time=100, window_size=(800, 800), animate=True):
+    def render(
+        self,
+        sleep_time: int = 100,
+        window_size: Tuple[int, int] = (800, 800),
+        animate: bool = True,
+        process_arrow_keys: bool = False,
+    ):
+        """
+        Renders the environment and handles user input events.
+
+        Args:
+            sleep_time (int, optional): The sleep time in milliseconds between each frame of the animation. Defaults to 100.
+            window_size (Tuple[int, int], optional): The size of the window in pixels. Defaults to (800, 800).
+            animate (bool, optional): Whether to animate the rendering. Defaults to True.
+            process_arrow_keys (bool, optional): Whether to process directional keys for user input. Defaults to False.
+
+        Returns:
+            Tuple[bool, Action]: A tuple containing a boolean value indicating if the quit event occurred and the action taken by the user.
+        """
         if self.env_displayer is None:
             # Initialize only if render is needed
             self.env_displayer = EnvDisplay(
@@ -206,85 +229,91 @@ class Labyrinth(gym.Env):
                 labyrinth=self,
             )
 
-        self.env_displayer.draw_state(animate=animate)
-        reward, done, info = None, None, None
-        key_press = None
+        quit_event = False
+        action = None
 
-        if mode == "human":
+        if not animate:
+            self.player.rendered_position = self.player.position
 
-            for event in pygame.event.get():
-                new_action = None
+        self.env_displayer.draw_state()
 
-                if event.type == pygame.QUIT:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                quit_event = True
+                return quit_event, action
+
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
                     pygame.quit()
-                    quit()
+                    quit_event = True
+                    return quit_event, action
 
-                if event.type == pygame.KEYDOWN:
-                    key_press = True
-                    if event.key == pygame.K_ESCAPE:
-                        pygame.quit()
-                        quit()
-                    elif event.key == pygame.K_UP:
-                        new_action = Action.UP
+                if process_arrow_keys:
+                    if event.key == pygame.K_UP:
+                        action = Action.UP
                     elif event.key == pygame.K_RIGHT:
-                        new_action = Action.RIGHT
+                        action = Action.RIGHT
                     elif event.key == pygame.K_DOWN:
-                        new_action = Action.DOWN
+                        action = Action.DOWN
                     elif event.key == pygame.K_LEFT:
-                        new_action = Action.LEFT
+                        action = Action.LEFT
 
-                    if new_action is not None:
-                        _, reward, done, _, info = self.interpret_direction_action(new_action)
+            if event.type == pygame.VIDEORESIZE:
+                self.env_displayer.resize(event.w, event.h)
+                self.env_displayer.draw_state()
 
-                        if animate:
-                            while not self.player._positions_are_close(
-                                self.player.rendered_position, self.player.position
-                            ):
-                                self.player.moving = True
-                                self.player.move_render_position()
-                                self.env_displayer.draw_state(animate=animate)
-                                pygame.time.wait(
-                                    int(sleep_time / 10)
-                                )  # Faster refresh for smoother animation
+        if animate:
+            # This animation effect makes the display slightly unresponsive as
+            # it blocks the execution here
+            while not self.player._positions_are_close(
+                self.player.rendered_position, self.player.position
+            ):
+                self.player.moving = True
+                self.player.move_render_position()
+                self.env_displayer.draw_state()
+                pygame.time.wait(
+                    int(sleep_time / 10)
+                )  # Faster refresh for smoother animation
 
-                        self.player.moving = False
+            self.player.moving = False
 
-                elif event.type == pygame.VIDEORESIZE:
-                    self.env_displayer.resize(event.w, event.h)
-                    self.env_displayer.draw_state(animate=animate)
-
-        else:  # mode is not human, so model will play
-            # Sleep for a bit so you can see the change
-            pygame.time.wait(sleep_time)
-
-        return self.state, reward, done, {}, info, key_press
-
-    def interpret_direction_action(self, action):
-        if action == Action.RIGHT or action == Action.LEFT:
-            self.player.face_orientation = action
-        return self.step(action)
+        return quit_event, action
 
     def human_play(self, print_info=False, window_size=(800, 800), animate=True):
         """Continously display environment and allow user to play.
         Exit by closing the window or pressing ESC.
         """
+        self.render(window_size=window_size, animate=animate, process_arrow_keys=True)
+
         done = False
         first_info_printed = True
         while True:
-            state, reward, done, _, info, key_pressed = self.render(
-                mode="human", window_size=window_size, animate=animate
+            reward, done, info = None, None, None
+            key_press = None
+
+            quit_event, action = self.render(
+                window_size=window_size, animate=animate, process_arrow_keys=True
             )
+
+            if quit_event:
+                break
+
+            if action is not None:
+                _, reward, done, _, info = self.step(action)
 
             if print_info and first_info_printed:
                 init_message = (
                     f"Initialized environment with seed: {self.seed}, "
                     f"rows: {self.rows}, cols: {self.cols}, "
-                    f"maze_nr_desired_rooms: {self.maze_nr_desired_rooms}, maze_global_room_ratio: {self.maze_global_room_ratio}."
+                    f"maze_nr_desired_rooms: {self.maze.nr_desired_rooms}, "
+                    f"maze_nr_placed_rooms: {self.maze.nr_placed_rooms}, "
+                    f"maze_global_room_ratio: {self.maze.global_room_ratio}."
                 )
                 print(init_message)
                 first_info_printed = False
 
-            if print_info and key_pressed:
+            if print_info and key_press:
                 print(f"Reward: {reward}, Done: {done}, Info: {info}")
 
             if done:

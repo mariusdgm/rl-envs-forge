@@ -83,12 +83,12 @@ class EnvDisplay:
             self.window_height - round(total_cell_height) - 2 * EnvDisplay.BORDER_PADDING
         ) 
 
-    def draw_state(self, animate=True):
+    def draw_state(self):
         """Display the state of the env
 
         Args:
             state (2D Numpy array): The discrete state of the environment
-            animate (bool, optional): Wether to animate movement of agents. Defaults to True.
+            animate (bool, optional): Whether to animate movement of agents. Defaults to True.
         """
         # 1. Fill background with border color
         self.screen.fill(EnvDisplay.BORDER_COLOR)
@@ -104,16 +104,13 @@ class EnvDisplay:
 
         #### Draw special features
         # 5. Draw player
-        self.draw_player(animate)
+        self.draw_player()
 
         pygame.display.flip()
 
-    def draw_player(self, animate=True):
-        draw_pos = (
-            self.labyrinth.player.rendered_position
-            if animate
-            else self.labyrinth.player.position
-        )
+    def draw_player(self):
+        draw_pos = self.labyrinth.player.rendered_position
+            
         x, y = self._adjust_coords_for_padding(*draw_pos)
 
         sprite = self.player_displayer.get_sprite()
