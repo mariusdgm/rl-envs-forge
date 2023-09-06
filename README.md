@@ -1,4 +1,6 @@
 # rl-envs-forge
+[![GitHub](https://img.shields.io/badge/-GitHub-black?logo=github)](https://github.com/[mariusdgm]/[rl-envs-forge])
+
 Lightweight environments for reinforcement learning applications.
 
 ## Table of Contents
@@ -26,7 +28,7 @@ Labyrinth is a classic maze-solving environment, where the goal is to navigate f
 
 ### Rendered example
 
-![Alt text for your GIF](assets/labyrinth/doc_imgs/auto_play_demo.gif)
+![Labyrinth render GIF](./assets/labyrinth/doc_imgs/auto_play_demo.gif)
 
 ## Usage
 
