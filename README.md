@@ -24,11 +24,11 @@ pip install rl-envs-forge
 
 Labyrinth is a classic maze-solving environment, where the goal is to navigate from a start point to a target. The maze layout is randomly generated based on a set of parametrizable arguments.
 
-📖 **Detailed Documentation**: [Click here to read more about the Labyrinth environment](./rl_envs_forge/envs/labyrinth/README.md)
+📖 **Detailed Documentation**: [Click here to read more about the Labyrinth environment](https://github.com/mariusdgm/rl-envs-forge/blob/main/rl_envs_forge/envs/labyrinth/README.md)
 
 ### Rendered example
 
-![Labyrinth render GIF](./assets/labyrinth/doc_imgs/auto_play_demo.gif)
+![Labyrinth render GIF](https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/assets/labyrinth/doc_imgs/auto_play_demo.gif)
 
 ## Usage
 

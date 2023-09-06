@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Bugfix
+ - Changed readme and img paths to urls so they can get work properly on the pypi page too 
+
 ## [0.4.0] - 2023.09.06
 ### Added 
  - Refined project readme and several labyrinth module level readmes.

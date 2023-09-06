@@ -4,7 +4,7 @@ The Labyrinth environment consists in a 2D grid-world where an agent is tasked w
 
 The mazes are randomized using various parameters, presented in section [Usage](#usage).
 
-📖 **Detailed Documentation** [Click here to read more about the Maze and Rooms components](./maze/README.md)
+📖 **Detailed Documentation** [Click here to read more about the Maze and Rooms components](https://github.com/mariusdgm/rl-envs-forge/blob/main/rl_envs_forge/envs/labyrinth/maze/README.md)
 
 ## Usage
 
@@ -24,7 +24,7 @@ while not done and not quit_event:
     quit_event, _ = env.render()
     sleep(0.1)
 ```
-![Alt text for your GIF](../../../assets/labyrinth/doc_imgs/auto_play_demo.gif)
+![Labyrinth render GIF](https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/assets/labyrinth/doc_imgs/auto_play_demo.gif)
 
 
 <br>
@@ -42,19 +42,19 @@ env.human_play(print_info=True, animate=True)
 <table>
 <tr>
 <td>
-<img src="../../../assets/labyrinth/doc_imgs/ss1.png" alt="Screenshot 1" width="300">
+<img src="https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/assets/labyrinth/doc_imgs/ss1.png" alt="Screenshot 1" width="300">
 </td>
 <td>
-<img src="../../../assets/labyrinth/doc_imgs/ss2.png" alt="Screenshot 2" width="300">
+<img src="https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/assets/labyrinth/doc_imgs/ss2.png" alt="Screenshot 2" width="300">
 </td>
 </tr>
 
 <tr>
 <td>
-<img src="../../../assets/labyrinth/doc_imgs/ss3.png" alt="Screenshot 1" width="300">
+<img src="https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/assets/labyrinth/doc_imgs/ss3.png" alt="Screenshot 1" width="300">
 </td>
 <td>
-<img src="../../../assets/labyrinth/doc_imgs/ss4.png" alt="Screenshot 2" width="300">
+<img src="https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/assets/labyrinth/doc_imgs/ss4.png" alt="Screenshot 2" width="300">
 </td>
 </tr>
 </table>
