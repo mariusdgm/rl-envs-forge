@@ -5,18 +5,18 @@ from rl_envs_forge.envs.labyrinth.display.display import EnvDisplay
 from rl_envs_forge.envs.labyrinth.constants import WALL, PATH
 
 
-@pytest.fixture
-def mock_pygame():
-    with patch("rl_envs_forge.envs.labyrinth.display.display.pygame") as mock:
-        yield mock
-
-
-@pytest.fixture
-def env_display(mock_pygame):
-    return EnvDisplay(5, 5, labyrinth=Mock())
-
-
 class TestEnvDisplay:
+
+    @pytest.fixture
+    def mock_pygame(self):
+        with patch("rl_envs_forge.envs.labyrinth.display.display.pygame") as mock:
+            yield mock
+
+
+    @pytest.fixture
+    def env_display(self, mock_pygame):
+        return EnvDisplay(5, 5, labyrinth=Mock())
+
     def test_initialization(self, env_display):
         assert env_display.rows == 5
         assert env_display.cols == 5

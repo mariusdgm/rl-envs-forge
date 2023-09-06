@@ -394,63 +394,6 @@ class Maze:
         self.start_position = self.choose_start_position()
         self.target_position = self.choose_target_position()
 
-    def generate_corridor_maze_old(self):
-        grid = np.full((self.rows, self.cols), WALL)
-        directions = [(2, 0), (-2, 0), (0, 2), (0, -2)]
-
-        # Initialize the starting position
-        current_position = self.start_position
-        grid[current_position] = PATH
-
-        walls = []
-
-        for d in directions:
-            pos_valid, move_status = self.is_valid_position(grid, current_position, d)
-            if pos_valid:
-                walls.append((current_position, d))
-
-        while walls:
-            # Randomly select a wall from the list
-            current_position, direction = self.py_random.choice(walls)
-
-            next_pos = (
-                current_position[0] + direction[0],
-                current_position[1] + direction[1],
-            )
-
-            intermediary_pos = (
-                current_position[0] + direction[0] // 2,
-                current_position[1] + direction[1] // 2,
-            )
-
-            is_valid, status = self.is_valid_position(grid, current_position, direction)
-            if is_valid:
-                grid[intermediary_pos[0], intermediary_pos[1]] = PATH
-                grid[next_pos[0], next_pos[1]] = PATH
-
-                for d in directions:
-                    pos_valid, move_status = self.is_valid_position(grid, next_pos, d)
-                    if pos_valid:
-                        walls.append((next_pos, d))
-
-            elif status in [MoveStatus.ROOM_BOUNDARY, MoveStatus.MAZE_BOUNDARY]:
-                print(f"Reached here {status}")
-                grid[intermediary_pos[0], intermediary_pos[1]] = PATH
-
-            if not is_valid and self.grid_connect_corridors:
-                # This will lead to creating a grid like structure because it connects corridors
-                # The resulting corridors have virtually no more dead ends
-                if grid[
-                    intermediary_pos[0], intermediary_pos[1]
-                ] == WALL and not self.is_adjacent_to_room(intermediary_pos):
-                    grid[intermediary_pos[0], intermediary_pos[1]] = PATH
-
-            # Remove the wall from the list
-            walls.remove((current_position, direction))
-
-        self.corridor_grid = grid
-        return True
-
     def generate_corridor_maze(self):
         """Generate corridors using an adaptation of Prim's algorithm.
 

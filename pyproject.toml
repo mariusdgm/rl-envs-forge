@@ -1,8 +1,8 @@
 [tool.poetry]
 name = "rl-envs-forge"
-version = "0.3.0"
+version = "0.4.0"
 description = "Environments for reinforcement learning"
-authors = ["mariusdgm <marius.dragomir.dgr@gmail.com>"]
+authors = ["mariusdgm <marius.dragomir.dgm@gmail.com>"]
 license = "MIT"
 readme = "README.md"
 

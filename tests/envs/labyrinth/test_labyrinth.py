@@ -1,26 +1,78 @@
 import pytest
+from unittest.mock import Mock, patch
+import pygame
 import numpy as np
 import os
 import random
 
 # So we avoid the screen appearing during testing
-os.environ['SDL_VIDEODRIVER'] = 'dummy'
+os.environ["SDL_VIDEODRIVER"] = "dummy"
 
 from rl_envs_forge.envs.labyrinth.labyrinth import Labyrinth
 from rl_envs_forge.envs.labyrinth.constants import *
 
 
 class TestLabyrinth:
+    # Counter as a class attribute
+    iteration_counter = 0
+
+    @staticmethod
+    def mock_render(window_size, animate, process_arrow_keys):
+        # Increase the counter
+        TestLabyrinth.iteration_counter += 1
+
+        # If it's the 100th iteration, simulate a quit event
+        if TestLabyrinth.iteration_counter >= 100:
+            return True, None  # True indicates a quit event
+
+        # Otherwise, continue with the rest of the mock logic:
+        mock_event = Mock()
+        mock_event.type = pygame.KEYDOWN
+
+        # Randomly select a direction
+        directions = [pygame.K_UP, pygame.K_DOWN, pygame.K_LEFT, pygame.K_RIGHT]
+        mock_event.key = random.choice(directions)
+
+        # Map pygame keys to the Action enum
+        action_mapping = {
+            pygame.K_UP: Action.UP,
+            pygame.K_DOWN: Action.DOWN,
+            pygame.K_LEFT: Action.LEFT,
+            pygame.K_RIGHT: Action.RIGHT,
+        }
+
+        action = action_mapping.get(mock_event.key)
+
+        # Return the simulated event in the expected format
+        return False, action
+
+    def test_human_play(self):
+        env = Labyrinth(rows=20, cols=20)
+
+        # Reset the counter at the beginning of each test
+        TestLabyrinth.iteration_counter = 0
+
+        # Patch the `render` method to use our mock instead
+        with patch.object(env, "render", side_effect=self.mock_render):
+            try:
+                env.human_play()
+            except Exception as e:
+                # If there's any exception, the test should fail
+                assert False, f"An exception occurred: {e}"
+
+            # If no exception, the test passes
+            assert True
+
     @pytest.fixture
     def labyrinth(self):
-        return Labyrinth(31, 31)
-    
+        return Labyrinth(30, 30)
+
     @pytest.fixture
     def movement_labyrinth(self):
-        lab = Labyrinth(31, 31)
+        lab = Labyrinth(30, 30)
 
         # Set up a specific corner scenario for testing
-        grid = np.ones((31, 31), dtype=np.uint8) * WALL
+        grid = np.ones((30, 30), dtype=np.uint8) * WALL
         grid[0, 0:3] = PATH
         grid[0, 1] = PLAYER
         grid[0, 2] = START
@@ -79,8 +131,8 @@ class TestLabyrinth:
         assert not np.array_equal(labyrinth.state, initial_state)
 
     def test_seeding(self):
-        env1 = Labyrinth(31, 31, seed=42)
-        env2 = Labyrinth(31, 31, seed=42)
+        env1 = Labyrinth(30, 30, seed=42)
+        env2 = Labyrinth(30, 30, seed=42)
         assert np.array_equal(env1.state, env2.state)
         assert np.array_equal(env1.maze.start_position, env2.maze.start_position)
         assert np.array_equal(env1.maze.target_position, env2.maze.target_position)
@@ -98,10 +150,9 @@ class TestLabyrinth:
         # Then
         assert np.array_equal(initial_state, post_reset_state)
 
-
     def test_render(self):
         env = Labyrinth(20, 20)
-        
+
         try:
             # Render the environment for a few frames
             for _ in range(10):
@@ -111,11 +162,55 @@ class TestLabyrinth:
                 # Apply the action
                 env.step(action)
 
-                env.render(mode=None, window_size=(800, 600), animate=True)
+                env.render(window_size=(800, 600), animate=True)
 
             # If we reach here, it means there were no exceptions while rendering
             assert True
 
         except Exception as e:
             assert False, e
-    
+
+    def test_quit_event(self):
+        env = Labyrinth(rows=20, cols=20)
+
+        # Mock render to simulate QUIT event
+        @staticmethod
+        def mock_render_quit(window_size, animate, process_arrow_keys):
+            mock_event = Mock()
+            mock_event.type = pygame.QUIT
+            return True, None  # True indicates a quit event
+
+        with patch.object(env, 'render', side_effect=mock_render_quit):
+            try:
+                env.human_play()
+            except Exception as e:
+                # If there's any exception, the test should fail
+                assert False, f"An exception occurred: {e}"
+
+            # If no exception, the test passes
+            assert True
+
+    def test_escape_event(self):
+        env = Labyrinth(rows=20, cols=20)
+
+        # Mock render to simulate K_ESCAPE event
+        @staticmethod
+        def mock_render_escape(window_size, animate, process_arrow_keys):
+            mock_event = Mock()
+            mock_event.type = pygame.KEYDOWN
+            mock_event.key = pygame.K_ESCAPE
+            return True, None  # True indicates a quit event
+
+        with patch.object(env, 'render', side_effect=mock_render_escape):
+            try:
+                env.human_play()
+            except Exception as e:
+                # If there's any exception, the test should fail
+                assert False, f"An exception occurred: {e}"
+
+            # If no exception, the test passes
+            assert True
+
+
+
+
