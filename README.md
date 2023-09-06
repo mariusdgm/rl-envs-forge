@@ -6,6 +6,7 @@ Lightweight environments for reinforcement learning applications.
 - [Environments](#environments)
   - [Labyrinth](#labyrinth)
 - [Usage](#usage)
+- [Tests](#tests)
 - [License](#license)
 - [Contact & Support](#contact--support)
 
@@ -48,6 +49,15 @@ while not done and not quit_event:
     sleep(0.1)
 ```
 
+## Tests
+
+Requirements: pytest and pytest-cov
+
+Run the tests in the root folder with: 
+
+```bash
+pytest tests
+```
 
 ## License
 
