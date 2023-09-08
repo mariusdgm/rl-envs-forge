@@ -63,5 +63,5 @@ class Player:
 
         self._rendered_position = new_rendered_position
 
-    def _positions_are_close(self, pos1, pos2, threshold=0.1):
+    def _positions_are_close(self, pos1, pos2, threshold=0.01):
         return abs(pos1[0] - pos2[0]) < threshold and abs(pos1[1] - pos2[1]) < threshold
