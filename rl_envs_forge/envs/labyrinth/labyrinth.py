@@ -300,6 +300,9 @@ class Labyrinth(gym.Env):
 
             if action is not None:
                 _, reward, done, _, info = self.step(action)
+                
+                if print_info:
+                    print(f"Reward: {reward}, Done: {done}, Info: {info}")
 
             if print_info and first_info_printed:
                 init_message = (

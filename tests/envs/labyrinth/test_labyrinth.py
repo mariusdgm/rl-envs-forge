@@ -63,6 +63,26 @@ class TestLabyrinth:
             # If no exception, the test passes
             assert True
 
+    def test_human_play_prints(self, capsys):
+        env = Labyrinth(rows=20, cols=20)
+
+        # Reset the counter at the beginning of each test
+        TestLabyrinth.iteration_counter = 0
+
+        # Patch the render method to use our mock instead
+        with patch.object(env, "render", side_effect=self.mock_render):
+            env.human_play(print_info=True)
+
+            # Capture the printed output
+            captured = capsys.readouterr()
+            printed_output = captured.out
+
+            # Check for specific patterns or substrings
+            assert "Initialized environment with seed:" in printed_output
+            assert "Reward: " in printed_output
+            assert "Done: " in printed_output
+            assert "Info: " in printed_output
+
     @pytest.fixture
     def labyrinth(self):
         return Labyrinth(30, 30)

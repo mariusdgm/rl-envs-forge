@@ -116,13 +116,13 @@ class EnvDisplay:
         sprite = self.player_displayer.get_sprite()
 
         # Scale the sprite
-        desired_width = self.cell_width * 0.9
-        desired_height = self.cell_height * 0.9
+        desired_width = self.cell_width * 0.8
+        desired_height = self.cell_height * 0.8
         sprite = pygame.transform.scale(sprite, (desired_width, desired_height))
 
         # micro-adjustement
-        x = x + (self.BORDER_PADDING / 4)
-        y = y + (self.BORDER_PADDING / 4)
+        x = x + (self.BORDER_PADDING / 2)
+        y = y + (self.BORDER_PADDING / 2)
         self.screen.blit(sprite, (x, y))
 
     
