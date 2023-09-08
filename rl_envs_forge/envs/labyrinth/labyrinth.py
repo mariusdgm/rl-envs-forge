@@ -290,7 +290,6 @@ class Labyrinth(gym.Env):
         first_info_printed = True
         while True:
             reward, done, info = None, None, None
-            key_press = None
 
             quit_event, action = self.render(
                 window_size=window_size, animate=animate, process_arrow_keys=True
@@ -312,9 +311,6 @@ class Labyrinth(gym.Env):
                 )
                 print(init_message)
                 first_info_printed = False
-
-            if print_info and key_press:
-                print(f"Reward: {reward}, Done: {done}, Info: {info}")
 
             if done:
                 first_info_printed = True
