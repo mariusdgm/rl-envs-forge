@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Bugfix
  - Changed readme and img paths to urls so they can get displayed properly on the pypi page too 
- - Adjusted default pos close threshold and fixed info print
+ - Adjusted default pos close threshold and fixed info print in human_play
 
 ## [0.4.0] - 2023.09.06
 ### Added 
