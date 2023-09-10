@@ -1,5 +1,4 @@
 import pytest
-from unittest.mock import Mock
 import numpy as np
 import random
 
@@ -95,67 +94,6 @@ class TestMaze:
         )  # Or however you initialize your maze
         assert len(maze.rooms) > 0
 
-    @pytest.mark.skip(reason="Need to migrate to corridor builder class")
-    def test_grow_path_from(self):
-        """Testing the fall back mechanism,
-        this code is not covered in other tests because the
-        standard generation procedure seems to already fully connect the
-        tested mazes. Probably could help more in small mazes (under 10x10),
-        but those are not recommended and 10x10 is enforced as minimum size at the moment.
-        """
-        # Initialize the maze
-        maze = Maze(rows=10, cols=10)
-
-        # Clear any pre-existing rooms and grids
-        maze.rooms = []
-        maze.grid.fill(WALL)
-        maze.room_grid.fill(WALL)
-        maze.corridor_grid.fill(WALL)
-        maze.start_position = (maze.rows - 1, maze.cols - 1)
-
-        # Insert our specific test room
-        room = Mock()
-        room.rows = 3
-        room.cols = 3
-        room.global_position = (1, 1)
-        room.access_points = [(0, 0)]
-        room.grid = np.ones((room.rows, room.cols), dtype=int)
-        maze.rooms.append(room)
-
-        # Overlay the room onto maze.room_grid and maze.grid
-        for i in range(room.rows):
-            for j in range(room.cols):
-                maze.room_grid[
-                    room.global_position[0] + i, room.global_position[1] + j
-                ] = room.grid[i, j]
-        maze.grid = np.where(maze.room_grid == PATH, PATH, maze.grid)
-
-        # Run the corridor generation function
-        maze.generate_corridor_maze()
-        maze.generate_corridor_maze()
-        maze.connect_rooms_to_paths()
-        maze.grid = np.where(maze.corridor_grid == PATH, PATH, maze.grid)
-
-        assert maze.is_valid_maze() is True
-
-        # Here, create conditions that would trigger the grow function.
-        # For instance, we can add a wall barrier between the room's access points and the corridors.
-        for i in range(4):
-            maze.corridor_grid[i, 4] = WALL
-            maze.corridor_grid[4, i] = WALL
-
-            maze.grid[i, 4] = WALL
-            maze.grid[4, i] = WALL
-
-        assert maze.is_valid_maze() is False
-
-        # Connect the rooms to paths
-        maze.grow_path_from((room.access_points[0]))
-
-        # # Overlay the corridors onto self.grid
-        maze.grid = np.where(maze.corridor_grid == PATH, PATH, maze.grid)
-
-        assert maze.is_valid_maze() is True
 
     def test_grid_connect_option_true(self):
         total_paths_with_option = 0

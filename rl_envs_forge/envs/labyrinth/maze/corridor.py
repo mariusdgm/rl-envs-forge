@@ -7,12 +7,12 @@ from ..constants import WALL, PATH, START, TARGET, CorridorMoveStatus
 
 from ...common.grid_functions import on_line
 
-class CorridorBuilder():
+
+class CorridorBuilder:
     def __init__(self, maze):
         self.maze = maze
         self.rows = self.maze.rows
         self.cols = self.maze.cols
-
 
     ########## Prim's algorithm logic ########################
     def generate_corridor_prim(self):
@@ -31,7 +31,9 @@ class CorridorBuilder():
         walls = []
 
         for d in directions:
-            pos_valid, move_status = self.is_valid_position(grid, current_position, d)
+            pos_valid, move_status = self.is_valid_next_position(
+                grid, current_position, d
+            )
             if pos_valid or move_status in [
                 CorridorMoveStatus.ROOM_BOUNDARY,
                 CorridorMoveStatus.MAZE_BOUNDARY,
@@ -52,14 +54,18 @@ class CorridorBuilder():
                 current_position[1] + direction[1] // 2,
             )
 
-            is_valid, status = self.is_valid_position(grid, current_position, direction)
+            is_valid, status = self.is_valid_next_position(
+                grid, current_position, direction
+            )
 
             if is_valid:
                 grid[intermediary_pos[0], intermediary_pos[1]] = PATH
                 grid[next_pos[0], next_pos[1]] = PATH
 
                 for d in directions:
-                    pos_valid, move_status = self.is_valid_position(grid, next_pos, d)
+                    pos_valid, move_status = self.is_valid_next_position(
+                        grid, next_pos, d
+                    )
                     if pos_valid:
                         walls.append((next_pos, d))
 
@@ -76,8 +82,8 @@ class CorridorBuilder():
             walls.remove((current_position, direction))
 
         return grid
-    
-    def is_valid_position(self, grid, position, direction):
+
+    def is_valid_next_position(self, grid, position, direction):
         new_pos = (position[0] + direction[0], position[1] + direction[1])
 
         # Detect if new position is out of maze bounds
@@ -92,18 +98,11 @@ class CorridorBuilder():
             return (False, CorridorMoveStatus.INVALID)
 
         # Check for room padding
-        for dx in [-1, 0, 1]:
-            for dy in [-1, 0, 1]:
-                x, y = new_pos[0] + dx, new_pos[1] + dy
-                if (
-                    0 <= x < self.rows
-                    and 0 <= y < self.cols
-                    and self.maze.room_grid[x, y] == PATH
-                ):
-                    return (False, CorridorMoveStatus.ROOM_BOUNDARY)
+        if self.is_adjacent_to_room(new_pos):
+            return (False, CorridorMoveStatus.ROOM_BOUNDARY)
 
         return (True, CorridorMoveStatus.VALID_MOVE)
-    
+
     def is_adjacent_to_room(self, position):
         for dx in [-1, 0, 1]:
             for dy in [-1, 0, 1]:
@@ -114,7 +113,6 @@ class CorridorBuilder():
                 ):
                     return True
         return False
-    
 
     ####### Connect access points to paths ############
 
@@ -162,14 +160,16 @@ class CorridorBuilder():
                     # If not visited, not a room cell, not inside any room (excluding the access point), and not yet part of the corridor
                     if (
                         not visited[new_pos[0], new_pos[1]]
-                        and not self.maze.is_inside_any_room(new_pos, exception=access_point)
+                        and not self.maze.is_inside_any_room(
+                            new_pos, exception=access_point
+                        )
                         and self.maze.corridor_grid[new_pos[0], new_pos[1]] == WALL
                     ):
                         visited[new_pos[0], new_pos[1]] = True
                         queue.append(new_pos)
 
         return None
-    
+
     def plot_path_from_to(self, p1, p2):
         # Directly connect if the cells are adjacent and not diagonally so
         diff_x = abs(p1[0] - p2[0])
@@ -189,7 +189,6 @@ class CorridorBuilder():
             if not self.maze.is_inside_any_room(p1, exception=None):
                 self.maze.corridor_grid[p1[0], p1[1]] = PATH
 
-    
     ####### Grow path logic #########
     def grow_path_from(
         self, start_pos, max_attempts=5000
@@ -233,7 +232,7 @@ class CorridorBuilder():
 
                     # If this is not diagonal, then validate
                     if not (abs(diff_x) == 1 and abs(diff_y) == 1):
-                        if not self.maze.is_line_segment_intersecting_room(
+                        if not self.is_line_segment_intersecting_room(
                             start_pos, new_pos
                         ):
                             return new_pos
@@ -268,7 +267,7 @@ class CorridorBuilder():
 
         # If we reached here, we didn't find a corridor
         return None
-    
+
     def direction_cost(self, current_pos, direction, target_pos):
         new_pos = (current_pos[0] + direction[0], current_pos[1] + direction[1])
         base_cost = abs(new_pos[0] - target_pos[0]) + abs(new_pos[1] - target_pos[1])
@@ -278,7 +277,7 @@ class CorridorBuilder():
             base_cost += 10
 
         return base_cost
-    
+
     def is_line_segment_intersecting_room(self, p1, p2):
         """Check if the line segment p1p2 intersects any room cell."""
         for room in self.maze.rooms:
@@ -297,7 +296,7 @@ class CorridorBuilder():
                         if on_line(p1, global_cell_pos, p2):
                             return True
         return False
-    
+
     ###### Post Processing logic ######
 
     def post_process_maze(self):

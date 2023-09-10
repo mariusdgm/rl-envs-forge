@@ -116,6 +116,7 @@ class Room(ABC):
         min_rows: int = 3,
         min_cols: int = 3,
         seed: Optional[int] = None,
+        top_left_coord: Tuple[int, int] = (0, 0),
     ) -> None:
         """
         Base Room class.
@@ -127,6 +128,7 @@ class Room(ABC):
             min_rows (int, optional): Minimum rows for the room. Defaults to 3.
             min_cols (int, optional): Minimum columns for the room. Defaults to 3.
             seed (int, optional): Seed value for random operations. Defaults to None.
+            top_left_coord (tuple, optional): The top left coordinate of the room. Defaults to (0, 0).
         """
 
         self.rows = max(rows, min_rows)
@@ -138,7 +140,7 @@ class Room(ABC):
 
         self.np_random = np.random.RandomState(self.seed)
 
-        self.top_left_coord = (0, 0)  # Default to the origin
+        self.top_left_coord = top_left_coord  
         self.bottom_right_coord = (self.rows, self.cols)
         self.nr_access_points = nr_access_points
         self.access_points = set()
@@ -194,6 +196,7 @@ class RectangularRoom(Room):
         min_rows: int = 3,
         min_cols: int = 3,
         seed: Optional[int] = None,
+        **kwargs
     ) -> None:
         super().__init__(
             rows=rows,
@@ -202,6 +205,7 @@ class RectangularRoom(Room):
             min_rows=min_rows,
             min_cols=min_cols,
             seed=seed,
+            **kwargs
         )
         """Construct a RectangularRoom object representing a rectangular room.
 

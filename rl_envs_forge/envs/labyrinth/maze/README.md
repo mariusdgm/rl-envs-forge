@@ -3,7 +3,9 @@
 
 The Labyrinth Maze module provides functionality for generating and manipulating maze layouts. It consists of two main components: the `Maze` class and the `Room` class.
 
-The `Maze` class represents a maze layout and provides various methods for generating and manipulating mazes. The `Room` class represents a room in the maze and provides methods for generating and manipulating rooms.
+The `Maze` class represents a maze layout and provides various methods for generating and manipulating mazes. `Maze` also uses a `CorridorBuilder` component to handle the path generation. 
+
+The `Room` class represents a room in the maze and provides methods for generating and manipulating rooms.
 
 To instantiate a maze or a room, you can make use of the corresponding factory classes: `MazeFactory` and `RoomFactory`. These factory classes provide a convenient way to create instances of `Maze` and `Room` with different configurations and settings.
 
@@ -11,6 +13,7 @@ To instantiate a maze or a room, you can make use of the corresponding factory c
 
 - [Maze](#maze)
 - [Room](#room)
+- [CorridorBuilder](#corridorbuilder)
 
 ## Maze
 
@@ -54,4 +57,11 @@ The `Room` class allows for the implementation of different room types. Currentl
 - **Rectangular Room**: A basic rectangular room.
 
 To add new room types, simply create a new class that inherits from the `Room` class and implements the necessary methods.
+
+## CorridorBuilder
+Because the `Maze` starts by being populated with rooms, the maze generation is done with constraints defined by the room layouts. 
+
+`CorridorBuilder` encapsulates the functions relevant to corridor generation, and is a strongly coupled component of `Maze`.
+
+A `CorridorBuilder` object is instantiated at `Maze` instantiation, and the functions have access to the internals of `Maze` and may modify them.
 
