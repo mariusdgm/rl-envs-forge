@@ -7,7 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Bugfix
+### Changed
+ - Refactored corridor code from maze into a new CorridorBuilder class
+### Fixed
  - Changed readme and img paths to urls so they can get displayed properly on the pypi page too 
  - Adjusted default pos close threshold and fixed info print in human_play
 
@@ -18,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
  - Removed animate logic from displayer
  - Added unit test for human_play and for exit events
 
-### Bugfix
+### Fixed
  - Repaired exit behavior when using render.
 
 
@@ -31,7 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
  - Added mini animation.
 
 ## [0.2.1] - 2023.09.03
-### Bugfix
+### Fixed
  - Bugfix of human_play.
  
 ## [0.2.0] - 2023.09.03
