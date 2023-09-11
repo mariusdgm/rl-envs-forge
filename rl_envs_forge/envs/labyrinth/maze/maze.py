@@ -227,7 +227,9 @@ class Maze:
 
     def make_corridors(self):
         self.place_start_end_positions()
-        self.corridor_grid = self.corridor_builder.generate_corridor_prim()
+        # self.corridor_grid = self.corridor_builder.generate_corridor_prim()
+        self.corridor_grid = self.corridor_builder.generate_corridor_a_star()
+
         self.corridor_builder.connect_rooms_to_paths()
         self.corridor_builder.post_process_maze()
 
@@ -416,7 +418,7 @@ class Maze:
 
     
     def generate_global_room_mask(self):
-        self.global_room_mask = np.zeros((self.rows, self.cols), dtype=bool)
+        global_room_mask = np.zeros((self.rows, self.cols), dtype=bool)
 
         for room in self.rooms:
             local_mask = room.generate_inner_area_mask()
@@ -424,9 +426,11 @@ class Maze:
 
             for i in range(local_mask.shape[0]):
                 for j in range(local_mask.shape[1]):
-                    self.global_room_mask[
+                    global_room_mask[
                         global_position[0] + i, global_position[1] + j
                     ] |= local_mask[i, j]
+
+        return global_room_mask
 
     #### Validate maze ####
     def is_valid_maze(self):

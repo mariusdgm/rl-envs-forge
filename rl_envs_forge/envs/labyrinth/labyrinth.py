@@ -321,5 +321,5 @@ class Labyrinth(gym.Env):
 
 
 if __name__ == "__main__":
-    env = Labyrinth(20, 20)
+    env = Labyrinth(10, 10)
     env.human_play(print_info=True, animate=True)

@@ -1,6 +1,7 @@
 import numpy as np
 import random
 from collections import deque
+from queue import PriorityQueue
 from typing import List, Tuple, Union, Optional
 
 from ..constants import WALL, PATH, START, TARGET, CorridorMoveStatus
@@ -83,11 +84,16 @@ class CorridorBuilder:
 
         return grid
 
+    def is_out_of_bounds_maze(self, position):
+        if 0 <= position[0] < self.rows or 0 <= position[1] < self.cols:
+            return True
+        return False
+
     def is_valid_next_position(self, grid, position, direction):
         new_pos = (position[0] + direction[0], position[1] + direction[1])
 
         # Detect if new position is out of maze bounds
-        if not (0 <= new_pos[0] < self.rows and 0 <= new_pos[1] < self.cols):
+        if self.is_out_of_bounds_maze(new_pos):
             return (False, CorridorMoveStatus.MAZE_BOUNDARY)
 
         # Detect if new position or its neighbors are a path (either corridor or room)
@@ -113,6 +119,108 @@ class CorridorBuilder:
                 ):
                     return True
         return False
+
+    ####### A* direct corridor generation logic #########
+    def generate_corridor_a_star(self):
+        """Generate corridors using the A* algorithm."""
+
+        # Initialize a grid filled with walls
+        corridor_grid = np.full((self.rows, self.cols), WALL)
+
+        # Collect all access points from the rooms
+        access_points = []
+        for room in self.maze.rooms:
+            access_points.extend(room.access_points)
+        current_endpoint = self.maze.start_position
+
+        cost_grid = self.make_cost_grid(access_points)
+
+        for access_point in access_points:
+            path = self.a_star_path(current_endpoint, access_point, cost_grid)
+            for point in path:
+                corridor_grid[point[0], point[1]] = PATH
+            current_endpoint = access_point
+
+        return corridor_grid
+
+    def make_cost_grid(self, access_points):
+        cost_grid = np.full((self.rows, self.cols), 1)
+
+        global_room_mask = self.maze.generate_global_room_mask()
+        print(global_room_mask)
+        cost_grid[global_room_mask] = 1000
+
+        for room in self.maze.rooms:
+            global_pos = room.global_position
+            perimeter_cells = room.get_perimeter_cells(padding=1)
+            for cell in perimeter_cells:
+                if self.is_next_to_access_point(cell, access_points):
+                    cost_grid[global_pos[0] + cell[0], 
+                              global_pos[1] + cell[1]] = 0
+                else:
+                    cost_grid[global_pos[0] + cell[0], 
+                              global_pos[1] + cell[1]] = 10
+
+            for access_point in room.access_points:
+                cost_grid[
+                    global_pos[0] + access_point[0], global_pos[1] + access_point[1]
+                ] = 0
+
+        print(cost_grid)
+        return cost_grid
+
+    def a_star_path(self, start, goal, cost_grid):
+        frontier = PriorityQueue()
+        frontier.put(start, 0)
+
+        came_from = {}
+        came_from[start] = None
+        cost_so_far = {}
+        cost_so_far[start] = 0
+
+        while not frontier.empty():
+            current = frontier.get()
+
+            if current == goal:
+                break
+
+            for dx, dy in [(1, 0), (-1, 0), (0, 1), (0, -1)]:
+                next_node = (current[0] + dx, current[1] + dy)
+
+                if self.is_out_of_bounds_maze(next_node):
+                    continue  # Out of maze boundary
+
+                print(next_node, self.is_out_of_bounds_maze(next_node))
+                cell_cost = cost_grid[next_node[0], next_node[1]]
+                new_cost = cost_so_far[current] + cell_cost
+                if next_node not in cost_so_far or new_cost < cost_so_far[next_node]:
+                    cost_so_far[next_node] = new_cost
+                    priority = new_cost + self.heuristic(goal, next_node)
+                    frontier.put(next_node, priority)
+                    came_from[next_node] = current
+
+        print(cost_grid)
+        # Reconstruct the path
+        current = goal
+        path = []
+        while current != start:
+            path.append(current)
+            current = came_from[current]
+        path.append(start)
+        path.reverse()
+
+        return path
+
+    def is_next_to_access_point(self, position, access_points):
+        """Checks if the given position is adjacent to any of the room's access points."""
+        for access_point in access_points:
+            for dx, dy in [(1, 0), (-1, 0), (0, 1), (0, -1)]:
+                if position == (access_point[0] + dx, access_point[1] + dy):
+                    return True
+        return False
+
+    def heuristic(self, a, b):
+        return abs(a[0] - b[0]) + abs(a[1] - b[1])
 
     ####### Connect access points to paths ############
 
