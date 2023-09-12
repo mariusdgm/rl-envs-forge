@@ -14,7 +14,6 @@ The Labyrinth Entities module provides functionality for defining and managing e
 
 The `Player` class represents a player entity in the maze. It provides methods for moving the player within the maze, interacting with the environment, and retrieving the player's current position.
 
-
 ## Future Expansion
 
 Future proposals include the addition of enemies, traps or various items.
