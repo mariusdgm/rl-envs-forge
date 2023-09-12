@@ -5,16 +5,10 @@ from typing import List, Tuple, Union, Optional
 from enum import Enum
 
 from .room import RoomFactory
-from ..constants import WALL, PATH, START, TARGET
+from .corridor import CorridorBuilder
+from ..constants import WALL, PATH, START, TARGET, CorridorMoveStatus
 
 from ...common.grid_functions import on_line
-
-
-class MoveStatus(Enum):
-    VALID_MOVE = 1
-    MAZE_BOUNDARY = 2
-    ROOM_BOUNDARY = 3
-    INVALID = 4
 
 
 class MazeFactory:
@@ -31,7 +25,10 @@ class MazeFactory:
         room_types: Optional[List[str]] = None,
         room_ratio: Optional[Union[int, float]] = None,
         room_ratio_range: Tuple[Union[int, float], Union[int, float]] = (0.5, 1.5),
-        grid_connect_corridors_option: Union[bool, str] = False,
+        corridor_algorithm: Optional[str] = "random",
+        corridor_grid_connect_option: Optional[Union[bool, str]] = "random",
+        corridor_post_process_option: bool = True,
+        corridor_sort_access_points_option: Optional[Union[bool, str]] = "random",
         seed: Optional[int] = None,
     ):
         """
@@ -55,13 +52,15 @@ class MazeFactory:
             room_types (list, optional): The types of rooms to be added in the maze. Defaults to None.
             room_ratio (float, optional): The room ratio. Defaults to None.
             room_ratio_range (tuple, optional): The range of room ratio. Defaults to (0.5, 1.5).
-            grid_connect_corridors_option (Union[bool, str], optional): Option to decide the nature of corridor paths connectivity.
+            corridor_algorithm (str, optional): The algorithm to use for generating the maze. Defaults to 'random'. Can be one of: 'prim', 'astar', 'gbfs' or 'random'. if 'random', randomly selects algorithm.
+            corridor_grid_connect_option (Union[bool, str], optional): Option to decide the nature of corridor paths connectivity.
                 - If `True`, corridors will be grid-connected.
                 - If `False`, corridors will not be grid-connected.
                 - If `"random"`, the choice will be made randomly.
                 Defaults to False.
+            corridor_post_process_option (bool, optional): Whether to post-process the maze. Defaults to True.
+            corridor_sort_access_points_option (Union[bool, str], str, optional): Whether to sort the access points. Defaults to "random". If "random" will randomly select between True and False.
             seed (int, optional): The seed to use for generating random numbers. Defaults to None.
-
         """
 
         self.rows = rows
@@ -87,8 +86,16 @@ class MazeFactory:
         self.py_random = random.Random(self.seed)
         self.np_random = np.random.RandomState(self.seed)
 
-        self.grid_connect_corridors_option = grid_connect_corridors_option
-        self._check_grid_connect_option()
+        self.corridor_algorithm = corridor_algorithm
+        self._check_corridor_algorithm_option()
+
+        self.corridor_grid_connect_option = corridor_grid_connect_option
+        self._check_corridor_grid_connect_option()
+
+        self.corridor_post_process_option = corridor_post_process_option
+
+        self.corridor_sort_access_points_option = corridor_sort_access_points_option
+        self._check_corridor_sort_access_points_option()
 
     def create_maze(self):
         # Decide the number of rooms
@@ -118,11 +125,24 @@ class MazeFactory:
                 self.global_room_ratio_range[0], self.global_room_ratio_range[1]
             )
 
-        self._check_grid_connect_option()
-        if self.grid_connect_corridors_option == "random":
-            grid_connect_corridors = self.py_random.choice([True, False])
+        # Randomize or fix other parameters
+        self._check_corridor_algorithm_option()
+        if self.corridor_algorithm == "random":
+            corridor_algorithm = self.py_random.choice(["prim", "astar"])
         else:
-            grid_connect_corridors = self.grid_connect_corridors_option
+            corridor_algorithm = self.corridor_algorithm
+
+        self._check_corridor_grid_connect_option()
+        if self.corridor_grid_connect_option == "random":
+            corridor_grid_connect_option = self.py_random.choice([True, False])
+        else:
+            corridor_grid_connect_option = self.corridor_grid_connect_option
+
+        self._check_corridor_sort_access_points_option()
+        if self.corridor_sort_access_points_option == "random":
+            corridor_sort_access_points_option = self.py_random.choice([True, False])
+        else:
+            corridor_sort_access_points_option = self.corridor_sort_access_points_option
 
         maze_seed = self.seed + 1
         maze = Maze(
@@ -135,14 +155,31 @@ class MazeFactory:
             room_types=self.room_types,
             room_ratio=self.room_ratio,
             room_ratio_range=self.room_ratio_range,
-            grid_connect_corridors=grid_connect_corridors,
+            corridor_algorithm=corridor_algorithm,
+            corridor_grid_connect_option=corridor_grid_connect_option,
+            corridor_post_process_option=self.corridor_post_process_option,
+            corridor_sort_access_points_option=corridor_sort_access_points_option,
             seed=maze_seed,
         )
         return maze
 
-    def _check_grid_connect_option(self):
-        if self.grid_connect_corridors_option not in [True, False, "random"]:
-            raise ValueError("Invalid value for grid_connect_corridors_option.")
+    def _check_corridor_grid_connect_option(self):
+        if self.corridor_grid_connect_option not in [True, False, "random"]:
+            raise ValueError(
+                f"Invalid value for corridor_grid_connect_option. Got {self.corridor_grid_connect_option}, expected [True, False, 'random']."
+            )
+
+    def _check_corridor_algorithm_option(self):
+        if self.corridor_algorithm not in ["prim", "astar", "gbfs", "random"]:
+            raise ValueError(
+                f"Invalid value for corridor_algorithm. Got {self.corridor_algorithm}, expected ['prim', 'astar', 'random']."
+            )
+
+    def _check_corridor_sort_access_points_option(self):
+        if self.corridor_sort_access_points_option not in [True, False, "random"]:
+            raise ValueError(
+                f"Invalid value for corridor_sort_access_points_option. Got {self.corridor_sort_access_points_option}, expected [True, False, 'random']."
+            )
 
 
 class Maze:
@@ -157,7 +194,10 @@ class Maze:
         room_types: Optional[List[str]] = None,
         room_ratio: Optional[Union[int, float]] = None,
         room_ratio_range: Tuple[Union[int, float], Union[int, float]] = (0.5, 1.5),
-        grid_connect_corridors: Optional[bool] = False,
+        corridor_algorithm: Optional[str] = "prim",
+        corridor_grid_connect_option: Optional[bool] = False,
+        corridor_post_process_option: Optional[bool] = True,
+        corridor_sort_access_points_option: Optional[bool] = False,
         seed: Optional[int] = None,
     ) -> None:
         """Construct a Maze object representing a maze layout.
@@ -172,10 +212,13 @@ class Maze:
             room_types (list, optional): The types of rooms to be added in the maze. Defaults to None.
             room_ratio (float, optional): The room ratio. Defaults to None.
             room_ratio_range (tuple, optional): The range of room ratio. Defaults to (0.5, 1.5).
-            grid_connect_corridors (bool, optional): Option to decide the nature of corridor paths connectivity.
+            algorithm (str, optional): The algorithm to use for generating the maze. Defaults to 'prim'. Can be one of: 'prim', 'astar'.
+            corridor_grid_connect_option (bool, optional): Option to decide the nature of corridor paths connectivity.
                 - If `True`, corridors will be grid-connected.
                 - If `False`, corridors will not be grid-connected.
-                Defaults to False.
+                Defaults to False. Only affects 'prim' algorithm.
+            corridor_grid_connect_option (bool, optional): Whether to post-process the maze. Defaults to True. Only affects 'prim' algorithm.
+            corridor_sort_access_points_option (bool, optional): Whether to sort the access points in corridor generation. Defaults to False.
             seed (int, optional): The seed to use for generating random numbers. Defaults to None.
         """
         if rows < 10 or cols < 10:
@@ -217,19 +260,37 @@ class Maze:
         )
 
         # Corridor generationg settings
-        self.grid_connect_corridors = grid_connect_corridors
+        self.corridor_algorithm = corridor_algorithm
+        self.corridor_grid_connect_option = corridor_grid_connect_option
+        self.corridor_post_process_option = corridor_post_process_option
+        self.corridor_sort_access_points_option = corridor_sort_access_points_option
+
+        # Make Corridor Builder
+        self.corridor_builder = CorridorBuilder(self)
 
         self._build_maze()
 
     def _build_maze(self):
-        self.place_rooms()
+        self.make_rooms()
         self.grid = np.where(self.room_grid == PATH, PATH, self.grid)
 
-        self.place_start_end_positions()
-        self.generate_corridor_maze()
-        self.connect_rooms_to_paths()
-        self.post_process_maze()
+        self.make_corridors()
         self.grid = np.where(self.corridor_grid == PATH, PATH, self.grid)
+
+    def make_corridors(self):
+        self.place_start_end_positions()
+
+        if self.corridor_algorithm == "prim":
+            self.corridor_grid = self.corridor_builder.generate_corridor_prim()
+            self.corridor_builder.connect_rooms_to_paths()
+            if self.corridor_post_process_option:
+                self.corridor_builder.post_process_maze()
+
+        elif self.corridor_algorithm == "astar":
+            self.corridor_grid = self.corridor_builder.generate_corridor_a_star()
+
+        elif self.corridor_algorithm == "gbfs":
+            self.corridor_grid = self.corridor_builder.generate_corridor_gbfs()
 
     ##### Room generation and placement #####
     def levy_flight_place(self, room):
@@ -278,7 +339,7 @@ class Maze:
 
         return False
 
-    def place_rooms(self):
+    def make_rooms(self):
         """Randomly generate rooms and attempt to place them in the maze grid."""
         total_room_path_area_covered = 0
         target_path_area = self.global_room_ratio * self.grid.size
@@ -394,285 +455,6 @@ class Maze:
         self.start_position = self.choose_start_position()
         self.target_position = self.choose_target_position()
 
-    def generate_corridor_maze(self):
-        """Generate corridors using an adaptation of Prim's algorithm.
-
-        Builds the corridor around the rooms, so afterwards,
-        the access points of the rooms need to be connected to the corridors.
-        """
-        grid = np.full((self.rows, self.cols), WALL)
-        directions = [(2, 0), (-2, 0), (0, 2), (0, -2)]
-
-        # Initialize the starting position
-        current_position = self.start_position
-        grid[current_position] = PATH
-
-        walls = []
-
-        for d in directions:
-            pos_valid, move_status = self.is_valid_position(grid, current_position, d)
-            if pos_valid or move_status in [
-                MoveStatus.ROOM_BOUNDARY,
-                MoveStatus.MAZE_BOUNDARY,
-            ]:
-                walls.append((current_position, d))
-
-        while walls:
-            # Randomly select a wall from the list
-            current_position, direction = self.py_random.choice(walls)
-
-            next_pos = (
-                current_position[0] + direction[0],
-                current_position[1] + direction[1],
-            )
-
-            intermediary_pos = (
-                current_position[0] + direction[0] // 2,
-                current_position[1] + direction[1] // 2,
-            )
-
-            is_valid, status = self.is_valid_position(grid, current_position, direction)
-
-            if is_valid:
-                grid[intermediary_pos[0], intermediary_pos[1]] = PATH
-                grid[next_pos[0], next_pos[1]] = PATH
-
-                for d in directions:
-                    pos_valid, move_status = self.is_valid_position(grid, next_pos, d)
-                    if pos_valid:
-                        walls.append((next_pos, d))
-
-            if not is_valid and self.grid_connect_corridors:
-                if (
-                    0 <= intermediary_pos[0] < self.rows
-                    and 0 <= intermediary_pos[1] < self.cols
-                    and grid[intermediary_pos[0], intermediary_pos[1]] == WALL
-                    and not self.is_adjacent_to_room(intermediary_pos)
-                ):
-                    grid[intermediary_pos[0], intermediary_pos[1]] = PATH
-
-            # Remove the wall from the list
-            walls.remove((current_position, direction))
-
-        self.corridor_grid = grid
-        return True
-
-    def is_adjacent_to_room(self, position):
-        for dx in [-1, 0, 1]:
-            for dy in [-1, 0, 1]:
-                if (
-                    0 <= position[0] + dx < self.rows
-                    and 0 <= position[1] + dy < self.cols
-                    and self.room_grid[position[0] + dx, position[1] + dy] == PATH
-                ):
-                    return True
-        return False
-
-    def is_valid_position(self, grid, position, direction):
-        new_pos = (position[0] + direction[0], position[1] + direction[1])
-
-        # Detect if new position is out of maze bounds
-        if not (0 <= new_pos[0] < self.rows and 0 <= new_pos[1] < self.cols):
-            return (False, MoveStatus.MAZE_BOUNDARY)
-
-        # Detect if new position or its neighbors are a path (either corridor or room)
-        if (
-            grid[new_pos[0], new_pos[1]] == PATH
-            or self.room_grid[new_pos[0], new_pos[1]] == PATH
-        ):
-            return (False, MoveStatus.INVALID)
-
-        # Check for room padding
-        for dx in [-1, 0, 1]:
-            for dy in [-1, 0, 1]:
-                x, y = new_pos[0] + dx, new_pos[1] + dy
-                if (
-                    0 <= x < self.rows
-                    and 0 <= y < self.cols
-                    and self.room_grid[x, y] == PATH
-                ):
-                    return (False, MoveStatus.ROOM_BOUNDARY)
-
-        return (True, MoveStatus.VALID_MOVE)
-
-    def connect_rooms_to_paths(self):
-        """Connect the rooms to the corridors via the shortest path."""
-
-        for room in self.rooms:
-            for access_point in room.access_points:
-                global_access_point = (
-                    room.global_position[0] + access_point[0],
-                    room.global_position[1] + access_point[1],
-                )
-                connection = self.bfs_to_find_closest_path(global_access_point)
-
-                if not connection:
-                    # If BFS failed to find a connection, try growing a path
-                    connection = self.grow_path_from(global_access_point)
-
-                # If we found a connection, draw a path to it
-                if connection:
-                    self.plot_path_from_to(global_access_point, connection)
-
-    def bfs_to_find_closest_path(self, access_point):
-        directions = [(1, 0), (-1, 0), (0, 1), (0, -1)]
-
-        visited = np.zeros((self.rows, self.cols), dtype=bool)
-        queue = deque([access_point])
-
-        # If the access point is already on a corridor path
-        if self.corridor_grid[access_point[0], access_point[1]] == PATH:
-            return access_point
-
-        while queue:
-            current = queue.popleft()
-
-            for d in directions:
-                new_pos = (current[0] + d[0], current[1] + d[1])
-
-                # Check boundaries
-                if 0 <= new_pos[0] < self.rows and 0 <= new_pos[1] < self.cols:
-                    # If the new position is an existing path, we found a connection
-                    if self.corridor_grid[new_pos[0], new_pos[1]] == PATH:
-                        return new_pos
-
-                    # If not visited, not a room cell, not inside any room (excluding the access point), and not yet part of the corridor
-                    if (
-                        not visited[new_pos[0], new_pos[1]]
-                        and not self.is_inside_any_room(new_pos, exception=access_point)
-                        and self.corridor_grid[new_pos[0], new_pos[1]] == WALL
-                    ):
-                        visited[new_pos[0], new_pos[1]] = True
-                        queue.append(new_pos)
-
-        return None
-
-    def plot_path_from_to(self, p1, p2):
-        # Directly connect if the cells are adjacent and not diagonally so
-        diff_x = abs(p1[0] - p2[0])
-        diff_y = abs(p1[1] - p2[1])
-        if diff_x <= 1 and diff_y <= 1 and not (diff_x == 1 and diff_y == 1):
-            self.corridor_grid[p2[0], p2[1]] = PATH
-            return
-
-        while p1 != p2:
-            # First adjust horizontally
-            if p1[1] != p2[1]:
-                p1 = (p1[0], p1[1] + np.sign(p2[1] - p1[1]))
-            # Then adjust vertically
-            else:
-                p1 = (p1[0] + np.sign(p2[0] - p1[0]), p1[1])
-
-            if not self.is_inside_any_room(p1, exception=None):
-                self.corridor_grid[p1[0], p1[1]] = PATH
-
-    def is_line_segment_intersecting_room(self, p1, p2):
-        """Check if the line segment p1p2 intersects any room cell."""
-        for room in self.rooms:
-            for i in range(room.rows):
-                for j in range(room.cols):
-                    if room.grid[i][j] == PATH:
-                        global_cell_pos = (
-                            room.global_position[0] + i,
-                            room.global_position[1] + j,
-                        )
-
-                        # Skip if it's the starting point
-                        if global_cell_pos == p1:
-                            continue
-
-                        if on_line(p1, global_cell_pos, p2):
-                            return True
-        return False
-
-    def direction_cost(self, current_pos, direction, target_pos):
-        new_pos = (current_pos[0] + direction[0], current_pos[1] + direction[1])
-        base_cost = abs(new_pos[0] - target_pos[0]) + abs(new_pos[1] - target_pos[1])
-
-        # Penalize if the new position is close to a room.
-        if self.is_inside_any_room(new_pos):
-            base_cost += 10
-
-        return base_cost
-
-    def grow_path_from(
-        self, start_pos, max_attempts=5000
-    ):  # Temporarily increased max_attempts
-        """Grow a path from start_pos until it reaches a corridor or max_attempts are reached."""
-
-        current_pos = start_pos
-        attempt = 0
-        directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]
-
-        visited = set()
-        visited.add(start_pos)
-
-        # Get a list of all corridor positions
-        corridor_positions = np.argwhere(self.corridor_grid == PATH)
-
-        while attempt < max_attempts:
-            potential_directions = []
-
-            # Get the closest corridor position to the current position
-            distances = [
-                np.linalg.norm(np.array(current_pos) - np.array(corridor_pos))
-                for corridor_pos in corridor_positions
-            ]
-            closest_corridor_pos = corridor_positions[np.argmin(distances)]
-
-            for d in directions:
-                new_pos = (current_pos[0] + d[0], current_pos[1] + d[1])
-
-                if new_pos in visited:
-                    continue
-
-                # Check boundaries
-                if not (0 <= new_pos[0] < self.rows and 0 <= new_pos[1] < self.cols):
-                    continue  # Go to the next direction if this is out of bounds
-
-                # If the new position is an existing path, validate and then return
-                if self.corridor_grid[new_pos[0], new_pos[1]] == PATH:
-                    diff_x = new_pos[0] - current_pos[0]
-                    diff_y = new_pos[1] - current_pos[1]
-
-                    # If this is not diagonal, then validate
-                    if not (abs(diff_x) == 1 and abs(diff_y) == 1):
-                        if not self.is_line_segment_intersecting_room(
-                            start_pos, new_pos
-                        ):
-                            return new_pos
-                    continue  # Go to the next direction
-
-                # If not inside any room and not yet part of the corridor
-                if (
-                    not self.is_inside_any_room(new_pos)
-                    and self.corridor_grid[new_pos[0], new_pos[1]] == WALL
-                ):
-                    potential_directions.append(
-                        (
-                            new_pos,
-                            self.direction_cost(current_pos, d, closest_corridor_pos),
-                        )
-                    )
-
-            # Sort the potential directions by their cost
-            potential_directions.sort(key=lambda x: x[1])
-
-            if not potential_directions:
-                break
-
-            # Select the best direction
-            next_pos = potential_directions[0][0]
-            visited.add(next_pos)
-
-            # Update the grid
-            self.corridor_grid[next_pos[0], next_pos[1]] = PATH
-            current_pos = next_pos
-            attempt += 1
-
-        # If we reached here, we didn't find a corridor
-        return None
-
     def is_inside_any_room(self, pos, exception=None):
         """Check if a position is inside any of the rooms in the maze."""
 
@@ -693,74 +475,8 @@ class Maze:
         # If we reached here, the position isn't inside any room
         return False
 
-    def post_process_maze(self):
-        # Initialize the global room mask
-        self.generate_global_room_mask()
-
-        # Collect border cells
-        border_cells = []
-
-        for i in range(self.rows):
-            for j in [0, self.cols - 1]:  # Left and right borders
-                border_cells.append((i, j))
-
-        for j in range(self.cols):
-            for i in [0, self.rows - 1]:  # Top and bottom borders
-                border_cells.append((i, j))
-
-        self.py_random.shuffle(border_cells)  # Shuffle border cells
-
-        for cell in border_cells:
-            self._attempt_fill_path(cell)
-
-        # Collect the perimeter cells of all rooms
-        room_perimeter_cells = []
-
-        for room in self.rooms:
-            perimeter_cells = room.get_perimeter_cells(padding=2)
-            for cell in perimeter_cells:
-                # Translate to global maze coordinates
-                global_pos = (
-                    cell[0] + room.global_position[0],
-                    cell[1] + room.global_position[1],
-                )
-                room_perimeter_cells.append(global_pos)
-
-        self.py_random.shuffle(room_perimeter_cells)  # Shuffle perimeter cells
-
-        for cell in room_perimeter_cells:
-            self._attempt_fill_path(cell)
-
-    def _attempt_fill_path(self, pos):
-        if pos[0] < 0 or pos[0] >= self.rows or pos[1] < 0 or pos[1] >= self.cols:
-            return
-
-        adjacent_dirs = [(0, 1), (0, -1), (1, 0), (-1, 0)]
-        all_directions = adjacent_dirs + [(1, 1), (-1, 1), (-1, -1), (1, -1)]
-
-        path_count = sum(
-            [
-                1
-                for dx, dy in adjacent_dirs
-                if 0 <= pos[0] + dx < self.rows
-                and 0 <= pos[1] + dy < self.cols
-                and self.corridor_grid[pos[0] + dx, pos[1] + dy] == PATH
-            ]
-        )
-
-        inside_or_adjacent_to_room = False
-        for dx, dy in all_directions:
-            new_pos = (pos[0] + dx, pos[1] + dy)
-            if 0 <= new_pos[0] < self.rows and 0 <= new_pos[1] < self.cols:
-                if self.global_room_mask[new_pos[0], new_pos[1]]:
-                    inside_or_adjacent_to_room = True
-                    break
-
-        if not inside_or_adjacent_to_room and path_count == 1:
-            self.corridor_grid[pos[0], pos[1]] = PATH
-
     def generate_global_room_mask(self):
-        self.global_room_mask = np.zeros((self.rows, self.cols), dtype=bool)
+        global_room_mask = np.zeros((self.rows, self.cols), dtype=bool)
 
         for room in self.rooms:
             local_mask = room.generate_inner_area_mask()
@@ -768,12 +484,11 @@ class Maze:
 
             for i in range(local_mask.shape[0]):
                 for j in range(local_mask.shape[1]):
-                    self.global_room_mask[
+                    global_room_mask[
                         global_position[0] + i, global_position[1] + j
                     ] |= local_mask[i, j]
 
-    def _is_valid_position(self, pos):
-        return 0 <= pos[0] < self.rows and 0 <= pos[1] < self.cols
+        return global_room_mask
 
     #### Validate maze ####
     def is_valid_maze(self):

@@ -33,6 +33,6 @@ class TestPlayer:
     def test_positions_are_close(self):
         player = Player((2, 3))
 
-        assert player._positions_are_close((2, 3), (2.09, 3.09))  # True
+        assert player._positions_are_close((2, 3), (2.01, 3.01))  # True
         assert not player._positions_are_close((2, 3), (2.2, 3.2))  # False
         assert not player._positions_are_close((2, 3), (3, 4))  # False

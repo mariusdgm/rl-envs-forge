@@ -1,4 +1,6 @@
 # rl-envs-forge
+[![GitHub](https://img.shields.io/badge/-GitHub-black?logo=github)](https://github.com/[mariusdgm]/[rl-envs-forge])
+
 Lightweight environments for reinforcement learning applications.
 
 ## Table of Contents
@@ -6,6 +8,7 @@ Lightweight environments for reinforcement learning applications.
 - [Environments](#environments)
   - [Labyrinth](#labyrinth)
 - [Usage](#usage)
+- [Tests](#tests)
 - [License](#license)
 - [Contact & Support](#contact--support)
 
@@ -21,11 +24,11 @@ pip install rl-envs-forge
 
 Labyrinth is a classic maze-solving environment, where the goal is to navigate from a start point to a target. The maze layout is randomly generated based on a set of parametrizable arguments.
 
-📖 **Detailed Documentation**: [Click here to read more about the Labyrinth environment](./rl_envs_forge/envs/labyrinth/README.md)
+📖 **Detailed Documentation**: [Click here to read more about the Labyrinth environment](https://github.com/mariusdgm/rl-envs-forge/blob/main/rl_envs_forge/envs/labyrinth/README.md)
 
 ### Rendered example
 
-![Alt text for your GIF](assets/labyrinth/doc_imgs/auto_play_demo.gif)
+![Labyrinth render GIF](https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/assets/labyrinth/doc_imgs/auto_play_demo.gif)
 
 ## Usage
 
@@ -48,6 +51,15 @@ while not done and not quit_event:
     sleep(0.1)
 ```
 
+## Tests
+
+Requirements: pytest and pytest-cov
+
+Run the tests in the root folder with: 
+
+```bash
+pytest tests
+```
 
 ## License
 

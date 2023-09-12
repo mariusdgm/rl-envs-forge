@@ -1,5 +1,4 @@
 import pytest
-from unittest.mock import Mock
 import numpy as np
 import random
 
@@ -95,67 +94,6 @@ class TestMaze:
         )  # Or however you initialize your maze
         assert len(maze.rooms) > 0
 
-    def test_grow_path_from(self):
-        """Testing the fall back mechanism,
-        this code is not covered in other tests because the
-        standard generation procedure seems to already fully connect the
-        tested mazes. Probably could help more in small mazes (under 10x10),
-        but those are not recommended and 10x10 is enforced as minimum size at the moment.
-        """
-        # Initialize the maze
-        maze = Maze(rows=10, cols=10)
-
-        # Clear any pre-existing rooms and grids
-        maze.rooms = []
-        maze.grid.fill(WALL)
-        maze.room_grid.fill(WALL)
-        maze.corridor_grid.fill(WALL)
-        maze.start_position = (maze.rows - 1, maze.cols - 1)
-
-        # Insert our specific test room
-        room = Mock()
-        room.rows = 3
-        room.cols = 3
-        room.global_position = (1, 1)
-        room.access_points = [(0, 0)]
-        room.grid = np.ones((room.rows, room.cols), dtype=int)
-        maze.rooms.append(room)
-
-        # Overlay the room onto maze.room_grid and maze.grid
-        for i in range(room.rows):
-            for j in range(room.cols):
-                maze.room_grid[
-                    room.global_position[0] + i, room.global_position[1] + j
-                ] = room.grid[i, j]
-        maze.grid = np.where(maze.room_grid == PATH, PATH, maze.grid)
-
-        # Run the corridor generation function
-        maze.generate_corridor_maze()
-        maze.generate_corridor_maze()
-        maze.connect_rooms_to_paths()
-        maze.grid = np.where(maze.corridor_grid == PATH, PATH, maze.grid)
-
-        assert maze.is_valid_maze() is True
-
-        # Here, create conditions that would trigger the grow function.
-        # For instance, we can add a wall barrier between the room's access points and the corridors.
-        for i in range(4):
-            maze.corridor_grid[i, 4] = WALL
-            maze.corridor_grid[4, i] = WALL
-
-            maze.grid[i, 4] = WALL
-            maze.grid[4, i] = WALL
-
-        assert maze.is_valid_maze() is False
-
-        # Connect the rooms to paths
-        maze.grow_path_from((room.access_points[0]))
-
-        # # Overlay the corridors onto self.grid
-        maze.grid = np.where(maze.corridor_grid == PATH, PATH, maze.grid)
-
-        assert maze.is_valid_maze() is True
-
     def test_grid_connect_option_true(self):
         total_paths_with_option = 0
         total_paths_without_option = 0
@@ -163,34 +101,38 @@ class TestMaze:
         num_runs = 10
 
         for i in range(num_runs):
-            maze = Maze(rows=10, cols=10, grid_connect_corridors=True, seed=i)
+            maze = Maze(rows=10, cols=10, corridor_grid_connect_option=True, seed=i)
             total_paths_with_option += maze.corridor_grid.sum()
-            
-            maze_without_option = Maze(rows=10, cols=10, grid_connect_corridors=False, seed=i)
+
+            maze_without_option = Maze(
+                rows=10, cols=10, corridor_grid_connect_option=False, seed=i
+            )
             total_paths_without_option += maze_without_option.corridor_grid.sum()
 
         assert total_paths_with_option > total_paths_without_option
 
     def test_grid_connect_option_false(self):
         for i in range(10):
-            maze = Maze(rows=10, cols=10, grid_connect_corridors=False, seed=i)
+            maze = Maze(
+                rows=10,
+                cols=10,
+                corridor_algorithm="prim",
+                corridor_grid_connect_option=False,
+                seed=i,
+            )
 
-            # Generate another maze with the same seed and grid_connect_corridors=False
-            another_maze = Maze(rows=10, cols=10, grid_connect_corridors=False, seed=i)
+            # Generate another maze with the same seed and corridor_grid_connect_option=False
+            another_maze = Maze(
+                rows=10,
+                cols=10,
+                corridor_algorithm="prim",
+                corridor_grid_connect_option=False,
+                seed=i,
+            )
 
             # Assert that the corridor grids are the same for both mazes with the same seed and option
             assert np.array_equal(maze.corridor_grid, another_maze.corridor_grid)
 
-    def test_invalid_grid_connect_option(self):
-        with pytest.raises(ValueError):
-            factory = MazeFactory(
-                rows=10, cols=10, grid_connect_corridors_option="invalid_value"
-            )
-
-        with pytest.raises(ValueError):
-            factory = MazeFactory(rows=10, cols=10)
-            factory.grid_connect_corridors_option = "invalid_value"
-            factory.create_maze()
 
 
 class TestMazeFactory:
@@ -245,27 +187,123 @@ class TestMazeFactory:
 
     @pytest.mark.slow
     def test_bulk_mazes_are_valid(self):
+        """For multiple mazes test that all mazes are valid.
+        This test is much slower than the rest of the testing codebase.
+        Skip it by calling pytest as  [pytest tests -m 'not slow']."""
+        for seed in range(5):
+            random.seed(seed)
+            rows = random.randint(10, 50)
+            cols = random.randint(10, 50)
+            post_process_option = random.choice([True, False])
+
+            maze_factory = MazeFactory(
+                rows=rows,
+                cols=cols,
+                corridor_post_process_option=post_process_option,
+            )
+
+            for generation in range(5):
+                maze = maze_factory.create_maze()
+                assert (
+                    maze.is_valid_maze()
+                ), f"Invalid maze detected! Seed: {seed}, Generation: {generation}"
+
+    @pytest.mark.slow
+    def test_bulk_mazes_are_valid_prim(self):
+        """For multiple mazes test that all mazes are valid.
+        This test is much slower than the rest of the testing codebase.
+        Skip it by calling pytest as  [pytest tests -m 'not slow']."""
         for seed in range(100):
+            random.seed(seed)
+            rows = random.randint(10, 50)
+            cols = random.randint(10, 50)
+            post_process_option = random.choice([True, False])
+
+            maze_factory = MazeFactory(
+                rows=rows,
+                cols=cols,
+                corridor_algorithm="prim",
+                corridor_post_process_option=post_process_option,
+            )
+
+            for generation in range(10):
+                maze = maze_factory.create_maze()
+                assert (
+                    maze.is_valid_maze()
+                ), f"Invalid maze detected! Seed: {seed}, Generation: {generation}"
+
+    @pytest.mark.slow
+    def test_bulk_mazes_are_valid_astar(self):
+        """For multiple mazes test that all mazes are valid.
+        This test is much slower than the rest of the testing codebase.
+        Skip it by calling pytest as  [pytest tests -m 'not slow']."""
+        for seed in range(2):
             random.seed(seed)
             rows = random.randint(10, 50)
             cols = random.randint(10, 50)
 
             maze_factory = MazeFactory(
-                rows=rows, cols=cols, grid_connect_corridors_option="random"
+                rows=rows,
+                cols=cols,
+                corridor_algorithm="astar",
             )
 
-            for generation in range(10):
+            for generation in range(3):
                 maze = maze_factory.create_maze()
-                assert maze.is_valid_maze(), f"Invalid maze detected! Seed: {seed}, Generation: {generation}"
+                assert (
+                    maze.is_valid_maze()
+                ), f"Invalid maze detected! Seed: {seed}, Generation: {generation}"
+
+    @pytest.mark.slow
+    def test_bulk_mazes_are_valid_gbfs(self):
+        """For multiple mazes test that all mazes are valid.
+        This test is much slower than the rest of the testing codebase.
+        Skip it by calling pytest as  [pytest tests -m 'not slow']."""
+        for seed in range(50):
+            random.seed(seed)
+            rows = random.randint(10, 50)
+            cols = random.randint(10, 50)
+
+            maze_factory = MazeFactory(
+                rows=rows,
+                cols=cols,
+                corridor_algorithm="gbfs",
+            )
+
+            for generation in range(5):
+                maze = maze_factory.create_maze()
+                assert (
+                    maze.is_valid_maze()
+                ), f"Invalid maze detected! Seed: {seed}, Generation: {generation}"
 
     def test_grid_connect_option_random(self):
         factory = MazeFactory(rows=20, cols=20, seed=42)
 
         paths = []
         for _ in range(10):  # Running 10 tests to make randomness more evident
-            factory.grid_connect_corridors_option = "random"
+            factory.corridor_grid_connect_option = "random"
             maze = factory.create_maze()
             paths_count = maze.corridor_grid.sum()
             paths.append(paths_count)
 
         assert len(set(paths)) > 1
+
+    def test_invalid_grid_connect_option(self):
+        with pytest.raises(ValueError):
+            factory = MazeFactory(
+                rows=10, cols=10, corridor_grid_connect_option="invalid_value"
+            )
+
+        with pytest.raises(ValueError):
+            factory = MazeFactory(rows=10, cols=10)
+            factory.corridor_grid_connect_option = "invalid_value"
+            factory.create_maze()
+
+    def test_invalid_corridor_algorithm_option(self):
+        with pytest.raises(ValueError):
+            factory = MazeFactory(rows=10, cols=10, corridor_algorithm="invalid_value")
+
+        with pytest.raises(ValueError):
+            factory = MazeFactory(rows=10, cols=10)
+            factory.corridor_algorithm = "invalid_value"
+            factory.create_maze()
