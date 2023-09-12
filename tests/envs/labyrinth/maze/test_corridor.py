@@ -1,14 +1,14 @@
 import pytest
 from unittest.mock import Mock
 import numpy as np
+import random
 
-from rl_envs_forge.envs.labyrinth.maze.maze import Maze
+from rl_envs_forge.envs.labyrinth.maze.maze import Maze, MazeFactory
 from rl_envs_forge.envs.labyrinth.maze.room import RectangularRoom
 from rl_envs_forge.envs.labyrinth.constants import WALL, PATH, CorridorMoveStatus
 
 
 class TestCorridorBuilder:
-
     @pytest.fixture
     def blank_maze(self):
         maze = Maze(rows=10, cols=10)
@@ -17,7 +17,7 @@ class TestCorridorBuilder:
         maze.room_grid = np.full((10, 10), WALL)
         maze.corridor_grid = np.full((10, 10), WALL)
         return maze
-    
+
     # helper function
     def add_room_to_maze(self, maze, room):
         maze.rooms.append(room)
@@ -32,22 +32,30 @@ class TestCorridorBuilder:
         self.add_room_to_maze(maze, room)
 
         # Test case where new position is valid and not adjacent to any room
-        result, status = maze.corridor_builder.is_valid_next_position(maze.grid, (0, 0), (1, 0))
+        result, status = maze.corridor_builder.is_valid_next_position(
+            maze.grid, (0, 0), (1, 0)
+        )
         assert result
         assert status == CorridorMoveStatus.VALID_MOVE
 
         # Test case where new position is outside maze boundaries
-        result, status = maze.corridor_builder.is_valid_next_position(maze.grid, (0, 0), (-1, 0))
+        result, status = maze.corridor_builder.is_valid_next_position(
+            maze.grid, (0, 0), (-1, 0)
+        )
         assert not result
         assert status == CorridorMoveStatus.MAZE_BOUNDARY
 
         # Test case where new position is adjacent to room boundary
-        result, status = maze.corridor_builder.is_valid_next_position(maze.grid, (4, 2), (0, 1))
+        result, status = maze.corridor_builder.is_valid_next_position(
+            maze.grid, (4, 2), (0, 1)
+        )
         assert not result
         assert status == CorridorMoveStatus.ROOM_BOUNDARY
 
         # Test case where new position is invalid (going into room on grid)
-        result, status = maze.corridor_builder.is_valid_next_position(maze.grid, (6, 3), (0, 3))
+        result, status = maze.corridor_builder.is_valid_next_position(
+            maze.grid, (6, 3), (0, 3)
+        )
         assert not result
         assert status == CorridorMoveStatus.INVALID
 
@@ -187,7 +195,75 @@ class TestCorridorBuilder:
 
         assert maze.is_valid_maze() is True
 
+    def test_is_next_to_access_point(self, blank_maze):
+        ### Corner access points
+        maze = blank_maze
+        maze.start_position = (0, 0)
+        room = RectangularRoom(3, 3, nr_access_points=3, top_left_coord=(4, 4))
+        room.access_points = [(0, 0), (0, 2), (2, 0), (2, 2)]  # local coordinates
+        self.add_room_to_maze(maze, room)
+        perimeter_cells_to_check = room.get_perimeter_cells(padding=1)
+        access_adjacent = [
+            (0, -1),
+            (-1, 0),
+            (2, -1),
+            (3, 0),
+            (-1, 2),
+            (0, 3),
+            (2, 3),
+            (3, 2),
+        ]
 
+        access_adjacent = [
+            (x + room.global_position[0], y + room.global_position[1])
+            for x, y in access_adjacent
+        ]
 
+        for perimeter_cell in perimeter_cells_to_check:
+            if perimeter_cell in access_adjacent:
+                assert maze.corridor_builder.is_next_to_access_point(perimeter_cell)
+            else:
+                assert not maze.corridor_builder.is_next_to_access_point(perimeter_cell)
 
+        ### Middle access points
+        maze = blank_maze
+        maze.start_position = (0, 0)
+        room = RectangularRoom(3, 3, nr_access_points=3, top_left_coord=(4, 4))
+        room.access_points = [(0, 1), (2, 1), (1, 2), (1, 0)]  # local coordinates
+        self.add_room_to_maze(maze, room)
+        perimeter_cells_to_check = room.get_perimeter_cells(padding=1)
+        access_adjacent = [
+            (1, -1),
+            (1, 3),
+            (3, 1),
+            (1, -1),
+        ]
 
+        access_adjacent = [
+            (x + room.global_position[0], y + room.global_position[1])
+            for x, y in access_adjacent
+        ]
+
+        for perimeter_cell in perimeter_cells_to_check:
+            if perimeter_cell in access_adjacent:
+                assert maze.corridor_builder.is_next_to_access_point(perimeter_cell)
+            else:
+                assert not maze.corridor_builder.is_next_to_access_point(perimeter_cell)
+
+    def test_corridor_generation_prim(self):
+        for _ in range(10):
+            post_process_option = random.choice([True, False])
+            maze_factory = MazeFactory(
+                rows=20,
+                cols=20,
+                corridor_algorithm="prim",
+                corridor_post_process_option=post_process_option,
+            )
+            maze = maze_factory.create_maze()
+
+            assert maze.is_valid_maze()
+
+    def test_corridor_generation_astar(self):
+        for _ in range(10):
+            maze_factory = MazeFactory(rows=20, cols=20, corridor_algorithm="astar")
+            maze = maze_factory.create_maze()

@@ -41,6 +41,9 @@ env.human_play(print_info=True, animate=True)
 
 <table>
 <tr>
+    <th colspan="2">Corridor algorithm: prim</th>
+</tr>
+<tr>
 <td>
 <img src="https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/assets/labyrinth/doc_imgs/ss1.png" alt="Screenshot 1" width="300">
 </td>
@@ -51,85 +54,40 @@ env.human_play(print_info=True, animate=True)
 
 <tr>
 <td>
-<img src="https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/assets/labyrinth/doc_imgs/ss3.png" alt="Screenshot 1" width="300">
+<img src="https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/assets/labyrinth/doc_imgs/ss3.png" alt="Screenshot 3" width="300">
 </td>
 <td>
-<img src="https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/assets/labyrinth/doc_imgs/ss4.png" alt="Screenshot 2" width="300">
+<img src="https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/assets/labyrinth/doc_imgs/ss4.png" alt="Screenshot 4" width="300">
+</td>
+</tr>
+
+<tr>
+    <th colspan="2">Corridor algorithm: astar</th>
+</tr>
+<tr>
+<td>
+<img src="https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/assets/labyrinth/doc_imgs/ss5.png" alt="Screenshot 5" width="300">
+</td>
+<td>
+<img src="https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/assets/labyrinth/doc_imgs/ss6.png" alt="Screenshot 6" width="300">
 </td>
 </tr>
 </table>
 
 
-## Configuration
+<tr>
+    <th colspan="2">Corridor algorithm: gbfs</th>
+</tr>
+<tr>
+<td>
+<img src="https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/assets/labyrinth/doc_imgs/ss7.png" alt="Screenshot 7" width="300">
+</td>
+<td>
+<img src="https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/assets/labyrinth/doc_imgs/ss8.png" alt="Screenshot 8" width="300">
+</td>
+</tr>
+</table>
 
-The following parameters can be tuned:
 
-- **Rows**: Number of rows in the labyrinth.
-    - Type: int
 
-    <br>
-
-- **Columns**: Number of columns in the labyrinth.
-    - Type: int
-
-    <br>
-
-- **Maze Number of Desired Rooms**:
-    - Description: Desired number of rooms in the maze. If not set, a value will be randomly selected from the provided range.
-    - Type: int (optional)
-    - Default: (1, 8)
-
-    <br>
-
-- **Maze Global Room Ratio**:
-    - Description: Defines the overall room ratio in the maze. If not set, a value is chosen from the provided range.
-    - Type: float (optional)
-    - Default: (0.1, 0.8)
-
-    <br>
-
-- **Maze Grid Connect Corridors Option**:
-    - Description: Determines the nature of corridor path connectivity.
-        - `True`: Corridors will be grid-connected.
-        - `False`: Corridors will not be grid-connected.
-        - `"random"`: The choice will be made randomly.
-    - Type: Union[bool, str] (optional)
-    - Default: False
-
-    <br>
-
-- **Room Access Points**:
-    - Description: Number of access points in each room. If unset, the value is drawn from the given range.
-    - Type: int (optional)
-    - Default: (1, 4)
-
-    <br>
-
-- **Room Types**:
-    - Description: Types of rooms to be added to the maze. If unset, a random selection from all implemented room types is made.
-    - Type: list (optional)
-    - Default: None
-
-    <br>
-
-- **Room Ratio**:
-    - Description: Defines the individual width to height room ratio. If not specified, a value is drawn from the provided range.
-    - Type: float (optional)
-    - Default: (0.5, 1.5)
-
-    <br>
-
-- **Reward Schema**:
-    - Description: A dictionary defining the reward schema for the labyrinth.
-    - Type: dict (optional)
-    - Default: None
-
-    <br>
-
-- **Seed**:
-    - Description: The seed used for generating random numbers to ensure reproducibility.
-    - Type: int (optional)
-    - Default: None
-
-    <br>
 

@@ -25,7 +25,10 @@ class MazeFactory:
         room_types: Optional[List[str]] = None,
         room_ratio: Optional[Union[int, float]] = None,
         room_ratio_range: Tuple[Union[int, float], Union[int, float]] = (0.5, 1.5),
-        grid_connect_corridors_option: Union[bool, str] = False,
+        corridor_algorithm: Optional[str] = "random",
+        corridor_grid_connect_option: Optional[Union[bool, str]] = "random",
+        corridor_post_process_option: bool = True,
+        corridor_sort_access_points_option: Optional[Union[bool, str]] = "random",
         seed: Optional[int] = None,
     ):
         """
@@ -49,13 +52,15 @@ class MazeFactory:
             room_types (list, optional): The types of rooms to be added in the maze. Defaults to None.
             room_ratio (float, optional): The room ratio. Defaults to None.
             room_ratio_range (tuple, optional): The range of room ratio. Defaults to (0.5, 1.5).
-            grid_connect_corridors_option (Union[bool, str], optional): Option to decide the nature of corridor paths connectivity.
+            corridor_algorithm (str, optional): The algorithm to use for generating the maze. Defaults to 'random'. Can be one of: 'prim', 'astar', 'gbfs' or 'random'. if 'random', randomly selects algorithm.
+            corridor_grid_connect_option (Union[bool, str], optional): Option to decide the nature of corridor paths connectivity.
                 - If `True`, corridors will be grid-connected.
                 - If `False`, corridors will not be grid-connected.
                 - If `"random"`, the choice will be made randomly.
                 Defaults to False.
+            corridor_post_process_option (bool, optional): Whether to post-process the maze. Defaults to True.
+            corridor_sort_access_points_option (Union[bool, str], str, optional): Whether to sort the access points. Defaults to "random". If "random" will randomly select between True and False.
             seed (int, optional): The seed to use for generating random numbers. Defaults to None.
-
         """
 
         self.rows = rows
@@ -81,8 +86,16 @@ class MazeFactory:
         self.py_random = random.Random(self.seed)
         self.np_random = np.random.RandomState(self.seed)
 
-        self.grid_connect_corridors_option = grid_connect_corridors_option
-        self._check_grid_connect_option()
+        self.corridor_algorithm = corridor_algorithm
+        self._check_corridor_algorithm_option()
+
+        self.corridor_grid_connect_option = corridor_grid_connect_option
+        self._check_corridor_grid_connect_option()
+
+        self.corridor_post_process_option = corridor_post_process_option
+
+        self.corridor_sort_access_points_option = corridor_sort_access_points_option
+        self._check_corridor_sort_access_points_option()
 
     def create_maze(self):
         # Decide the number of rooms
@@ -112,11 +125,24 @@ class MazeFactory:
                 self.global_room_ratio_range[0], self.global_room_ratio_range[1]
             )
 
-        self._check_grid_connect_option()
-        if self.grid_connect_corridors_option == "random":
-            grid_connect_corridors = self.py_random.choice([True, False])
+        # Randomize or fix other parameters
+        self._check_corridor_algorithm_option()
+        if self.corridor_algorithm == "random":
+            corridor_algorithm = self.py_random.choice(["prim", "astar"])
         else:
-            grid_connect_corridors = self.grid_connect_corridors_option
+            corridor_algorithm = self.corridor_algorithm
+
+        self._check_corridor_grid_connect_option()
+        if self.corridor_grid_connect_option == "random":
+            corridor_grid_connect_option = self.py_random.choice([True, False])
+        else:
+            corridor_grid_connect_option = self.corridor_grid_connect_option
+
+        self._check_corridor_sort_access_points_option()
+        if self.corridor_sort_access_points_option == "random":
+            corridor_sort_access_points_option = self.py_random.choice([True, False])
+        else:
+            corridor_sort_access_points_option = self.corridor_sort_access_points_option
 
         maze_seed = self.seed + 1
         maze = Maze(
@@ -129,14 +155,31 @@ class MazeFactory:
             room_types=self.room_types,
             room_ratio=self.room_ratio,
             room_ratio_range=self.room_ratio_range,
-            grid_connect_corridors=grid_connect_corridors,
+            corridor_algorithm=corridor_algorithm,
+            corridor_grid_connect_option=corridor_grid_connect_option,
+            corridor_post_process_option=self.corridor_post_process_option,
+            corridor_sort_access_points_option=corridor_sort_access_points_option,
             seed=maze_seed,
         )
         return maze
 
-    def _check_grid_connect_option(self):
-        if self.grid_connect_corridors_option not in [True, False, "random"]:
-            raise ValueError("Invalid value for grid_connect_corridors_option.")
+    def _check_corridor_grid_connect_option(self):
+        if self.corridor_grid_connect_option not in [True, False, "random"]:
+            raise ValueError(
+                f"Invalid value for corridor_grid_connect_option. Got {self.corridor_grid_connect_option}, expected [True, False, 'random']."
+            )
+
+    def _check_corridor_algorithm_option(self):
+        if self.corridor_algorithm not in ["prim", "astar", "gbfs", "random"]:
+            raise ValueError(
+                f"Invalid value for corridor_algorithm. Got {self.corridor_algorithm}, expected ['prim', 'astar', 'random']."
+            )
+
+    def _check_corridor_sort_access_points_option(self):
+        if self.corridor_sort_access_points_option not in [True, False, "random"]:
+            raise ValueError(
+                f"Invalid value for corridor_sort_access_points_option. Got {self.corridor_sort_access_points_option}, expected [True, False, 'random']."
+            )
 
 
 class Maze:
@@ -151,7 +194,10 @@ class Maze:
         room_types: Optional[List[str]] = None,
         room_ratio: Optional[Union[int, float]] = None,
         room_ratio_range: Tuple[Union[int, float], Union[int, float]] = (0.5, 1.5),
-        grid_connect_corridors: Optional[bool] = False,
+        corridor_algorithm: Optional[str] = "prim",
+        corridor_grid_connect_option: Optional[bool] = False,
+        corridor_post_process_option: Optional[bool] = True,
+        corridor_sort_access_points_option: Optional[bool] = False,
         seed: Optional[int] = None,
     ) -> None:
         """Construct a Maze object representing a maze layout.
@@ -166,10 +212,13 @@ class Maze:
             room_types (list, optional): The types of rooms to be added in the maze. Defaults to None.
             room_ratio (float, optional): The room ratio. Defaults to None.
             room_ratio_range (tuple, optional): The range of room ratio. Defaults to (0.5, 1.5).
-            grid_connect_corridors (bool, optional): Option to decide the nature of corridor paths connectivity.
+            algorithm (str, optional): The algorithm to use for generating the maze. Defaults to 'prim'. Can be one of: 'prim', 'astar'.
+            corridor_grid_connect_option (bool, optional): Option to decide the nature of corridor paths connectivity.
                 - If `True`, corridors will be grid-connected.
                 - If `False`, corridors will not be grid-connected.
-                Defaults to False.
+                Defaults to False. Only affects 'prim' algorithm.
+            corridor_grid_connect_option (bool, optional): Whether to post-process the maze. Defaults to True. Only affects 'prim' algorithm.
+            corridor_sort_access_points_option (bool, optional): Whether to sort the access points in corridor generation. Defaults to False.
             seed (int, optional): The seed to use for generating random numbers. Defaults to None.
         """
         if rows < 10 or cols < 10:
@@ -211,8 +260,11 @@ class Maze:
         )
 
         # Corridor generationg settings
-        self.grid_connect_corridors = grid_connect_corridors
-        
+        self.corridor_algorithm = corridor_algorithm
+        self.corridor_grid_connect_option = corridor_grid_connect_option
+        self.corridor_post_process_option = corridor_post_process_option
+        self.corridor_sort_access_points_option = corridor_sort_access_points_option
+
         # Make Corridor Builder
         self.corridor_builder = CorridorBuilder(self)
 
@@ -227,11 +279,18 @@ class Maze:
 
     def make_corridors(self):
         self.place_start_end_positions()
-        # self.corridor_grid = self.corridor_builder.generate_corridor_prim()
-        self.corridor_grid = self.corridor_builder.generate_corridor_a_star()
 
-        self.corridor_builder.connect_rooms_to_paths()
-        self.corridor_builder.post_process_maze()
+        if self.corridor_algorithm == "prim":
+            self.corridor_grid = self.corridor_builder.generate_corridor_prim()
+            self.corridor_builder.connect_rooms_to_paths()
+            if self.corridor_post_process_option:
+                self.corridor_builder.post_process_maze()
+
+        elif self.corridor_algorithm == "astar":
+            self.corridor_grid = self.corridor_builder.generate_corridor_a_star()
+
+        elif self.corridor_algorithm == "gbfs":
+            self.corridor_grid = self.corridor_builder.generate_corridor_gbfs()
 
     ##### Room generation and placement #####
     def levy_flight_place(self, room):
@@ -416,7 +475,6 @@ class Maze:
         # If we reached here, the position isn't inside any room
         return False
 
-    
     def generate_global_room_mask(self):
         global_room_mask = np.zeros((self.rows, self.cols), dtype=bool)
 

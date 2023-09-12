@@ -20,7 +20,10 @@ class Labyrinth(gym.Env):
         maze_nr_desired_rooms_range: Tuple[int, int] = (1, 8),
         maze_global_room_ratio: Optional[float] = None,
         maze_global_room_ratio_range: Tuple[float, float] = (0.1, 0.8),
-        maze_grid_connect_corridors_option: Union[bool, str] = False,
+        maze_corridor_algorithm: Optional[str] = "random",
+        maze_corridor_grid_connect_option: Union[bool, str] = "random",
+        maze_corridor_post_process_option: bool = True,
+        maze_corridor_sort_access_points_option: Union[bool, str] = "random",
         room_access_points: Optional[int] = None,
         room_access_points_range: Tuple[int, int] = (1, 4),
         room_types: Optional[List[str]] = None,
@@ -28,7 +31,7 @@ class Labyrinth(gym.Env):
         room_ratio_range: Tuple[Union[int, float], Union[int, float]] = (0.5, 1.5),
         reward_schema: Optional[
             dict
-        ] = None,  # Assuming it's a dictionary; adjust if not
+        ] = None,  
         seed: Optional[int] = None,
     ):
         """
@@ -47,11 +50,14 @@ class Labyrinth(gym.Env):
             maze_nr_desired_rooms_range (tuple, optional): The range of desired number of rooms. Defaults to (1, 8).
             maze_global_room_ratio (float, optional): The global room ratio in the maze. Defaults to None.
             maze_global_room_ratio_range (tuple, optional): The range of global room ratio. Defaults to (0.1, 0.8).
-            maze_grid_connect_corridors_option (Union[bool, str], optional): Option to decide the nature of corridor paths connectivity.
+            maze_corridor_algorithm (str, optional): The algorithm to use for generating the maze. Defaults to 'random'. Can be one of: 'prim', 'astar' or 'random'. if 'random', randomly selects algorithm.
+            maze_corridor_grid_connect_option (Union[bool, str], optional): Option to decide the nature of corridor paths connectivity.
                 - If `True`, corridors will be grid-connected.
                 - If `False`, corridors will not be grid-connected.
                 - If `"random"`, the choice will be made randomly.
                 Defaults to False.
+            maze_corridor_post_process_option (bool, optional): Whether to post-process the maze. Defaults to True.
+            maze_corridor_sort_access_points_option (Union[bool, str], str, optional): Whether to sort the access points. Defaults to "random". If "random" will randomly select between "True" and "False".
             room_access_points (int, optional): The number of access points in each room. Defaults to None.
             room_access_points_range (tuple, optional): The range of access points per room. Defaults to (1, 4).
             room_types (list, optional): The types of rooms to be added in the maze. Defaults to None.
@@ -59,7 +65,6 @@ class Labyrinth(gym.Env):
             room_ratio_range (tuple, optional): The range of room ratio. Defaults to (0.5, 1.5).
             reward_schema (dict, optional): A dictionary defining the reward schema for the labyrinth. Defaults to None.
             seed (int, optional): The seed to use for generating random numbers. Defaults to None.
-
         """
 
         super().__init__()
@@ -92,7 +97,10 @@ class Labyrinth(gym.Env):
         self.maze_nr_desired_rooms_range = maze_nr_desired_rooms_range
         self.maze_global_room_ratio = maze_global_room_ratio
         self.maze_global_room_ratio_range = maze_global_room_ratio_range
-        self.maze_grid_connect_corridors_option = maze_grid_connect_corridors_option
+        self.maze_corridor_algorithm = maze_corridor_algorithm
+        self.maze_corridor_grid_connect_option = maze_corridor_grid_connect_option
+        self.maze_corridor_post_process_option = maze_corridor_post_process_option
+        self.maze_corridor_sort_access_points_option = maze_corridor_sort_access_points_option
         self.room_access_points = room_access_points
         self.room_access_points_range = room_access_points_range
         self.room_types = room_types
@@ -126,7 +134,10 @@ class Labyrinth(gym.Env):
             room_types=self.room_types,
             room_ratio=self.room_ratio,
             room_ratio_range=self.room_ratio_range,
-            grid_connect_corridors_option=self.maze_grid_connect_corridors_option,
+            corridor_algorithm = self.maze_corridor_algorithm,
+            corridor_grid_connect_option=self.maze_corridor_grid_connect_option,
+            corridor_post_process_option=self.maze_corridor_post_process_option,
+            corridor_sort_access_points_option = self.maze_corridor_sort_access_points_option,
             seed=maze_factory_seed,
         )
         return self.maze_factory
@@ -310,7 +321,11 @@ class Labyrinth(gym.Env):
                     f"rows: {self.rows}, cols: {self.cols}, "
                     f"maze_nr_desired_rooms: {self.maze.nr_desired_rooms}, "
                     f"maze_nr_placed_rooms: {self.maze.nr_placed_rooms}, "
-                    f"maze_global_room_ratio: {self.maze.global_room_ratio}."
+                    f"maze_global_room_ratio: {self.maze.global_room_ratio}, "
+                    f"maze_corridor_algorithm: {self.maze.corridor_algorithm}, "
+                    f"maze_corridor_grid_connect_option: {self.maze.corridor_grid_connect_option}, "
+                    f"maze_corridor_post_process_option: {self.maze.corridor_post_process_option}, "
+                    f"maze_corridor_sort_access_points_option: {self.maze.corridor_sort_access_points_option}"
                 )
                 print(init_message)
                 first_info_printed = False
@@ -321,5 +336,5 @@ class Labyrinth(gym.Env):
 
 
 if __name__ == "__main__":
-    env = Labyrinth(10, 10)
+    env = Labyrinth(20, 20, maze_corridor_algorithm="astar")
     env.human_play(print_info=True, animate=True)
