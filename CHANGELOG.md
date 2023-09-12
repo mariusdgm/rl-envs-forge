@@ -7,12 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2023.09.12
 ### Added
  - A* corridor generator algorithm, to generate more direct corridors.
  - GBFS, a non optimal A* corridor generator that is faster.
 ### Changed
  - Refactored corridor code from maze into a new CorridorBuilder class.
- - Minor changes in the labyrinth interface.
+ - Changes in the labyrinth interface.
 ### Fixed
  - Changed readme and img paths to urls so they can get displayed properly on the pypi page too.
  - Adjusted default pos close threshold and fixed info print in human_play.
