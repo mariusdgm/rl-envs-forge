@@ -1,5 +1,10 @@
 # rl-envs-forge
-[![GitHub](https://img.shields.io/badge/-GitHub-black?logo=github)](https://github.com/[mariusdgm]/[rl-envs-forge])
+<!-- Badges -->
+[![GitHub](https://img.shields.io/badge/-GitHub-black?logo=github)](https://github.com/mariusdgm/rl-envs-forge)
+[![PyPI version](https://img.shields.io/pypi/v/rl-envs-forge.svg)](https://pypi.org/project/rl-envs-forge/)
+![License: MIT](https://img.shields.io/github/license/mariusdgm/rl-envs-forge)
+[![CI/CD Workflow](https://github.com/mariusdgm/rl-envs-forge/actions/workflows/citd.yml/badge.svg?branch=main)](https://github.com/mariusdgm/rl-envs-forge/actions/workflows/citd.yml)
+<!--  -->
 
 Lightweight environments for reinforcement learning applications.
 

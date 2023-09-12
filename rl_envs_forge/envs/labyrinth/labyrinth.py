@@ -29,9 +29,7 @@ class Labyrinth(gym.Env):
         room_types: Optional[List[str]] = None,
         room_ratio: Optional[Union[int, float]] = None,
         room_ratio_range: Tuple[Union[int, float], Union[int, float]] = (0.5, 1.5),
-        reward_schema: Optional[
-            dict
-        ] = None,  
+        reward_schema: Optional[dict] = None,
         seed: Optional[int] = None,
     ):
         """
@@ -100,7 +98,9 @@ class Labyrinth(gym.Env):
         self.maze_corridor_algorithm = maze_corridor_algorithm
         self.maze_corridor_grid_connect_option = maze_corridor_grid_connect_option
         self.maze_corridor_post_process_option = maze_corridor_post_process_option
-        self.maze_corridor_sort_access_points_option = maze_corridor_sort_access_points_option
+        self.maze_corridor_sort_access_points_option = (
+            maze_corridor_sort_access_points_option
+        )
         self.room_access_points = room_access_points
         self.room_access_points_range = room_access_points_range
         self.room_types = room_types
@@ -134,10 +134,10 @@ class Labyrinth(gym.Env):
             room_types=self.room_types,
             room_ratio=self.room_ratio,
             room_ratio_range=self.room_ratio_range,
-            corridor_algorithm = self.maze_corridor_algorithm,
+            corridor_algorithm=self.maze_corridor_algorithm,
             corridor_grid_connect_option=self.maze_corridor_grid_connect_option,
             corridor_post_process_option=self.maze_corridor_post_process_option,
-            corridor_sort_access_points_option = self.maze_corridor_sort_access_points_option,
+            corridor_sort_access_points_option=self.maze_corridor_sort_access_points_option,
             seed=maze_factory_seed,
         )
         return self.maze_factory
@@ -311,7 +311,7 @@ class Labyrinth(gym.Env):
 
             if action is not None:
                 _, reward, done, _, info = self.step(action)
-                
+
                 if print_info:
                     print(f"Reward: {reward}, Done: {done}, Info: {info}")
 

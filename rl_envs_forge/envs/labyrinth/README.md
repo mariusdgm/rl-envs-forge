@@ -1,4 +1,4 @@
-# Labyrinth 
+# Labyrinth
 
 The Labyrinth environment consists in a 2D grid-world where an agent is tasked with reaching the target position.
 
@@ -24,8 +24,8 @@ while not done and not quit_event:
     quit_event, _ = env.render()
     sleep(0.1)
 ```
-![Labyrinth render GIF](https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/assets/labyrinth/doc_imgs/auto_play_demo.gif)
 
+![Labyrinth render GIF](https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/assets/labyrinth/doc_imgs/auto_play_demo.gif)
 
 <br>
 
@@ -37,6 +37,7 @@ from rl_envs_forge.envs.labyrinth.labyrinth import Labyrinth
 env = Labyrinth(20, 20)
 env.human_play(print_info=True, animate=True)
 ```
+
 ## Maze examples
 
 <table>
@@ -85,7 +86,3 @@ env.human_play(print_info=True, animate=True)
 </td>
 </tr>
 </table>
-
-
-
-
