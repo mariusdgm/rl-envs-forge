@@ -72,8 +72,6 @@ env.human_play(print_info=True, animate=True)
 <img src="https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/assets/labyrinth/doc_imgs/ss6.png" alt="Screenshot 6" width="300">
 </td>
 </tr>
-</table>
-
 
 <tr>
     <th colspan="2">Corridor algorithm: gbfs</th>
