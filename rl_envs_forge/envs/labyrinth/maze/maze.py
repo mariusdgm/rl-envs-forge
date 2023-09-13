@@ -128,7 +128,7 @@ class MazeFactory:
         # Randomize or fix other parameters
         self._check_corridor_algorithm_option()
         if self.corridor_algorithm == "random":
-            corridor_algorithm = self.py_random.choice(["prim", "astar"])
+            corridor_algorithm = self.py_random.choice(["prim", "astar", "gbfs"])
         else:
             corridor_algorithm = self.corridor_algorithm
 
@@ -172,7 +172,7 @@ class MazeFactory:
     def _check_corridor_algorithm_option(self):
         if self.corridor_algorithm not in ["prim", "astar", "gbfs", "random"]:
             raise ValueError(
-                f"Invalid value for corridor_algorithm. Got {self.corridor_algorithm}, expected ['prim', 'astar', 'random']."
+                f"Invalid value for corridor_algorithm. Got {self.corridor_algorithm}, expected ['prim', 'astar', 'gbfs', 'random']."
             )
 
     def _check_corridor_sort_access_points_option(self):

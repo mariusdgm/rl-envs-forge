@@ -336,5 +336,5 @@ class Labyrinth(gym.Env):
 
 
 if __name__ == "__main__":
-    env = Labyrinth(20, 20, maze_corridor_algorithm="astar")
+    env = Labyrinth(20, 20, maze_corridor_algorithm="gbfs")
     env.human_play(print_info=True, animate=True)
