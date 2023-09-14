@@ -274,6 +274,7 @@ class Maze:
         self.make_rooms()
         self.grid = np.where(self.room_grid == PATH, PATH, self.grid)
 
+        # TODO
         self.make_corridors()
         self.grid = np.where(self.corridor_grid == PATH, PATH, self.grid)
 
@@ -441,10 +442,11 @@ class Maze:
             # Shuffle these positions to randomly select without replacement
             self.py_random.shuffle(all_positions)
 
+            perimeter_cells = random_room.get_perimeter_cells()
             for row, col in all_positions:
                 # Target must be on an empty room tile and not in the perimeter
                 if (random_room.grid[row, col] == PATH) and (
-                    (row, col) not in random_room.get_perimeter_cells()
+                    (row, col) not in perimeter_cells
                 ):
                     return (room_top_left_row + row, room_top_left_col + col)
 
@@ -457,21 +459,22 @@ class Maze:
 
     def is_inside_any_room(self, pos, exception=None):
         """Check if a position is inside any of the rooms in the maze."""
-
         for room in self.rooms:
-            # Check if the position is within the global boundaries of the room
-            if (
-                room.global_position[0] <= pos[0] < room.global_position[0] + room.rows
-                and room.global_position[1]
-                <= pos[1]
-                < room.global_position[1] + room.cols
-            ):
-                # If the position is the exception, consider it not inside the room
-                if exception and pos == exception:
-                    continue
-                # Otherwise, it's inside this room
-                return True
-
+            room_mask = room.generate_inner_area_mask()
+            
+            # Convert the local room position to a global position
+            global_row = pos[0] - room.global_position[0]
+            global_col = pos[1] - room.global_position[1]
+            
+            # Check if the global position is within the bounds of the room's grid
+            if (0 <= global_row < room_mask.shape[0]) and (0 <= global_col < room_mask.shape[1]):
+                # Check if the position is inside the room using the inner area mask
+                if room_mask[global_row, global_col] == 1:
+                    # If the position is the exception, consider it not inside the room
+                    if exception and pos == exception:
+                        continue
+                    # Otherwise, it's inside this room
+                    return True
         # If we reached here, the position isn't inside any room
         return False
 

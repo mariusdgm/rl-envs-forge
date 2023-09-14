@@ -94,6 +94,7 @@ class TestCorridorBuilder:
         room.global_position = (1, 1)
         room.access_points = [(0, 0)]
         room.grid = np.ones((room.rows, room.cols), dtype=int)
+        room.generate_inner_area_mask = Mock(return_value=np.ones((room.rows, room.cols), dtype=int))
         maze.rooms.append(room)
 
         # Overlay the room onto maze.room_grid and maze.grid

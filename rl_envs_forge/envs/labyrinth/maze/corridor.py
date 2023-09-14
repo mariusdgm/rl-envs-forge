@@ -179,10 +179,10 @@ class CorridorBuilder:
                     room.global_position[1] + access_point[1],
                 )
                 connection = self.bfs_to_find_closest_path(global_access_point)
-
                 if not connection:
                     # If BFS failed to find a connection, try growing a path
                     connection = self.grow_path_from(global_access_point)
+
 
                 # If we found a connection, draw a path to it
                 if connection:
@@ -599,8 +599,10 @@ class CorridorBuilder:
         path.append(start)
         path.reverse()
 
-        # Remove goal because the path joins it to the corridor
-        path.remove(goal)
+        # Remove cells in rooms
+        for cell in path:
+            if self.maze.room_grid[cell[0], cell[1]] == PATH:
+                path.remove(cell)
 
         return path
 

@@ -116,6 +116,8 @@ class Labyrinth(gym.Env):
     def setup_labyrinth(self):
         self.make_maze_factory()
         self.maze = self.maze_factory.create_maze()
+
+        # TODO
         self.player.position = self.maze.start_position
         self.player.rendered_position = self.player.position
         self.build_state_matrix()
@@ -242,7 +244,7 @@ class Labyrinth(gym.Env):
 
         quit_event = False
         action = None
-
+        #TODO
         if not animate:
             self.player.rendered_position = self.player.position
 
@@ -274,6 +276,7 @@ class Labyrinth(gym.Env):
                 self.env_displayer.resize(event.w, event.h)
                 self.env_displayer.draw_state()
 
+        #TODO
         if animate:
             # This animation effect makes the display slightly unresponsive as
             # it blocks the execution here
@@ -336,5 +339,6 @@ class Labyrinth(gym.Env):
 
 
 if __name__ == "__main__":
-    env = Labyrinth(20, 20, maze_corridor_algorithm="gbfs")
+    # env = Labyrinth(20, 20, room_types=["oval"])
+    env = Labyrinth(20, 20)
     env.human_play(print_info=True, animate=True)

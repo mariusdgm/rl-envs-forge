@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.1] - 2023.09.14
+### Added
+
+- Oval room
 ### Fixed
 
 - PriorityQueue usage in both astar and gbfs. In gbfs the bug was much more noticeable as the corridors were not properly built.

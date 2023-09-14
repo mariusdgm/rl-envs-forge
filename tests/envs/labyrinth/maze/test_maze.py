@@ -68,10 +68,13 @@ class TestMaze:
         assert maze.is_valid_maze() is False
 
     def test_no_valid_target_position(self):
-        # Initialize the maze (adjust the logic as per your initialization requirements)
         maze = Maze(
-            rows=20, cols=20, nr_desired_rooms=1, global_room_ratio=0.2
-        )  # Or however you initialize your maze
+            rows=20,
+            cols=20,
+            nr_desired_rooms=1,
+            global_room_ratio=0.2,
+            room_types=["rectangular"],
+        )
 
         room = maze.rooms[0]
 
@@ -132,7 +135,6 @@ class TestMaze:
 
             # Assert that the corridor grids are the same for both mazes with the same seed and option
             assert np.array_equal(maze.corridor_grid, another_maze.corridor_grid)
-
 
 
 class TestMazeFactory:
