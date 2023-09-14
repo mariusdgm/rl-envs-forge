@@ -244,7 +244,7 @@ class Labyrinth(gym.Env):
 
         quit_event = False
         action = None
-        #TODO
+        # TODO
         if not animate:
             self.player.rendered_position = self.player.position
 
@@ -276,7 +276,7 @@ class Labyrinth(gym.Env):
                 self.env_displayer.resize(event.w, event.h)
                 self.env_displayer.draw_state()
 
-        #TODO
+        # TODO
         if animate:
             # This animation effect makes the display slightly unresponsive as
             # it blocks the execution here
@@ -339,6 +339,11 @@ class Labyrinth(gym.Env):
 
 
 if __name__ == "__main__":
+    env = Labyrinth(20, 20, room_types=["donut"])
+    while True:
+        env.render(window_size=(800, 800), animate=False)
+        pygame.time.wait(int(100))
+
     # env = Labyrinth(20, 20, room_types=["oval"])
     env = Labyrinth(20, 20)
     env.human_play(print_info=True, animate=True)

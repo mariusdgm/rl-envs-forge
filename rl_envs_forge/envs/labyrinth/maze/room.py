@@ -6,7 +6,7 @@ import numpy as np
 from scipy.ndimage import binary_dilation
 
 from ..constants import WALL, PATH
-from .utils import *
+from .utils import is_perimeter, generate_ellipse, clamp
 
 
 class RoomFactory:
@@ -49,6 +49,7 @@ class RoomFactory:
         all_available_room_types = [
             "rectangular",
             "oval",
+            "donut",
         ]
         self.room_types = room_types
         if self.room_types is None:
@@ -98,6 +99,10 @@ class RoomFactory:
             return self.create_oval_room(
                 rows=rows, cols=cols, nr_access_points=nr_access_points
             )
+        elif room_type == "donut":
+            return self.create_donut_room(
+                rows=rows, cols=cols, nr_access_points=nr_access_points
+            )
 
     def _estimate_dimensions_from_area(self, desired_area, ratio=1):
         """Estimate room dimensions based on desired area and given ratio."""
@@ -117,6 +122,23 @@ class RoomFactory:
         """Create an oval room using given rows, columns or desired area."""
         return OvalRoom(
             rows=rows, cols=cols, nr_access_points=nr_access_points, seed=self.room_seed
+        )
+
+    def create_donut_room(self, rows=None, cols=None, nr_access_points=1):
+        """Create a donut room using given rows, columns or desired area."""
+        min_ring_width = 2
+        max_ring_width = min(rows, cols) // 3
+        if max_ring_width <= min_ring_width:
+            ring_width = min_ring_width
+        else:
+            ring_width = self.py_random.randint(min_ring_width, max_ring_width)
+        
+        return DonutRoom(
+            rows=rows,
+            cols=cols,
+            nr_access_points=nr_access_points,
+            ring_width=ring_width,
+            seed=self.room_seed,
         )
 
 
@@ -289,20 +311,10 @@ class OvalRoom(Room):
         self.set_access_points()
 
     def generate_room_layout(self):
-        self.grid[:] = WALL
-
         center_y, center_x = self.rows // 2, self.cols // 2
         a, b = center_x, center_y
 
-        for i in range(self.rows):
-            for j in range(self.cols):
-                y, x = i - center_y, j - center_x
-
-                # Check if point is within ellipse using the formula
-                if (x**2 / a**2) + (y**2 / b**2) <= 1:
-                    self.grid[i][j] = PATH
-
-        return self.grid
+        return generate_ellipse(self.rows, self.cols, a, b, center_y, center_x)
 
     def get_perimeter_cells(self, padding=0):
         room_mask = self.grid == PATH
@@ -343,8 +355,72 @@ class OvalRoom(Room):
 
 
 class DonutRoom(Room):
-    # Implement similar methods for DonutRoom, approximating a donut shape on a grid.
-    pass
+    def __init__(
+        self,
+        rows: int = 7,
+        cols: int = 7,
+        nr_access_points: int = 1,
+        ring_width: int = 2,
+        outer_shape: str = "oval",  # new parameter
+        inner_shape: str = "oval",  # new parameter
+        seed: Optional[int] = None,
+        **kwargs,
+    ) -> None:
+        # Validation for shape
+        valid_shapes = ["oval", "rectangular"]
+        assert outer_shape in valid_shapes, f"Invalid outer_shape. Expected one of {valid_shapes}"
+        assert inner_shape in valid_shapes, f"Invalid inner_shape. Expected one of {valid_shapes}"
+
+        # Round down to odd number to have symmetry
+        rows = rows - (rows % 2 == 0)
+        cols = cols - (cols % 2 == 0)
+        self.ring_width = clamp(ring_width, 2, min(rows, cols)//3)
+        self.outer_shape = outer_shape
+        self.inner_shape = inner_shape
+
+        super().__init__(
+            rows=rows,
+            cols=cols,
+            nr_access_points=nr_access_points,
+            min_rows=7,
+            min_cols=7,
+            seed=seed,
+            **kwargs,
+        )
+
+        self.generate_room_layout()
+        self.set_access_points()
+
+    def generate_room_layout(self):
+        center_y, center_x = self.rows // 2, self.cols // 2
+        a_outer, b_outer = center_x, center_y
+        a_inner = a_outer - self.ring_width
+        b_inner = b_outer - self.ring_width
+
+        # Depending on the shape, generate the outer and inner masks
+        outer_mask = self._generate_shape_mask(self.outer_shape, a_outer, b_outer, center_y, center_x)
+        inner_mask = self._generate_shape_mask(self.inner_shape, a_inner, b_inner, center_y, center_x)
+
+        self.grid = outer_mask - inner_mask
+        return self.grid
+
+    def _generate_shape_mask(self, shape, a, b, center_y, center_x):
+        if shape == "oval":
+            return generate_ellipse(self.rows, self.cols, a, b, center_y, center_x)
+        elif shape == "rectangular":
+            mask = np.zeros((self.rows, self.cols), dtype=int)
+            mask[center_y - b:center_y + b, center_x - a:center_x + a] = 1
+            return mask
+
+    def generate_inner_area_mask(self):
+        if self.outer_shape == "oval":
+            center_y, center_x = self.rows // 2, self.cols // 2
+            a, b = center_x, center_y
+            return generate_ellipse(self.rows, self.cols, a, b, center_x, center_y, value_true=1, value_false=0)
+            
+        elif self.outer_shape == "rectangular":
+            mask = np.ones((self.rows, self.cols), dtype=int)
+            return mask
 
 
 class LShapedRoom(Room):

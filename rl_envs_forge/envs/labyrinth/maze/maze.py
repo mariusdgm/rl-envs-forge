@@ -455,7 +455,8 @@ class Maze:
 
     def place_start_end_positions(self):
         self.start_position = self.choose_start_position()
-        self.target_position = self.choose_target_position()
+        # self.target_position = self.choose_target_position()  
+        self.target_position = self.py_random.choice(self.rooms).global_position
 
     def is_inside_any_room(self, pos, exception=None):
         """Check if a position is inside any of the rooms in the maze."""
