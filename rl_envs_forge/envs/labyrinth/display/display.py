@@ -96,7 +96,7 @@ class EnvDisplay:
         # 2. Draw maze
         self.draw_maze(self.labyrinth.maze.grid)
 
-        # 3. Draw target
+        # 3. Draw target #TODO
         self.draw_target_at_position(self.labyrinth.maze.target_position)
 
         # 4. Draw the grid
@@ -104,7 +104,7 @@ class EnvDisplay:
 
         #### Draw special features
         # 5. Draw player
-        self.draw_player()
+        self.draw_player() #TODO
 
         pygame.display.flip()
 
@@ -126,7 +126,6 @@ class EnvDisplay:
         self.screen.blit(sprite, (x, y))
 
     
-
     def draw_target_at_position(self, position):
         x, y = self._adjust_coords_for_padding(*position)
         sprite = self.get_target_sprite()

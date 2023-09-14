@@ -3,6 +3,7 @@ from unittest.mock import Mock
 import numpy as np
 import random
 
+from rl_envs_forge.envs.labyrinth.maze.corridor import CustomPriorityQueue
 from rl_envs_forge.envs.labyrinth.maze.maze import Maze, MazeFactory
 from rl_envs_forge.envs.labyrinth.maze.room import RectangularRoom
 from rl_envs_forge.envs.labyrinth.constants import WALL, PATH, CorridorMoveStatus
@@ -93,6 +94,7 @@ class TestCorridorBuilder:
         room.global_position = (1, 1)
         room.access_points = [(0, 0)]
         room.grid = np.ones((room.rows, room.cols), dtype=int)
+        room.generate_inner_area_mask = Mock(return_value=np.ones((room.rows, room.cols), dtype=int))
         maze.rooms.append(room)
 
         # Overlay the room onto maze.room_grid and maze.grid
@@ -267,3 +269,17 @@ class TestCorridorBuilder:
         for _ in range(10):
             maze_factory = MazeFactory(rows=20, cols=20, corridor_algorithm="astar")
             maze = maze_factory.create_maze()
+
+
+class TestCustomPriorityQueue:
+    def test_priority_queue_behavior(self):
+        q = CustomPriorityQueue()
+        q.put(8, (0, 16))
+        q.put(10, (0, 18))
+        q.put(8, (1, 17))
+
+        assert not q.empty()
+        assert q.get() == (0, 16)
+        assert q.get() == (1, 17)
+        assert q.get() == (0, 18)
+        assert q.empty()

@@ -3,8 +3,10 @@ from typing import List, Tuple, Union, Optional
 import math
 import random
 import numpy as np
+from scipy.ndimage import binary_dilation
 
 from ..constants import WALL, PATH
+from .utils import *
 
 
 class RoomFactory:
@@ -46,6 +48,7 @@ class RoomFactory:
 
         all_available_room_types = [
             "rectangular",
+            "oval",
         ]
         self.room_types = room_types
         if self.room_types is None:
@@ -91,6 +94,10 @@ class RoomFactory:
             return self.create_rectangular_room(
                 rows=rows, cols=cols, nr_access_points=nr_access_points
             )
+        elif room_type == "oval":
+            return self.create_oval_room(
+                rows=rows, cols=cols, nr_access_points=nr_access_points
+            )
 
     def _estimate_dimensions_from_area(self, desired_area, ratio=1):
         """Estimate room dimensions based on desired area and given ratio."""
@@ -103,6 +110,12 @@ class RoomFactory:
     def create_rectangular_room(self, rows=None, cols=None, nr_access_points=1):
         """Create a rectangular room using given rows, columns or desired area."""
         return RectangularRoom(
+            rows=rows, cols=cols, nr_access_points=nr_access_points, seed=self.room_seed
+        )
+
+    def create_oval_room(self, rows=None, cols=None, nr_access_points=1):
+        """Create an oval room using given rows, columns or desired area."""
+        return OvalRoom(
             rows=rows, cols=cols, nr_access_points=nr_access_points, seed=self.room_seed
         )
 
@@ -140,7 +153,7 @@ class Room(ABC):
 
         self.np_random = np.random.RandomState(self.seed)
 
-        self.top_left_coord = top_left_coord  
+        self.top_left_coord = top_left_coord
         self.bottom_right_coord = (self.rows, self.cols)
         self.nr_access_points = nr_access_points
         self.access_points = set()
@@ -196,7 +209,7 @@ class RectangularRoom(Room):
         min_rows: int = 3,
         min_cols: int = 3,
         seed: Optional[int] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(
             rows=rows,
@@ -205,7 +218,7 @@ class RectangularRoom(Room):
             min_rows=min_rows,
             min_cols=min_cols,
             seed=seed,
-            **kwargs
+            **kwargs,
         )
         """Construct a RectangularRoom object representing a rectangular room.
 
@@ -249,9 +262,84 @@ class RectangularRoom(Room):
         return np.ones((self.rows, self.cols), dtype=bool)
 
 
-class CircularRoom(Room):
-    # Implement similar methods for CircularRoom, approximating a circle shape on a grid.
-    pass
+class OvalRoom(Room):
+    def __init__(
+        self,
+        rows: int = 5,
+        cols: int = 5,
+        nr_access_points: int = 1,
+        seed: Optional[int] = None,
+        **kwargs,
+    ) -> None:
+        # Round down to odd number to have symmetry
+        rows = rows - (rows % 2 == 0)
+        cols = cols - (cols % 2 == 0)
+
+        super().__init__(
+            rows=rows,
+            cols=cols,
+            nr_access_points=nr_access_points,
+            min_rows=5,
+            min_cols=5,
+            seed=seed,
+            **kwargs,
+        )
+
+        self.generate_room_layout()
+        self.set_access_points()
+
+    def generate_room_layout(self):
+        self.grid[:] = WALL
+
+        center_y, center_x = self.rows // 2, self.cols // 2
+        a, b = center_x, center_y
+
+        for i in range(self.rows):
+            for j in range(self.cols):
+                y, x = i - center_y, j - center_x
+
+                # Check if point is within ellipse using the formula
+                if (x**2 / a**2) + (y**2 / b**2) <= 1:
+                    self.grid[i][j] = PATH
+
+        return self.grid
+
+    def get_perimeter_cells(self, padding=0):
+        room_mask = self.grid == PATH
+
+        # For padding 0, directly return perimeter cells of the room
+        if padding == 0:
+            perimeter_cells = []
+            for i in range(self.rows):
+                for j in range(self.cols):
+                    if room_mask[i, j] and is_perimeter(room_mask, (i, j)):
+                        perimeter_cells.append((i, j))
+            return perimeter_cells
+
+        # Expand the mask to include padding on all sides
+        expanded_mask = np.pad(
+            room_mask, padding, mode="constant", constant_values=False
+        )
+
+        # Now, apply dilation to the expanded mask
+        dilated_mask = binary_dilation(expanded_mask, iterations=padding)
+
+        # If padding is greater than 1, generate the inner dilated mask
+        if padding > 1:
+            inner_dilated_mask = binary_dilation(expanded_mask, iterations=padding - 1)
+        else:
+            inner_dilated_mask = expanded_mask
+
+        perimeter_cells = []
+        for i in range(dilated_mask.shape[0]):
+            for j in range(dilated_mask.shape[1]):
+                if dilated_mask[i, j] and not inner_dilated_mask[i, j]:
+                    perimeter_cells.append((i - padding, j - padding))
+
+        return perimeter_cells
+
+    def generate_inner_area_mask(self):
+        return (self.grid == PATH).astype(int)
 
 
 class DonutRoom(Room):

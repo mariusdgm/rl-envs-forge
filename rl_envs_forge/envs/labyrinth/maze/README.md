@@ -41,6 +41,7 @@ The `Room` class represents a room in the maze and provides methods for generati
 The `Room` class allows for the implementation of different room types. Currently, the following room types are available:
 
 - **Rectangular Room**: A basic rectangular room.
+- **Oval Room**: A basic oval room.
 
 To add new room types, simply create a new class that inherits from the `Room` class and implements the necessary methods.
 

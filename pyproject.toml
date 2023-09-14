@@ -1,17 +1,18 @@
 [tool.poetry]
 name = "rl-envs-forge"
-version = "1.0.1"
+version = "1.1.1"
 description = "Environments for reinforcement learning"
 authors = ["mariusdgm <marius.dragomir.dgm@gmail.com>"]
 license = "MIT"
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = ">=3.10,<3.13"
 gymnasium = "^0.29.1"
 numpy = "^1.24.1"
 pygame = "^2.5.1"
 setuptools = "^68.0.0"
+scipy = "^1.11.2"
 
 
 [tool.poetry.group.dev.dependencies]
