@@ -76,14 +76,7 @@ class TestMaze:
             room_types=["rectangular"],
         )
 
-        room = maze.rooms[0]
-
-        # Fill the cells inside the perimeter with walls
-        perimeter_cells = room.get_perimeter_cells()
-        for row in range(room.rows):
-            for col in range(room.cols):
-                if (row, col) not in perimeter_cells:
-                    room.grid[row, col] = WALL
+        maze.rooms = []
 
         # Check that the function raises the expected error
         with pytest.raises(

@@ -117,7 +117,6 @@ class Labyrinth(gym.Env):
         self.make_maze_factory()
         self.maze = self.maze_factory.create_maze()
 
-        # TODO
         self.player.position = self.maze.start_position
         self.player.rendered_position = self.player.position
         self.build_state_matrix()
@@ -244,7 +243,7 @@ class Labyrinth(gym.Env):
 
         quit_event = False
         action = None
-        # TODO
+ 
         if not animate:
             self.player.rendered_position = self.player.position
 
@@ -275,8 +274,7 @@ class Labyrinth(gym.Env):
             if event.type == pygame.VIDEORESIZE:
                 self.env_displayer.resize(event.w, event.h)
                 self.env_displayer.draw_state()
-
-        # TODO
+        
         if animate:
             # This animation effect makes the display slightly unresponsive as
             # it blocks the execution here

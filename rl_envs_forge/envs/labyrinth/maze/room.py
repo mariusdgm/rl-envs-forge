@@ -3,10 +3,10 @@ from typing import List, Tuple, Union, Optional
 import math
 import random
 import numpy as np
-from scipy.ndimage import binary_dilation
+from scipy.ndimage import binary_dilation, generate_binary_structure
 
 from ..constants import WALL, PATH
-from .utils import is_perimeter, generate_ellipse, clamp
+from .utils import generate_ellipse, clamp
 
 
 class RoomFactory:
@@ -132,12 +132,17 @@ class RoomFactory:
             ring_width = min_ring_width
         else:
             ring_width = self.py_random.randint(min_ring_width, max_ring_width)
-        
+
+        inner_shape = self.py_random.choice(["rectangular", "oval"])
+        outer_shape = self.py_random.choice(["rectangular", "oval"])
+
         return DonutRoom(
             rows=rows,
             cols=cols,
             nr_access_points=nr_access_points,
             ring_width=ring_width,
+            inner_shape=inner_shape,
+            outer_shape=outer_shape,
             seed=self.room_seed,
         )
 
@@ -201,10 +206,57 @@ class Room(ABC):
     def generate_room_layout(self):
         pass
 
-    @abstractmethod
     def get_perimeter_cells(self, padding=0):
-        """Get a list of the coordinates of the perimeter cells."""
-        pass
+        room_mask = self.generate_inner_area_mask()
+
+        # Always add a padding of 1 to ensure that rooms touching the edge are handled
+        expanded_mask = np.pad(
+            room_mask, padding + 1, mode="constant", constant_values=False
+        )
+
+        if padding == 0:
+            perimeter_cells = []
+            for i in range(self.rows):
+                for j in range(self.cols):
+                    if expanded_mask[i + 1, j + 1] and self.is_perimeter(
+                        expanded_mask, (i + 1, j + 1)
+                    ):
+                        perimeter_cells.append((i, j))
+            return perimeter_cells
+
+        struct = generate_binary_structure(2, 2)  # 2D square structuring element
+
+        dilated_mask = binary_dilation(
+            expanded_mask, structure=struct, iterations=padding
+        )
+
+        if padding == 1:
+            perimeter_mask = dilated_mask & ~expanded_mask
+        else:
+            inner_dilated_mask = binary_dilation(
+                expanded_mask, structure=struct, iterations=padding - 1
+            )
+            perimeter_mask = dilated_mask & ~inner_dilated_mask
+
+        perimeter_cells = []
+        for i in range(perimeter_mask.shape[0]):
+            for j in range(perimeter_mask.shape[1]):
+                if perimeter_mask[i, j]:
+                    perimeter_cells.append((i - padding - 1, j - padding - 1))
+
+        return perimeter_cells
+
+    def is_perimeter(self, mask: np.ndarray, cell: Tuple[int, int]) -> bool:
+        i, j = cell
+        neighbors = [(i - 1, j), (i + 1, j), (i, j - 1), (i, j + 1)]
+        if mask[i, j]:
+            for ni, nj in neighbors:
+                if 0 <= ni < mask.shape[0] and 0 <= nj < mask.shape[1]:
+                    if not mask[
+                        ni, nj
+                    ]:  # There's at least one neighboring cell not part of the room
+                        return True
+        return False
 
     def set_access_points(self):
         """Define default access points for the room, based on its shape.
@@ -220,6 +272,24 @@ class Room(ABC):
     @abstractmethod
     def generate_inner_area_mask(self, total_rows, total_cols):
         pass
+
+    def get_non_perimeter_inner_cells(self):
+        inner_mask = self.generate_inner_area_mask()
+
+        # Get the list of perimeter cells.
+        perimeter_cells = self.get_perimeter_cells(padding=0)
+
+        # Convert the list of perimeter cells into a binary mask for easier subtraction.
+        perimeter_mask = np.zeros_like(inner_mask)
+        for cell in perimeter_cells:
+            perimeter_mask[cell] = 1
+
+        # Subtract the perimeter mask from the inner mask.
+        # This will give a mask where cells that are inside the inner area but not part of the perimeter are marked with 1s.
+        non_perimeter_mask = inner_mask - perimeter_mask
+
+        # Count the number of cells (1s) in the resulting mask.
+        return non_perimeter_mask
 
 
 class RectangularRoom(Room):
@@ -258,30 +328,10 @@ class RectangularRoom(Room):
 
     def generate_room_layout(self):
         self.grid[:] = PATH
-
-    def get_perimeter_cells(self, padding=0):
-        # Top perimeter with padding
-        top = [(-padding, j) for j in range(-padding, self.cols + padding)]
-
-        # Bottom perimeter with padding
-        bottom = [
-            (self.rows - 1 + padding, j) for j in range(-padding, self.cols + padding)
-        ]
-
-        # Left perimeter with padding (excluding the corners)
-        left = [(i, -padding) for i in range(1 - padding, self.rows - 1 + padding)]
-
-        # Right perimeter with padding (excluding the corners)
-        right = [
-            (i, self.cols - 1 + padding)
-            for i in range(1 - padding, self.rows - 1 + padding)
-        ]
-
-        perimeter = top + bottom + left + right
-        return perimeter
+        return self.grid
 
     def generate_inner_area_mask(self):
-        return np.ones((self.rows, self.cols), dtype=bool)
+        return np.ones((self.rows, self.cols), dtype=int)
 
 
 class OvalRoom(Room):
@@ -314,41 +364,17 @@ class OvalRoom(Room):
         center_y, center_x = self.rows // 2, self.cols // 2
         a, b = center_x, center_y
 
-        return generate_ellipse(self.rows, self.cols, a, b, center_y, center_x)
-
-    def get_perimeter_cells(self, padding=0):
-        room_mask = self.grid == PATH
-
-        # For padding 0, directly return perimeter cells of the room
-        if padding == 0:
-            perimeter_cells = []
-            for i in range(self.rows):
-                for j in range(self.cols):
-                    if room_mask[i, j] and is_perimeter(room_mask, (i, j)):
-                        perimeter_cells.append((i, j))
-            return perimeter_cells
-
-        # Expand the mask to include padding on all sides
-        expanded_mask = np.pad(
-            room_mask, padding, mode="constant", constant_values=False
+        self.grid = generate_ellipse(
+            self.rows,
+            self.cols,
+            a,
+            b,
+            center_x,
+            center_y,
+            value_true=PATH,
+            value_false=WALL,
         )
-
-        # Now, apply dilation to the expanded mask
-        dilated_mask = binary_dilation(expanded_mask, iterations=padding)
-
-        # If padding is greater than 1, generate the inner dilated mask
-        if padding > 1:
-            inner_dilated_mask = binary_dilation(expanded_mask, iterations=padding - 1)
-        else:
-            inner_dilated_mask = expanded_mask
-
-        perimeter_cells = []
-        for i in range(dilated_mask.shape[0]):
-            for j in range(dilated_mask.shape[1]):
-                if dilated_mask[i, j] and not inner_dilated_mask[i, j]:
-                    perimeter_cells.append((i - padding, j - padding))
-
-        return perimeter_cells
+        return self.grid
 
     def generate_inner_area_mask(self):
         return (self.grid == PATH).astype(int)
@@ -361,23 +387,28 @@ class DonutRoom(Room):
         cols: int = 7,
         nr_access_points: int = 1,
         ring_width: int = 2,
-        outer_shape: str = "oval",  # new parameter
-        inner_shape: str = "oval",  # new parameter
+        outer_shape: str = "oval",
+        inner_shape: str = "oval",
         seed: Optional[int] = None,
         **kwargs,
     ) -> None:
         # Validation for shape
         valid_shapes = ["oval", "rectangular"]
-        assert outer_shape in valid_shapes, f"Invalid outer_shape. Expected one of {valid_shapes}"
-        assert inner_shape in valid_shapes, f"Invalid inner_shape. Expected one of {valid_shapes}"
+        assert (
+            outer_shape in valid_shapes
+        ), f"Invalid outer_shape. Expected one of {valid_shapes}"
+        assert (
+            inner_shape in valid_shapes
+        ), f"Invalid inner_shape. Expected one of {valid_shapes}"
 
         # Round down to odd number to have symmetry
         rows = rows - (rows % 2 == 0)
         cols = cols - (cols % 2 == 0)
-        self.ring_width = clamp(ring_width, 2, min(rows, cols)//3)
-        self.outer_shape = outer_shape
-        self.inner_shape = inner_shape
 
+        # Enforce same number of rows and cols
+        rows = min(rows, cols)
+        cols = min(rows, cols)
+    
         super().__init__(
             rows=rows,
             cols=cols,
@@ -387,6 +418,15 @@ class DonutRoom(Room):
             seed=seed,
             **kwargs,
         )
+
+        min_ring_width = 2
+        if outer_shape == "oval" and inner_shape == "rectangular":
+            # This case requires a wider ring for when the dimensions are large
+            min_ring_width = 3
+    
+        self.ring_width = clamp(ring_width, min_ring_width, min(rows, cols) // 3)
+        self.outer_shape = outer_shape
+        self.inner_shape = inner_shape
 
         self.generate_room_layout()
         self.set_access_points()
@@ -398,26 +438,39 @@ class DonutRoom(Room):
         b_inner = b_outer - self.ring_width
 
         # Depending on the shape, generate the outer and inner masks
-        outer_mask = self._generate_shape_mask(self.outer_shape, a_outer, b_outer, center_y, center_x)
-        inner_mask = self._generate_shape_mask(self.inner_shape, a_inner, b_inner, center_y, center_x)
+        outer_mask = self._generate_shape_mask(
+            self.outer_shape, a_outer, b_outer, center_y, center_x
+        )
+        inner_mask = self._generate_shape_mask(
+            self.inner_shape, a_inner, b_inner, center_y, center_x
+        )
 
         self.grid = outer_mask - inner_mask
         return self.grid
 
-    def _generate_shape_mask(self, shape, a, b, center_y, center_x):
+    def _generate_shape_mask(self, shape, a, b, center_x, center_y):
         if shape == "oval":
-            return generate_ellipse(self.rows, self.cols, a, b, center_y, center_x)
+            return generate_ellipse(self.rows, self.cols, a, b, center_x, center_y)
         elif shape == "rectangular":
             mask = np.zeros((self.rows, self.cols), dtype=int)
-            mask[center_y - b:center_y + b, center_x - a:center_x + a] = 1
+            mask[center_y - b : center_y + b + 1, center_x - a : center_x + a + 1] = 1
             return mask
 
     def generate_inner_area_mask(self):
         if self.outer_shape == "oval":
             center_y, center_x = self.rows // 2, self.cols // 2
             a, b = center_x, center_y
-            return generate_ellipse(self.rows, self.cols, a, b, center_x, center_y, value_true=1, value_false=0)
-            
+            return generate_ellipse(
+                self.rows,
+                self.cols,
+                a,
+                b,
+                center_x,
+                center_y,
+                value_true=1,
+                value_false=0,
+            )
+
         elif self.outer_shape == "rectangular":
             mask = np.ones((self.rows, self.cols), dtype=int)
             return mask
