@@ -236,6 +236,7 @@ class Maze:
 
         self.grid = np.ones((rows, cols), dtype=int) * WALL
         self.room_grid = np.ones((rows, cols), dtype=int) * WALL
+        self.room_inner_area_grid = np.zeros((rows, cols), dtype=int)
         self.corridor_grid = np.ones((rows, cols), dtype=int) * WALL
 
         self.rooms = []
@@ -384,14 +385,27 @@ class Maze:
             return False
 
         # Basically add a padding of 1
-        sub_grid = self.room_grid[
+        sub_grid = self.room_inner_area_grid[
             start_row - 1 : end_row + 1, start_col - 1 : end_col + 1
         ]
 
         # Check if placing the room would overlap with another room or not maintain separation
         return np.sum(sub_grid == PATH) == 0
 
-    def materialize_room(self, room, start_row, start_col):
+    def materialize_room(self, room, start_row: int, start_col: int):
+        """room_inner_area_grid -> used to find spacing and build corridors 
+        (this was created in special for the cases where we have rooms with hollow areas)
+
+        room_grid -> actual PATHs that belong to rooms
+        
+        Args:
+            room (Room): room object to be placed in the maze
+            start_row (int): global row position of the room
+            start_col (int): global row position of the room
+        """
+        self.room_inner_area_grid[
+            start_row : start_row + room.rows, start_col : start_col + room.cols
+        ] = room.generate_inner_area_mask()
         self.room_grid[
             start_row : start_row + room.rows, start_col : start_col + room.cols
         ] = room.grid

@@ -337,11 +337,15 @@ class Labyrinth(gym.Env):
 
 
 if __name__ == "__main__":
-    env = Labyrinth(20, 20, room_types=["donut"])
-    while True:
-        env.render(window_size=(800, 800), animate=False)
-        pygame.time.wait(int(100))
+    # while True:
+    #     env = Labyrinth(80, 80)
+    #     if not env.maze.is_valid_maze():
+    #         break
+
+    # while True:
+    #     env.render(window_size=(800, 800), animate=False)
+    #     pygame.time.wait(int(100))
 
     # env = Labyrinth(20, 20, room_types=["oval"])
-    env = Labyrinth(20, 20)
+    env = Labyrinth(30, 30, room_types=["donut"])
     env.human_play(print_info=True, animate=True)

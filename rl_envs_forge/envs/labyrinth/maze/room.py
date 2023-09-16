@@ -126,12 +126,14 @@ class RoomFactory:
 
     def create_donut_room(self, rows=None, cols=None, nr_access_points=1):
         """Create a donut room using given rows, columns or desired area."""
-        min_ring_width = 2
-        max_ring_width = min(rows, cols) // 3
+        min_ring_width = 1
+        max_ring_width = min(rows, cols) // 1.75
         if max_ring_width <= min_ring_width:
             ring_width = min_ring_width
         else:
             ring_width = self.py_random.randint(min_ring_width, max_ring_width)
+
+        ring_width = min_ring_width
 
         inner_shape = self.py_random.choice(["rectangular", "oval"])
         outer_shape = self.py_random.choice(["rectangular", "oval"])
@@ -381,12 +383,20 @@ class OvalRoom(Room):
 
 
 class DonutRoom(Room):
+    """
+    A donut room is a hollow area in the middle.
+    The outer shape and the inner shape can be either rectangular or circular.
+    Equal rows and columns are enforced, and we generally want a minimum ring width of 2.
+    In the case with rectangular outer and inner shape, we can also get a ring
+    width of 1, and we allow this.
+    """
+
     def __init__(
         self,
         rows: int = 7,
         cols: int = 7,
         nr_access_points: int = 1,
-        ring_width: int = 2,
+        ring_width: int = 1,
         outer_shape: str = "oval",
         inner_shape: str = "oval",
         seed: Optional[int] = None,
@@ -401,14 +411,14 @@ class DonutRoom(Room):
             inner_shape in valid_shapes
         ), f"Invalid inner_shape. Expected one of {valid_shapes}"
 
-        # Round down to odd number to have symmetry
+        # Round down to odd number for better round shapes
         rows = rows - (rows % 2 == 0)
         cols = cols - (cols % 2 == 0)
 
         # Enforce same number of rows and cols
         rows = min(rows, cols)
         cols = min(rows, cols)
-    
+
         super().__init__(
             rows=rows,
             cols=cols,
@@ -419,47 +429,68 @@ class DonutRoom(Room):
             **kwargs,
         )
 
-        min_ring_width = 2
-        if outer_shape == "oval" and inner_shape == "rectangular":
-            # This case requires a wider ring for when the dimensions are large
-            min_ring_width = 3
-    
-        self.ring_width = clamp(ring_width, min_ring_width, min(rows, cols) // 3)
         self.outer_shape = outer_shape
         self.inner_shape = inner_shape
+
+        min_ring_width = 1
+        if self.inner_shape == "oval":
+            # special case when we need to enforce at least 2 width
+            min_ring_width = 2
+            
+        max_ring_width = min(self.rows, self.cols) // 1.75
+        self.ring_width = clamp(ring_width, min_ring_width, max_ring_width)
 
         self.generate_room_layout()
         self.set_access_points()
 
     def generate_room_layout(self):
+        
         center_y, center_x = self.rows // 2, self.cols // 2
         a_outer, b_outer = center_x, center_y
+
         a_inner = a_outer - self.ring_width
         b_inner = b_outer - self.ring_width
 
         # Depending on the shape, generate the outer and inner masks
-        outer_mask = self._generate_shape_mask(
-            self.outer_shape, a_outer, b_outer, center_y, center_x
+        self._outer_mask = self._generate_shape_mask(
+            self.outer_shape, a_outer, b_outer, center_y, center_x, level="outer"
         )
-        inner_mask = self._generate_shape_mask(
-            self.inner_shape, a_inner, b_inner, center_y, center_x
+        self._inner_mask = self._generate_shape_mask(
+            self.inner_shape, a_inner, b_inner, center_y, center_x, level="inner"
         )
 
-        self.grid = outer_mask - inner_mask
+        self.grid = self._outer_mask - self._inner_mask
         return self.grid
 
-    def _generate_shape_mask(self, shape, a, b, center_x, center_y):
+    def _generate_shape_mask(self, shape, a, b, center_x, center_y, level="outer"):
+        if a == 0 and b == 0:
+            a, b = 1, 1
+
         if shape == "oval":
             return generate_ellipse(self.rows, self.cols, a, b, center_x, center_y)
         elif shape == "rectangular":
-            mask = np.zeros((self.rows, self.cols), dtype=int)
-            mask[center_y - b : center_y + b + 1, center_x - a : center_x + a + 1] = 1
-            return mask
+            return self.generate_rectangular_mask(a, b, center_x, center_y, level)
+
+    def generate_rectangular_mask(self, a, b, center_x, center_y, level="outer"):
+        if level == "inner":
+            # math solution
+            a, b = int(a / math.sqrt(2)), int(b / math.sqrt(2))
+
+            # but need further adjust (at larger sizes the width of 2 is dangerous)
+            if self.outer_shape == "oval":   
+                if a > 1 and b > 1:
+                    # so find the position of the top leftmost corner of the outer mask
+                    a -= 1
+                    b -= 1
+                
+        mask = np.zeros((self.rows, self.cols), dtype=int)
+        mask[center_y - b : center_y + b + 1, center_x - a : center_x + a + 1] = 1
+        return mask
 
     def generate_inner_area_mask(self):
+        center_y, center_x = self.rows // 2, self.cols // 2
+        a, b = center_x, center_y
         if self.outer_shape == "oval":
-            center_y, center_x = self.rows // 2, self.cols // 2
-            a, b = center_x, center_y
             return generate_ellipse(
                 self.rows,
                 self.cols,
@@ -472,7 +503,7 @@ class DonutRoom(Room):
             )
 
         elif self.outer_shape == "rectangular":
-            mask = np.ones((self.rows, self.cols), dtype=int)
+            mask = self.generate_rectangular_mask(a, b, center_x, center_y)
             return mask
 
 

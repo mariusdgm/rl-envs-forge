@@ -16,6 +16,7 @@ class TestCorridorBuilder:
         maze.rooms = []
         maze.grid = np.full((10, 10), WALL)
         maze.room_grid = np.full((10, 10), WALL)
+        maze.room_inner_area_grid = np.full((10, 10), WALL)
         maze.corridor_grid = np.full((10, 10), WALL)
         return maze
 
@@ -23,6 +24,10 @@ class TestCorridorBuilder:
     def add_room_to_maze(self, maze, room):
         maze.rooms.append(room)
         maze.room_grid[
+            room.global_position[0] : room.global_position[0] + room.rows,
+            room.global_position[1] : room.global_position[1] + room.cols,
+        ] = PATH
+        maze.room_inner_area_grid[
             room.global_position[0] : room.global_position[0] + room.rows,
             room.global_position[1] : room.global_position[1] + room.cols,
         ] = PATH
@@ -94,13 +99,18 @@ class TestCorridorBuilder:
         room.global_position = (1, 1)
         room.access_points = [(0, 0)]
         room.grid = np.ones((room.rows, room.cols), dtype=int)
-        room.generate_inner_area_mask = Mock(return_value=np.ones((room.rows, room.cols), dtype=int))
+        room.generate_inner_area_mask = Mock(
+            return_value=np.ones((room.rows, room.cols), dtype=int)
+        )
         maze.rooms.append(room)
 
         # Overlay the room onto maze.room_grid and maze.grid
         for i in range(room.rows):
             for j in range(room.cols):
                 maze.room_grid[
+                    room.global_position[0] + i, room.global_position[1] + j
+                ] = room.grid[i, j]
+                maze.room_inner_area_grid[
                     room.global_position[0] + i, room.global_position[1] + j
                 ] = room.grid[i, j]
         maze.grid = np.where(maze.room_grid == PATH, PATH, maze.grid)

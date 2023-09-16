@@ -254,7 +254,7 @@ class TestMazeFactory:
         """For multiple mazes test that all mazes are valid.
         This test is much slower than the rest of the testing codebase.
         Skip it by calling pytest as  [pytest tests -m 'not slow']."""
-        for seed in range(50):
+        for seed in range(75):
             random.seed(seed)
             rows = random.randint(10, 50)
             cols = random.randint(10, 50)

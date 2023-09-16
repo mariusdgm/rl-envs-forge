@@ -127,7 +127,7 @@ class CorridorBuilder:
         # Detect if new position or its neighbors are a path (either corridor or room)
         if (
             grid[new_pos[0], new_pos[1]] == PATH
-            or self.maze.room_grid[new_pos[0], new_pos[1]] == PATH
+            or self.maze.room_inner_area_grid[new_pos[0], new_pos[1]] == PATH
         ):
             return (False, CorridorMoveStatus.INVALID)
 
@@ -143,7 +143,10 @@ class CorridorBuilder:
                 if (
                     0 <= position[0] + dx < self.rows
                     and 0 <= position[1] + dy < self.cols
-                    and self.maze.room_grid[position[0] + dx, position[1] + dy] == PATH
+                    and self.maze.room_inner_area_grid[
+                        position[0] + dx, position[1] + dy
+                    ]
+                    == PATH
                 ):
                     return True
         return False
@@ -182,7 +185,6 @@ class CorridorBuilder:
                 if not connection:
                     # If BFS failed to find a connection, try growing a path
                     connection = self.grow_path_from(global_access_point)
-
 
                 # If we found a connection, draw a path to it
                 if connection:
@@ -452,7 +454,7 @@ class CorridorBuilder:
 
         while not frontier.empty():
             current = frontier.get()
-           
+
             if current == goal:
                 break
 
@@ -599,10 +601,7 @@ class CorridorBuilder:
         path.append(start)
         path.reverse()
 
-        # Remove cells in rooms
-        for cell in path:
-            if self.maze.room_grid[cell[0], cell[1]] == PATH:
-                path.remove(cell)
+        
 
         return path
 
