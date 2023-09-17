@@ -73,7 +73,7 @@ class TestMaze:
             cols=20,
             nr_desired_rooms=1,
             global_room_ratio=0.2,
-            room_types=["rectangular"],
+            room_types=["rectangle"],
         )
 
         maze.rooms = []

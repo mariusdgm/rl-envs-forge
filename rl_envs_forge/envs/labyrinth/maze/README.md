@@ -40,7 +40,7 @@ The `Room` class represents a room in the maze and provides methods for generati
 
 The `Room` class allows for the implementation of different room types. Currently, the following room types are available:
 
-- **Rectangular Room**: A basic rectangular room.
+- **Rectangle Room**: A basic rectangular room.
 - **Oval Room**: A basic oval room.
 - **Donut Room**: A donut shaped room, built with an outer and an inner shape. These can be either rectangular or oval
 

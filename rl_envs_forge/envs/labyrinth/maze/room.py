@@ -46,14 +46,15 @@ class RoomFactory:
         self.access_points_nr = access_points_nr
         self.access_points_range = access_points_range
 
-        all_available_room_types = [
-            "rectangular",
+        self.all_available_room_types = [
+            "rectangle",
             "oval",
             "donut",
+            "t_shape",
         ]
         self.room_types = room_types
         if self.room_types is None:
-            self.room_types = all_available_room_types
+            self.room_types = self.all_available_room_types
 
         self.ratio = ratio
         self.ratio_range = ratio_range
@@ -91,8 +92,8 @@ class RoomFactory:
 
         room_type = self.py_random.choice(self.room_types)
 
-        if room_type == "rectangular":
-            return self.create_rectangular_room(
+        if room_type == "rectangle":
+            return self.create_rectangle_room(
                 rows=rows, cols=cols, nr_access_points=nr_access_points
             )
         elif room_type == "oval":
@@ -103,6 +104,12 @@ class RoomFactory:
             return self.create_donut_room(
                 rows=rows, cols=cols, nr_access_points=nr_access_points
             )
+        elif room_type == "t_shape":
+            return self.create_t_shape_room(
+                rows=rows, cols=cols, nr_access_points=nr_access_points
+            )
+        else:
+            raise ValueError(f"Unknown room type: {room_type}. Available types: {self.all_available_room_types}")
 
     def _estimate_dimensions_from_area(self, desired_area, ratio=1):
         """Estimate room dimensions based on desired area and given ratio."""
@@ -112,20 +119,20 @@ class RoomFactory:
 
         return rows, cols
 
-    def create_rectangular_room(self, rows=None, cols=None, nr_access_points=1):
-        """Create a rectangular room using given rows, columns or desired area."""
-        return RectangularRoom(
+    def create_rectangle_room(self, rows=None, cols=None, nr_access_points=1):
+        """Create a rectangle room using given rows."""
+        return RectangleRoom(
             rows=rows, cols=cols, nr_access_points=nr_access_points, seed=self.room_seed
         )
 
     def create_oval_room(self, rows=None, cols=None, nr_access_points=1):
-        """Create an oval room using given rows, columns or desired area."""
+        """Create an oval room using given rows, columns."""
         return OvalRoom(
             rows=rows, cols=cols, nr_access_points=nr_access_points, seed=self.room_seed
         )
 
     def create_donut_room(self, rows=None, cols=None, nr_access_points=1):
-        """Create a donut room using given rows, columns or desired area."""
+        """Create a donut room using given rows, columns."""
         min_ring_width = 1
         max_ring_width = min(rows, cols) // 1.75
         if max_ring_width <= min_ring_width:
@@ -135,8 +142,8 @@ class RoomFactory:
 
         ring_width = min_ring_width
 
-        inner_shape = self.py_random.choice(["rectangular", "oval"])
-        outer_shape = self.py_random.choice(["rectangular", "oval"])
+        inner_shape = self.py_random.choice(["rectangle", "oval"])
+        outer_shape = self.py_random.choice(["rectangle", "oval"])
 
         return DonutRoom(
             rows=rows,
@@ -145,6 +152,22 @@ class RoomFactory:
             ring_width=ring_width,
             inner_shape=inner_shape,
             outer_shape=outer_shape,
+            seed=self.room_seed,
+        )
+
+    def create_t_shape_room(self, rows=None, cols=None, nr_access_points=1):
+        """Create a t shape room using given rows, columns."""
+        horizontal_carve = 0.5 + self.py_random.random() * 0.5
+        vertical_carve = 0.5 + self.py_random.random() * 0.5
+        rotation = self.py_random.choice(["top", "right", "bottom", "left"])
+
+        return TShapeRoom(
+            rows=rows,
+            cols=cols,
+            nr_access_points=nr_access_points,
+            horizontal_carve=horizontal_carve,
+            vertical_carve=vertical_carve,
+            rotation=rotation,
             seed=self.room_seed,
         )
 
@@ -181,6 +204,7 @@ class Room(ABC):
             self.seed = random.randint(0, 1e6)
 
         self.np_random = np.random.RandomState(self.seed)
+        self.py_random = random.Random(self.seed)
 
         self.top_left_coord = top_left_coord
         self.bottom_right_coord = (self.rows, self.cols)
@@ -271,9 +295,8 @@ class Room(ABC):
         )
         self.access_points = {perimeter_cells[i] for i in chosen_indices}
 
-    @abstractmethod
-    def generate_inner_area_mask(self, total_rows, total_cols):
-        pass
+    def generate_inner_area_mask(self):
+        return (self.grid == PATH).astype(int)
 
     def get_non_perimeter_inner_cells(self):
         inner_mask = self.generate_inner_area_mask()
@@ -294,7 +317,7 @@ class Room(ABC):
         return non_perimeter_mask
 
 
-class RectangularRoom(Room):
+class RectangleRoom(Room):
     def __init__(
         self,
         rows: int = 5,
@@ -314,7 +337,7 @@ class RectangularRoom(Room):
             seed=seed,
             **kwargs,
         )
-        """Construct a RectangularRoom object representing a rectangular room.
+        """Construct a RectangleRoom object representing a rectangle room.
 
         Args:
             rows (int, optional): The number of rows in the room. Defaults to 5.
@@ -331,9 +354,6 @@ class RectangularRoom(Room):
     def generate_room_layout(self):
         self.grid[:] = PATH
         return self.grid
-
-    def generate_inner_area_mask(self):
-        return np.ones((self.rows, self.cols), dtype=int)
 
 
 class OvalRoom(Room):
@@ -378,16 +398,13 @@ class OvalRoom(Room):
         )
         return self.grid
 
-    def generate_inner_area_mask(self):
-        return (self.grid == PATH).astype(int)
-
 
 class DonutRoom(Room):
     """
     A donut room is a hollow area in the middle.
-    The outer shape and the inner shape can be either rectangular or circular.
+    The outer shape and the inner shape can be either rectangle or circular.
     Equal rows and columns are enforced, and we generally want a minimum ring width of 2.
-    In the case with rectangular outer and inner shape, we can also get a ring
+    In the case with rectangle outer and inner shape, we can also get a ring
     width of 1, and we allow this.
     """
 
@@ -403,7 +420,7 @@ class DonutRoom(Room):
         **kwargs,
     ) -> None:
         # Validation for shape
-        valid_shapes = ["oval", "rectangular"]
+        valid_shapes = ["oval", "rectangle"]
         assert (
             outer_shape in valid_shapes
         ), f"Invalid outer_shape. Expected one of {valid_shapes}"
@@ -436,7 +453,7 @@ class DonutRoom(Room):
         if self.inner_shape == "oval":
             # special case when we need to enforce at least 2 width
             min_ring_width = 2
-            
+
         max_ring_width = min(self.rows, self.cols) // 1.75
         self.ring_width = clamp(ring_width, min_ring_width, max_ring_width)
 
@@ -444,7 +461,6 @@ class DonutRoom(Room):
         self.set_access_points()
 
     def generate_room_layout(self):
-        
         center_y, center_x = self.rows // 2, self.cols // 2
         a_outer, b_outer = center_x, center_y
 
@@ -468,21 +484,21 @@ class DonutRoom(Room):
 
         if shape == "oval":
             return generate_ellipse(self.rows, self.cols, a, b, center_x, center_y)
-        elif shape == "rectangular":
-            return self.generate_rectangular_mask(a, b, center_x, center_y, level)
+        elif shape == "rectangle":
+            return self.generate_rectangle_mask(a, b, center_x, center_y, level)
 
-    def generate_rectangular_mask(self, a, b, center_x, center_y, level="outer"):
+    def generate_rectangle_mask(self, a, b, center_x, center_y, level="outer"):
         if level == "inner":
             # math solution
             a, b = int(a / math.sqrt(2)), int(b / math.sqrt(2))
 
             # but need further adjust (at larger sizes the width of 2 is dangerous)
-            if self.outer_shape == "oval":   
+            if self.outer_shape == "oval":
                 if a > 1 and b > 1:
                     # so find the position of the top leftmost corner of the outer mask
                     a -= 1
                     b -= 1
-                
+
         mask = np.zeros((self.rows, self.cols), dtype=int)
         mask[center_y - b : center_y + b + 1, center_x - a : center_x + a + 1] = 1
         return mask
@@ -502,8 +518,8 @@ class DonutRoom(Room):
                 value_false=0,
             )
 
-        elif self.outer_shape == "rectangular":
-            mask = self.generate_rectangular_mask(a, b, center_x, center_y)
+        elif self.outer_shape == "rectangle":
+            mask = self.generate_rectangle_mask(a, b, center_x, center_y)
             return mask
 
 
@@ -512,8 +528,83 @@ class LShapedRoom(Room):
     pass
 
 
-class TShapedRoom(Room):
-    pass
+class TShapeRoom(Room):
+    def __init__(
+        self,
+        rows: int = 4,
+        cols: int = 4,
+        nr_access_points: int = 1,
+        vertical_carve: float = 0.5,
+        horizontal_carve: float = 0.5,
+        rotation: str = "top",
+        seed: Optional[int] = None,
+        **kwargs,
+    ):
+        super().__init__(
+            rows=rows,
+            cols=cols,
+            nr_access_points=nr_access_points,
+            min_rows=4,
+            min_cols=4,
+            seed=seed,
+            **kwargs,
+        )
+        assert 0 <= vertical_carve <= 1, "vertical_carve must be in the range [0, 1]"
+        assert (
+            0 <= horizontal_carve <= 1
+        ), "horizontal_carve must be in the range [0, 1]"
+        self.vertical_carve = vertical_carve
+        self.horizontal_carve = horizontal_carve
+        self.rotation = rotation
+        super().__init__(
+            rows=rows,
+            cols=cols,
+            nr_access_points=nr_access_points,
+            min_rows=4,
+            min_cols=4,
+            seed=seed,
+            **kwargs,
+        )
+        self.generate_room_layout()
+        self.set_access_points()
+
+    def carve_amount(self, size, carve_ratio):
+        return max(2, int(size * carve_ratio))
+
+    def generate_room_layout(self):
+        self.grid[:] = PATH  # Resetting the room to be full
+
+        # Based on the rotation, determine which carving ratio corresponds to vertical/horizontal carving
+        if self.rotation in ["top", "bottom"]:
+            vert_carve = self.carve_amount(self.rows - 2, self.vertical_carve)
+            horz_carve = self.carve_amount(self.cols - 2, self.horizontal_carve)
+        else:  # For left and right rotation, swap the carving ratios
+            vert_carve = self.carve_amount(self.rows - 2, self.horizontal_carve)
+            horz_carve = self.carve_amount(self.cols - 2, self.vertical_carve)
+
+        # Adjust carving based on desired rotation
+        if self.rotation == "top":
+            carve_left = (self.cols - horz_carve) // 2
+            carve_right = self.cols - carve_left
+            self.grid[-vert_carve:, :carve_left] = WALL
+            self.grid[-vert_carve:, carve_right:] = WALL
+        elif self.rotation == "left":
+            carve_top = (self.rows - vert_carve) // 2
+            carve_bottom = self.rows - carve_top
+            self.grid[:carve_top, -horz_carve:] = WALL
+            self.grid[carve_bottom:, -horz_carve:] = WALL
+        elif self.rotation == "right":
+            carve_top = (self.rows - vert_carve) // 2
+            carve_bottom = self.rows - carve_top
+            self.grid[:carve_top, :horz_carve] = WALL
+            self.grid[carve_bottom:, :horz_carve] = WALL
+        elif self.rotation == "bottom":
+            carve_left = (self.cols - horz_carve) // 2
+            carve_right = self.cols - carve_left
+            self.grid[:vert_carve, :carve_left] = WALL
+            self.grid[:vert_carve, carve_right:] = WALL
+
+        return self.grid
 
 
 class TriangleRoom(Room):

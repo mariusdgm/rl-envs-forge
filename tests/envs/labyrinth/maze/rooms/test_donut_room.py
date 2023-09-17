@@ -39,12 +39,12 @@ class TestDonutRoom:
         assert room.rows == 7
         assert room.cols == 7
 
-    def test_rectangular_outer_rectangular_inner(self):
+    def test_rectangle_outer_rectangle_inner(self):
         room = DonutRoom(
-            rows=7, cols=7, inner_shape="rectangular", outer_shape="rectangular"
+            rows=7, cols=7, inner_shape="rectangle", outer_shape="rectangle"
         )
-        assert room.outer_shape == "rectangular"
-        assert room.inner_shape == "rectangular"
+        assert room.outer_shape == "rectangle"
+        assert room.inner_shape == "rectangle"
         assert len(room.get_perimeter_cells()) > 1
 
         non_perimeter_mask = room.get_non_perimeter_inner_cells()
@@ -52,12 +52,12 @@ class TestDonutRoom:
         combined_mask = non_perimeter_mask * path_mask
         assert np.sum(combined_mask) > 1
 
-    def test_oval_outer_rectangular_inner(self):
+    def test_oval_outer_rectangle_inner(self):
         room = DonutRoom(
-            rows=7, cols=7, inner_shape="rectangular", outer_shape="oval"
+            rows=7, cols=7, inner_shape="rectangle", outer_shape="oval"
         )
         assert room.outer_shape == "oval"
-        assert room.inner_shape == "rectangular"
+        assert room.inner_shape == "rectangle"
         assert len(room.get_perimeter_cells()) > 1
 
         non_perimeter_mask = room.get_non_perimeter_inner_cells()
@@ -65,11 +65,11 @@ class TestDonutRoom:
         combined_mask = non_perimeter_mask * path_mask
         assert np.sum(combined_mask) > 1
 
-    def test_rectangular_outer_oval_inner(self):
+    def test_rectangle_outer_oval_inner(self):
         room = DonutRoom(
-            rows=7, cols=7, inner_shape="oval", outer_shape="rectangular"
+            rows=7, cols=7, inner_shape="oval", outer_shape="rectangle"
         )
-        assert room.outer_shape == "rectangular"
+        assert room.outer_shape == "rectangle"
         assert room.inner_shape == "oval"
         assert len(room.get_perimeter_cells()) > 1
 

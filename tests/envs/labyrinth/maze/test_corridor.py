@@ -5,7 +5,7 @@ import random
 
 from rl_envs_forge.envs.labyrinth.maze.corridor import CustomPriorityQueue
 from rl_envs_forge.envs.labyrinth.maze.maze import Maze, MazeFactory
-from rl_envs_forge.envs.labyrinth.maze.room import RectangularRoom
+from rl_envs_forge.envs.labyrinth.maze.room import RectangleRoom
 from rl_envs_forge.envs.labyrinth.constants import WALL, PATH, CorridorMoveStatus
 
 
@@ -34,7 +34,7 @@ class TestCorridorBuilder:
 
     def test_is_valid_position(self, blank_maze):
         maze = blank_maze
-        room = RectangularRoom(5, 5, top_left_coord=(4, 4))
+        room = RectangleRoom(5, 5, top_left_coord=(4, 4))
         self.add_room_to_maze(maze, room)
 
         # Test case where new position is valid and not adjacent to any room
@@ -67,7 +67,7 @@ class TestCorridorBuilder:
 
     def test_is_adjacent_to_room(self, blank_maze):
         maze = blank_maze
-        room = RectangularRoom(3, 3, top_left_coord=(4, 4))
+        room = RectangleRoom(3, 3, top_left_coord=(4, 4))
         self.add_room_to_maze(maze, room)
 
         # Test case where position is not adjacent to room
@@ -143,7 +143,7 @@ class TestCorridorBuilder:
 
     def test_is_line_segment_intersecting_room(self, blank_maze):
         maze = blank_maze
-        room = RectangularRoom(3, 3, top_left_coord=(4, 4))
+        room = RectangleRoom(3, 3, top_left_coord=(4, 4))
         self.add_room_to_maze(maze, room)
 
         # Test case 1: Line segment that clearly passes through the room
@@ -198,7 +198,7 @@ class TestCorridorBuilder:
     def test_generate_corridor_prim_and_connect_rooms_to_paths(self, blank_maze):
         maze = blank_maze
         maze.start_position = (0, 0)
-        room = RectangularRoom(3, 3, nr_access_points=3, top_left_coord=(4, 4))
+        room = RectangleRoom(3, 3, nr_access_points=3, top_left_coord=(4, 4))
         self.add_room_to_maze(maze, room)
 
         maze.corridor_grid = maze.corridor_builder.generate_corridor_prim()
@@ -211,7 +211,7 @@ class TestCorridorBuilder:
         ### Corner access points
         maze = blank_maze
         maze.start_position = (0, 0)
-        room = RectangularRoom(3, 3, nr_access_points=3, top_left_coord=(4, 4))
+        room = RectangleRoom(3, 3, nr_access_points=3, top_left_coord=(4, 4))
         room.access_points = [(0, 0), (0, 2), (2, 0), (2, 2)]  # local coordinates
         self.add_room_to_maze(maze, room)
         perimeter_cells_to_check = room.get_perimeter_cells(padding=1)
@@ -240,7 +240,7 @@ class TestCorridorBuilder:
         ### Middle access points
         maze = blank_maze
         maze.start_position = (0, 0)
-        room = RectangularRoom(3, 3, nr_access_points=3, top_left_coord=(4, 4))
+        room = RectangleRoom(3, 3, nr_access_points=3, top_left_coord=(4, 4))
         room.access_points = [(0, 1), (2, 1), (1, 2), (1, 0)]  # local coordinates
         self.add_room_to_maze(maze, room)
         perimeter_cells_to_check = room.get_perimeter_cells(padding=1)
