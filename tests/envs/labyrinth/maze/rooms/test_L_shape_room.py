@@ -18,15 +18,15 @@ class TestLShapeRoom:
             grid, np.array([[1, 1, 0, 0], [1, 1, 0, 0], [1, 1, 1, 1], [1, 1, 1, 1]])
         )
 
-    def test_bottom_left_lshape(self):
-        room = LShapeRoom(corner="bottom_left")
+    def test_down_left_lshape(self):
+        room = LShapeRoom(corner="down_left")
         grid = room.generate_room_layout()
         assert np.array_equal(
             grid, np.array([[1, 1, 1, 1], [1, 1, 1, 1], [0, 0, 1, 1], [0, 0, 1, 1]])
         )
 
-    def test_bottom_right_lshape(self):
-        room = LShapeRoom(corner="bottom_right")
+    def test_down_right_lshape(self):
+        room = LShapeRoom(corner="down_right")
         grid = room.generate_room_layout()
         assert np.array_equal(
             grid, np.array([[1, 1, 1, 1], [1, 1, 1, 1], [1, 1, 0, 0], [1, 1, 0, 0]])
@@ -52,12 +52,12 @@ class TestLShapeRoom:
         grid = room.generate_room_layout()
         assert np.sum(grid == WALL) == 8
 
-    def test_6_4_ratio_075_bottom_right(self):
-        room = LShapeRoom(rows=6, cols=4, corner="bottom_right", vertical_carve=0.75, horizontal_carve=0.5)
+    def test_6_4_ratio_075_down_right(self):
+        room = LShapeRoom(rows=6, cols=4, corner="down_right", vertical_carve=0.75, horizontal_carve=0.5)
         grid = room.generate_room_layout()
         assert np.sum(grid == WALL) == 6
 
-    def test_6_4_ratio_1_bottom_right(self):
-        room = LShapeRoom(rows=6, cols=4, corner="bottom_right", vertical_carve=1, horizontal_carve=0.5)
+    def test_6_4_ratio_1_down_right(self):
+        room = LShapeRoom(rows=6, cols=4, corner="down_right", vertical_carve=1, horizontal_carve=0.5)
         grid = room.generate_room_layout()
         assert np.sum(grid == WALL) == 8

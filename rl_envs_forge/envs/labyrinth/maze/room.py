@@ -52,6 +52,7 @@ class RoomFactory:
             "donut",
             "t_shape",
             "l_shape",
+            "triangle"
         ]
         self.room_types = room_types
         if self.room_types is None:
@@ -113,8 +114,14 @@ class RoomFactory:
             return self.create_l_shape_room(
                 rows=rows, cols=cols, nr_access_points=nr_access_points
             )
+        elif room_type == "triangle":
+            return self.create_triangle_room(
+                rows=rows, cols=cols, nr_access_points=nr_access_points
+            )
         else:
-            raise ValueError(f"Unknown room type: {room_type}. Available types: {self.all_available_room_types}")
+            raise ValueError(
+                f"Unknown room type: {room_type}. Available types: {self.all_available_room_types}"
+            )
 
     def _estimate_dimensions_from_area(self, desired_area, ratio=1):
         """Estimate room dimensions based on desired area and given ratio."""
@@ -175,12 +182,14 @@ class RoomFactory:
             rotation=rotation,
             seed=self.room_seed,
         )
-    
+
     def create_l_shape_room(self, rows=None, cols=None, nr_access_points=1):
         """Create a l shape room using given rows, columns."""
         horizontal_carve = 0.5 + self.py_random.random() * 0.5
         vertical_carve = 0.5 + self.py_random.random() * 0.5
-        corner = self.py_random.choice(["top_left", "top_right", "down_left", "down_right"])
+        corner = self.py_random.choice(
+            ["top_left", "top_right", "down_left", "down_right"]
+        )
         return LShapeRoom(
             rows=rows,
             cols=cols,
@@ -188,8 +197,17 @@ class RoomFactory:
             horizontal_carve=horizontal_carve,
             vertical_carve=vertical_carve,
             corner=corner,
-            seed=self.room_seed
+            seed=self.room_seed,
         )
+
+    def create_triangle_room(self, rows=None, cols=None, nr_access_points=1):
+        corner = self.py_random.choice(
+            ["top_left", "top_right", "down_left", "down_right"]
+        )
+        return TriangleRoom(
+            rows=rows, cols=cols, corner=corner, nr_access_points=nr_access_points, seed=self.room_seed
+        )
+
 
 class Room(ABC):
     def __init__(
@@ -588,9 +606,9 @@ class LShapeRoom(Room):
             self.grid[:vert_carve, :horz_carve] = WALL
         elif self.corner == "top_right":
             self.grid[:vert_carve, -horz_carve:] = WALL
-        elif self.corner == "bottom_left":
+        elif self.corner == "down_left":
             self.grid[-vert_carve:, :horz_carve] = WALL
-        elif self.corner == "bottom_right":
+        elif self.corner == "down_right":
             self.grid[-vert_carve:, -horz_carve:] = WALL
 
         return self.grid
@@ -676,5 +694,58 @@ class TShapeRoom(Room):
 
 
 class TriangleRoom(Room):
-    # Implement similar methods for LShapedRoom, approximating an L shape on a grid.
-    pass
+    def __init__(self, rows: int = 4, cols: int = 4, corner="top_left", **kwargs):
+        """
+        Triangular Shaped Room class.
+
+        Args:
+            corner (str, optional): The corner of the rectangle to start carving from. Options are "top_left",
+                                    "top_right", "down_left", "down_right". Defaults to "top_left".
+        """
+        super().__init__(rows=rows, cols=cols, min_rows=4, min_cols=4, **kwargs)
+        self.corner = corner
+
+        self.generate_room_layout()
+        self.set_access_points()
+
+    def generate_room_layout(self):
+        self.grid.fill(WALL)
+
+        if self.corner == "top_right":
+            self._carve_from_top_right()
+        elif self.corner == "top_left":
+            self._carve_from_top_left()
+        elif self.corner == "down_right":
+            self._carve_from_down_right()
+        elif self.corner == "down_left":
+            self._carve_from_down_left()
+
+        return self.grid
+
+    def _carve_from_top_right(self):
+        col_ratio = self.cols / self.rows
+        for i in range(self.rows):
+            cols_to_carve = int((i + 1) * col_ratio)
+            for j in range(cols_to_carve):
+                self.grid[i][j] = PATH
+
+    def _carve_from_top_left(self):
+        col_ratio = self.cols / self.rows
+        for i in range(self.rows):
+            cols_to_carve = int((i + 1) * col_ratio)
+            for j in range(self.cols - cols_to_carve, self.cols):
+                self.grid[i][j] = PATH
+
+    def _carve_from_down_right(self):
+        col_ratio = self.cols / self.rows
+        for i in range(self.rows):
+            cols_to_carve = int((self.rows - i) * col_ratio)
+            for j in range(cols_to_carve):
+                self.grid[i][j] = PATH
+
+    def _carve_from_down_left(self):
+        col_ratio = self.cols / self.rows
+        for i in range(self.rows):
+            cols_to_carve = int((self.rows - i) * col_ratio)
+            for j in range(self.cols - cols_to_carve, self.cols):
+                self.grid[i][j] = PATH
