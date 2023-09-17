@@ -107,8 +107,8 @@ class TestMaze:
 
         assert total_paths_with_option > total_paths_without_option
 
-    def test_grid_connect_option_false(self):
-        for i in range(10):
+    def test_grid_connect_option_false_consistency(self):
+        for i in range(20):
             maze = Maze(
                 rows=10,
                 cols=10,

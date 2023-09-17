@@ -43,6 +43,8 @@ The `Room` class allows for the implementation of different room types. Currentl
 - **Rectangle Room**: A basic rectangular room.
 - **Oval Room**: A basic oval room.
 - **Donut Room**: A donut shaped room, built with an outer and an inner shape. These can be either rectangular or oval
+- **T Shape Room**: A T shaped room.
+- **L Shape Room**: An L shaped room.
 
 To add new room types, simply create a new class that inherits from the `Room` class and implements the necessary methods.
 

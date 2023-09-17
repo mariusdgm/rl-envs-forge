@@ -347,5 +347,5 @@ if __name__ == "__main__":
     #     pygame.time.wait(int(100))
 
     # env = Labyrinth(20, 20, room_types=["oval"])
-    env = Labyrinth(30, 30, room_types=["t_shape"])
+    env = Labyrinth(30, 30, room_types=["l_shape"])
     env.human_play(print_info=True, animate=True)

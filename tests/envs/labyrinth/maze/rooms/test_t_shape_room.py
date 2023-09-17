@@ -28,8 +28,8 @@ class TestTShapeRoom:
             grid, np.array([[0, 0, 1, 1], [1, 1, 1, 1], [1, 1, 1, 1], [0, 0, 1, 1]])
         )
 
-    def test_bottom_tshape(self):
-        room = TShapeRoom(rotation="bottom")
+    def test_down_tshape(self):
+        room = TShapeRoom(rotation="down")
         grid = room.generate_room_layout()
         grid = room.generate_room_layout()
         assert np.array_equal(

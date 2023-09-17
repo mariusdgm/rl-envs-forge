@@ -51,6 +51,7 @@ class RoomFactory:
             "oval",
             "donut",
             "t_shape",
+            "l_shape",
         ]
         self.room_types = room_types
         if self.room_types is None:
@@ -108,6 +109,10 @@ class RoomFactory:
             return self.create_t_shape_room(
                 rows=rows, cols=cols, nr_access_points=nr_access_points
             )
+        elif room_type == "l_shape":
+            return self.create_l_shape_room(
+                rows=rows, cols=cols, nr_access_points=nr_access_points
+            )
         else:
             raise ValueError(f"Unknown room type: {room_type}. Available types: {self.all_available_room_types}")
 
@@ -159,7 +164,7 @@ class RoomFactory:
         """Create a t shape room using given rows, columns."""
         horizontal_carve = 0.5 + self.py_random.random() * 0.5
         vertical_carve = 0.5 + self.py_random.random() * 0.5
-        rotation = self.py_random.choice(["top", "right", "bottom", "left"])
+        rotation = self.py_random.choice(["top", "right", "down", "left"])
 
         return TShapeRoom(
             rows=rows,
@@ -170,7 +175,21 @@ class RoomFactory:
             rotation=rotation,
             seed=self.room_seed,
         )
-
+    
+    def create_l_shape_room(self, rows=None, cols=None, nr_access_points=1):
+        """Create a l shape room using given rows, columns."""
+        horizontal_carve = 0.5 + self.py_random.random() * 0.5
+        vertical_carve = 0.5 + self.py_random.random() * 0.5
+        corner = self.py_random.choice(["top_left", "top_right", "down_left", "down_right"])
+        return LShapeRoom(
+            rows=rows,
+            cols=cols,
+            nr_access_points=nr_access_points,
+            horizontal_carve=horizontal_carve,
+            vertical_carve=vertical_carve,
+            corner=corner,
+            seed=self.room_seed
+        )
 
 class Room(ABC):
     def __init__(
@@ -207,7 +226,7 @@ class Room(ABC):
         self.py_random = random.Random(self.seed)
 
         self.top_left_coord = top_left_coord
-        self.bottom_right_coord = (self.rows, self.cols)
+        self.down_right_coord = (self.rows, self.cols)
         self.nr_access_points = nr_access_points
         self.access_points = set()
         self.grid = np.ones((self.rows, self.cols), dtype=int) * WALL
@@ -523,9 +542,58 @@ class DonutRoom(Room):
             return mask
 
 
-class LShapedRoom(Room):
-    # Implement similar methods for LShapedRoom, approximating an L shape on a grid.
-    pass
+class LShapeRoom(Room):
+    def __init__(
+        self,
+        rows: int = 4,
+        cols: int = 4,
+        nr_access_points: int = 1,
+        vertical_carve: float = 0.5,
+        horizontal_carve: float = 0.5,
+        corner: str = "top_left",
+        seed: Optional[int] = None,
+        **kwargs,
+    ):
+        super().__init__(
+            rows=rows,
+            cols=cols,
+            nr_access_points=nr_access_points,
+            min_rows=4,
+            min_cols=4,
+            seed=seed,
+            **kwargs,
+        )
+        assert 0 <= vertical_carve <= 1, "vertical_carve must be in the range [0, 1]"
+        assert (
+            0 <= horizontal_carve <= 1
+        ), "horizontal_carve must be in the range [0, 1]"
+        self.vertical_carve = vertical_carve
+        self.horizontal_carve = horizontal_carve
+        self.corner = corner
+        self.generate_room_layout()
+        self.set_access_points()
+
+    def carve_amount(self, size, carve_ratio):
+        return max(2, int(size * carve_ratio))
+
+    def generate_room_layout(self):
+        self.grid[:] = PATH  # Resetting the room to be full
+
+        # Determine which carving ratio corresponds to vertical/horizontal carving
+        vert_carve = self.carve_amount(self.rows - 2, self.vertical_carve)
+        horz_carve = self.carve_amount(self.cols - 2, self.horizontal_carve)
+
+        # Adjust carving based on desired corner
+        if self.corner == "top_left":
+            self.grid[:vert_carve, :horz_carve] = WALL
+        elif self.corner == "top_right":
+            self.grid[:vert_carve, -horz_carve:] = WALL
+        elif self.corner == "bottom_left":
+            self.grid[-vert_carve:, :horz_carve] = WALL
+        elif self.corner == "bottom_right":
+            self.grid[-vert_carve:, -horz_carve:] = WALL
+
+        return self.grid
 
 
 class TShapeRoom(Room):
@@ -575,7 +643,7 @@ class TShapeRoom(Room):
         self.grid[:] = PATH  # Resetting the room to be full
 
         # Based on the rotation, determine which carving ratio corresponds to vertical/horizontal carving
-        if self.rotation in ["top", "bottom"]:
+        if self.rotation in ["top", "down"]:
             vert_carve = self.carve_amount(self.rows - 2, self.vertical_carve)
             horz_carve = self.carve_amount(self.cols - 2, self.horizontal_carve)
         else:  # For left and right rotation, swap the carving ratios
@@ -590,15 +658,15 @@ class TShapeRoom(Room):
             self.grid[-vert_carve:, carve_right:] = WALL
         elif self.rotation == "left":
             carve_top = (self.rows - vert_carve) // 2
-            carve_bottom = self.rows - carve_top
+            carve_down = self.rows - carve_top
             self.grid[:carve_top, -horz_carve:] = WALL
-            self.grid[carve_bottom:, -horz_carve:] = WALL
+            self.grid[carve_down:, -horz_carve:] = WALL
         elif self.rotation == "right":
             carve_top = (self.rows - vert_carve) // 2
-            carve_bottom = self.rows - carve_top
+            carve_down = self.rows - carve_top
             self.grid[:carve_top, :horz_carve] = WALL
-            self.grid[carve_bottom:, :horz_carve] = WALL
-        elif self.rotation == "bottom":
+            self.grid[carve_down:, :horz_carve] = WALL
+        elif self.rotation == "down":
             carve_left = (self.cols - horz_carve) // 2
             carve_right = self.cols - carve_left
             self.grid[:vert_carve, :carve_left] = WALL
