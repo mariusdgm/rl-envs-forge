@@ -73,17 +73,10 @@ class TestMaze:
             cols=20,
             nr_desired_rooms=1,
             global_room_ratio=0.2,
-            room_types=["rectangular"],
+            room_types=["rectangle"],
         )
 
-        room = maze.rooms[0]
-
-        # Fill the cells inside the perimeter with walls
-        perimeter_cells = room.get_perimeter_cells()
-        for row in range(room.rows):
-            for col in range(room.cols):
-                if (row, col) not in perimeter_cells:
-                    room.grid[row, col] = WALL
+        maze.rooms = []
 
         # Check that the function raises the expected error
         with pytest.raises(
@@ -114,8 +107,8 @@ class TestMaze:
 
         assert total_paths_with_option > total_paths_without_option
 
-    def test_grid_connect_option_false(self):
-        for i in range(10):
+    def test_grid_connect_option_false_consistency(self):
+        for i in range(20):
             maze = Maze(
                 rows=10,
                 cols=10,
@@ -261,7 +254,7 @@ class TestMazeFactory:
         """For multiple mazes test that all mazes are valid.
         This test is much slower than the rest of the testing codebase.
         Skip it by calling pytest as  [pytest tests -m 'not slow']."""
-        for seed in range(50):
+        for seed in range(75):
             random.seed(seed)
             rows = random.randint(10, 50)
             cols = random.randint(10, 50)

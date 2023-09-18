@@ -236,6 +236,7 @@ class Maze:
 
         self.grid = np.ones((rows, cols), dtype=int) * WALL
         self.room_grid = np.ones((rows, cols), dtype=int) * WALL
+        self.room_inner_area_grid = np.zeros((rows, cols), dtype=int)
         self.corridor_grid = np.ones((rows, cols), dtype=int) * WALL
 
         self.rooms = []
@@ -274,7 +275,6 @@ class Maze:
         self.make_rooms()
         self.grid = np.where(self.room_grid == PATH, PATH, self.grid)
 
-        # TODO
         self.make_corridors()
         self.grid = np.where(self.corridor_grid == PATH, PATH, self.grid)
 
@@ -385,14 +385,27 @@ class Maze:
             return False
 
         # Basically add a padding of 1
-        sub_grid = self.room_grid[
+        sub_grid = self.room_inner_area_grid[
             start_row - 1 : end_row + 1, start_col - 1 : end_col + 1
         ]
 
         # Check if placing the room would overlap with another room or not maintain separation
         return np.sum(sub_grid == PATH) == 0
 
-    def materialize_room(self, room, start_row, start_col):
+    def materialize_room(self, room, start_row: int, start_col: int):
+        """room_inner_area_grid -> used to find spacing and build corridors 
+        (this was created in special for the cases where we have rooms with hollow areas)
+
+        room_grid -> actual PATHs that belong to rooms
+        
+        Args:
+            room (Room): room object to be placed in the maze
+            start_row (int): global row position of the room
+            start_col (int): global row position of the room
+        """
+        self.room_inner_area_grid[
+            start_row : start_row + room.rows, start_col : start_col + room.cols
+        ] = room.generate_inner_area_mask()
         self.room_grid[
             start_row : start_row + room.rows, start_col : start_col + room.cols
         ] = room.grid
@@ -430,44 +443,51 @@ class Maze:
         # Shuffle the rooms to ensure random selection without replacement
         shuffled_rooms = self.py_random.sample(self.rooms, len(self.rooms))
 
+        # Preference to place the target in a non perimeter cell
         for random_room in shuffled_rooms:
             room_top_left_row, room_top_left_col = random_room.global_position
 
             # Create a list of all possible cell positions in the room
-            all_positions = [
-                (row, col)
-                for row in range(random_room.rows)
-                for col in range(random_room.cols)
-            ]
+            non_perimeter_mask = random_room.get_non_perimeter_inner_cells()
+            path_mask = random_room.grid == PATH
+            combined_mask = non_perimeter_mask * path_mask
+            candidates = np.argwhere(combined_mask == 1).tolist()
+
             # Shuffle these positions to randomly select without replacement
-            self.py_random.shuffle(all_positions)
+            self.py_random.shuffle(candidates)
 
+            if len(candidates) > 0:
+                row, col = candidates[0]
+                return (room_top_left_row + row, room_top_left_col + col)
+            
+        # if no such cel could not be found, place target on a non access perimeter
+        for random_room in shuffled_rooms:
             perimeter_cells = random_room.get_perimeter_cells()
-            for row, col in all_positions:
-                # Target must be on an empty room tile and not in the perimeter
-                if (random_room.grid[row, col] == PATH) and (
-                    (row, col) not in perimeter_cells
-                ):
-                    return (room_top_left_row + row, room_top_left_col + col)
+            non_acces_perimeter_cells = [cell for cell in perimeter_cells if cell not in random_room.access_points]
+            if len(non_acces_perimeter_cells) > 0:
+                self.py_random.shuffle(non_acces_perimeter_cells)
+                return non_acces_perimeter_cells[0]         
 
-        # If the function hasn't returned by this point, then no valid target position was found in any room
         raise ValueError(f"Could not find a valid target position in any room.")
 
     def place_start_end_positions(self):
         self.start_position = self.choose_start_position()
         self.target_position = self.choose_target_position()
+        # self.target_position = self.py_random.choice(self.rooms).global_position
 
     def is_inside_any_room(self, pos, exception=None):
         """Check if a position is inside any of the rooms in the maze."""
         for room in self.rooms:
             room_mask = room.generate_inner_area_mask()
-            
+
             # Convert the local room position to a global position
             global_row = pos[0] - room.global_position[0]
             global_col = pos[1] - room.global_position[1]
-            
+
             # Check if the global position is within the bounds of the room's grid
-            if (0 <= global_row < room_mask.shape[0]) and (0 <= global_col < room_mask.shape[1]):
+            if (0 <= global_row < room_mask.shape[0]) and (
+                0 <= global_col < room_mask.shape[1]
+            ):
                 # Check if the position is inside the room using the inner area mask
                 if room_mask[global_row, global_col] == 1:
                     # If the position is the exception, consider it not inside the room

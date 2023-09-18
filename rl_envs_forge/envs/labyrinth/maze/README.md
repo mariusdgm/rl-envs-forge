@@ -40,10 +40,15 @@ The `Room` class represents a room in the maze and provides methods for generati
 
 The `Room` class allows for the implementation of different room types. Currently, the following room types are available:
 
-- **Rectangular Room**: A basic rectangular room.
+- **Rectangle Room**: A basic rectangular room.
 - **Oval Room**: A basic oval room.
+- **Donut Room**: A donut shaped room, built with an outer and an inner shape. These can be either rectangular or oval
+- **T Shape Room**: A T shaped room.
+- **L Shape Room**: An L shaped room.
+- **Triangle Room**: A triangle shaped room.
 
-To add new room types, simply create a new class that inherits from the `Room` class and implements the necessary methods.
+
+To add new room types, simply create a new class that inherits from the `Room` class and implements the necessary methods, and create a build method in the room factory class (and also add this room shape in the allowed shapes).
 
 ## CorridorBuilder
 
