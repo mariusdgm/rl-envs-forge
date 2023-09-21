@@ -37,8 +37,16 @@ class Player:
         else:
             self._rendered_position = value
 
-    def potential_next_position(self, action):
-        """Returns the potential next position based on the action, without checking its validity."""
+    def potential_next_position(self, action: Action) -> Tuple[int, int]:
+        """
+        Calculate the potential next position based on the current position and the specified action.
+
+        Parameters:
+            action (Action): The action to take.
+
+        Returns:
+            Tuple[int, int]: The potential next position.
+        """
         potential_position = list(self.position)  
 
         if action == Action.UP:  # Up
@@ -52,8 +60,16 @@ class Player:
 
         return tuple(potential_position)
 
-    def move_render_position(self):
-        """Move the rendered_position towards position."""
+    def move_render_position(self)->None:
+        """
+        Updates the rendered position of the object based on its current position and movement speed.
+
+        Parameters:
+            None.
+
+        Returns:
+            None.
+        """
         new_rendered_position = list(self._rendered_position)
 
         for i in range(2):  # For x and y coordinates
@@ -63,5 +79,16 @@ class Player:
 
         self._rendered_position = new_rendered_position
 
-    def _positions_are_close(self, pos1, pos2, threshold=0.015):
+    def _positions_are_close(self, pos1: Tuple[int, int], pos2: Tuple[int, int], threshold: float=0.015)->bool:
+        """
+        Check if the given positions are close to each other within a threshold.
+
+        Args:
+            pos1 (Tuple[int, int]): The first position.
+            pos2 (Tuple[int, int]): The second position.
+            threshold (float, optional): The threshold value for closeness. Defaults to 0.015.
+
+        Returns:
+            bool: True if the positions are close, False otherwise.
+        """
         return abs(pos1[0] - pos2[0]) < threshold and abs(pos1[1] - pos2[1]) < threshold

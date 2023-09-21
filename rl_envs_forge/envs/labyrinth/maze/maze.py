@@ -4,7 +4,7 @@ from collections import deque
 from typing import List, Tuple, Union, Optional
 from enum import Enum
 
-from .room import RoomFactory
+from .room import RoomFactory, Room
 from .corridor import CorridorBuilder
 from ..constants import WALL, PATH, START, TARGET, CorridorMoveStatus
 
@@ -177,18 +177,6 @@ class MazeFactory:
         return maze
 
     def _check_corridor_grid_connect_option(self):
-        """
-        Check the validity of the corridor_grid_connect_option parameter.
-
-        Parameters:
-        - None
-
-        Returns:
-        - None
-
-        Raises:
-        - ValueError: If the corridor_grid_connect_option is not a valid value.
-        """
         if self.corridor_grid_connect_option not in [True, False, "random"]:
             raise ValueError(
                 f"Invalid value for corridor_grid_connect_option. Got {self.corridor_grid_connect_option}, expected [True, False, 'random']."
@@ -297,13 +285,40 @@ class Maze:
         self._build_maze()
 
     def _build_maze(self):
+        """
+        Builds the maze by making rooms and corridors.
+
+        Parameters:
+            None
+
+        Returns:
+            None
+        """
         self.make_rooms()
         self.grid = np.where(self.room_grid == PATH, PATH, self.grid)
 
         self.make_corridors()
         self.grid = np.where(self.corridor_grid == PATH, PATH, self.grid)
 
-    def make_corridors(self):
+    def make_corridors(self) -> None:
+        """
+        Generates the corridors for the maze.
+
+        This function generates the corridors for the maze by using the specified corridor algorithm.
+        It first places the start and end positions in the maze using the `place_start_end_positions` method.
+
+        If the corridor algorithm is set to "prim", it generates the corridors using the Prim's algorithm
+        implemented in the `generate_corridor_prim` method of the `corridor_builder` object. After generating
+        the corridors, it connects the rooms to the paths using the `connect_rooms_to_paths` method of the
+        `corridor_builder` object. If the `corridor_post_process_option` is set, it also applies post-processing
+        to the maze using the `post_process_maze` method of the `corridor_builder` object.
+
+        If the corridor algorithm is set to "astar", it generates the corridors using the A* algorithm
+        implemented in the `generate_corridor_a_star` method of the `corridor_builder` object.
+
+        If the corridor algorithm is set to "gbfs", it generates the corridors using the Greedy Best-First Search
+        algorithm implemented in the `generate_corridor_gbfs` method of the `corridor_builder` object.
+        """
         self.place_start_end_positions()
 
         if self.corridor_algorithm == "prim":
@@ -319,9 +334,17 @@ class Maze:
             self.corridor_grid = self.corridor_builder.generate_corridor_gbfs()
 
     ##### Room generation and placement #####
-    def levy_flight_place(self, room):
-        """Seek a random position for a room in such a way
-        that it does not overlap with other rooms."""
+    def levy_flight_place(self, room: Room) -> bool:
+        """
+        Places a room in the maze using a Levy flight algorithm.
+
+        Parameters:
+            room (Room): The room to be placed in the maze.
+
+        Returns:
+            bool: True if the room is successfully placed, False otherwise.
+        """
+
         max_attempts = 100
         attempt = 0
 
@@ -365,8 +388,21 @@ class Maze:
 
         return False
 
-    def make_rooms(self):
-        """Randomly generate rooms and attempt to place them in the maze grid."""
+    def make_rooms(self) -> None:
+        """
+        Generates rooms until a certain condition is met.
+
+        This function generates rooms until one of the following conditions is met:
+        - The number of placed rooms is equal to the desired number of rooms.
+        - The total area covered by the rooms is equal to the target area.
+        - The maximum number of attempts is reached.
+
+        Parameters:
+        - None
+
+        Returns:
+        - None
+        """
         total_room_path_area_covered = 0
         target_path_area = self.global_room_ratio * self.grid.size
         start_avg_room_path_area = target_path_area / self.nr_desired_rooms
@@ -397,7 +433,20 @@ class Maze:
             desired_room_path_area = int(0.9 * desired_room_path_area)
             attempts += 1
 
-    def is_valid_room_position(self, room, start_row, start_col):
+    def is_valid_room_position(
+        self, room: Room, start_row: int, start_col: int
+    ) -> bool:
+        """
+        Checks if a room position is valid within the room grid.
+
+        Args:
+            room (Room): The room to be placed.
+            start_row (int): The starting row index of the room position.
+            start_col (int): The starting column index of the room position.
+
+        Returns:
+            bool: True if the room position is valid, False otherwise.
+        """
         end_row, end_col = start_row + room.rows, start_col + room.cols
 
         # Extract sub-grid and check boundaries
@@ -418,11 +467,11 @@ class Maze:
         return np.sum(sub_grid == PATH) == 0
 
     def materialize_room(self, room, start_row: int, start_col: int):
-        """room_inner_area_grid -> used to find spacing and build corridors 
+        """room_inner_area_grid -> used to find spacing and build corridors
         (this was created in special for the cases where we have rooms with hollow areas)
 
         room_grid -> actual PATHs that belong to rooms
-        
+
         Args:
             room (Room): room object to be placed in the maze
             start_row (int): global row position of the room
@@ -436,6 +485,22 @@ class Maze:
         ] = room.grid
 
     def levy_step_size(self):
+        """
+        Generate the step size for the Levy flight algorithm.
+
+        Returns:
+            int: The step size for the Levy flight algorithm.
+
+        Algorithm:
+            1. Generate a random number between 0 and 1.
+            2. Add 0.001 to the random number.
+            3. Take the square root of the sum.
+            4. Take the reciprocal of the square root.
+            5. Convert the result to an integer.
+
+        This function uses the inverse square distribution to calculate the step size for the Levy flight algorithm.
+        The step size is a measure of the distance covered by the algorithm in each iteration.
+        """
         r = self.py_random.random()  # r is between 0 and 1
         return int(
             1 / ((r + 0.001) ** 0.5)
@@ -443,8 +508,13 @@ class Maze:
 
     ##### Corridor generation #####
 
-    def choose_start_position(self):
-        """Choose a random position on the perimeter of the maze grid."""
+    def choose_start_position(self) -> Tuple[int, int]:
+        """
+        Choose a random starting position for the agent.
+
+        Returns:
+            A tuple containing the row and column indices of the starting position.
+        """
         side = self.py_random.choice(["top", "bottom", "left", "right"])
 
         if side == "top":
@@ -462,9 +532,16 @@ class Maze:
                 self.grid.shape[1] - 1,
             )
 
-    def choose_target_position(self):
-        """Choose a random target position in one of the generated rooms."""
+    def choose_target_position(self) -> Tuple[int, int]:
+        """
+        Choose a target position in the grid.
 
+        Returns:
+            Tuple[int, int]: The row and column indices of the chosen target position.
+        
+        Raises:
+            ValueError: If a valid target position could not be found in any room.
+        """
         # Shuffle the rooms to ensure random selection without replacement
         shuffled_rooms = self.py_random.sample(self.rooms, len(self.rooms))
 
@@ -484,24 +561,47 @@ class Maze:
             if len(candidates) > 0:
                 row, col = candidates[0]
                 return (room_top_left_row + row, room_top_left_col + col)
-            
+
         # if no such cel could not be found, place target on a non access perimeter
         for random_room in shuffled_rooms:
             perimeter_cells = random_room.get_perimeter_cells()
-            non_acces_perimeter_cells = [cell for cell in perimeter_cells if cell not in random_room.access_points]
+            non_acces_perimeter_cells = [
+                cell
+                for cell in perimeter_cells
+                if cell not in random_room.access_points
+            ]
             if len(non_acces_perimeter_cells) > 0:
                 self.py_random.shuffle(non_acces_perimeter_cells)
-                return non_acces_perimeter_cells[0]         
+                return non_acces_perimeter_cells[0]
 
         raise ValueError(f"Could not find a valid target position in any room.")
 
-    def place_start_end_positions(self):
+    def place_start_end_positions(self) -> None:
+        """
+        Place the start and end positions of the game.
+
+        This method is responsible for choosing the start and target positions for the game. It calls the "choose_start_position()" method to select the start position and the "choose_target_position()" method to select the target position. The start position and target position are stored in the "start_position" and "target_position" attributes respectively.
+
+        Parameters:
+        - None
+
+        Returns:
+        - None
+        """
         self.start_position = self.choose_start_position()
         self.target_position = self.choose_target_position()
-        # self.target_position = self.py_random.choice(self.rooms).global_position
 
-    def is_inside_any_room(self, pos, exception=None):
-        """Check if a position is inside any of the rooms in the maze."""
+    def is_inside_any_room(self, pos: Tuple[int, int], exception: Tuple[int, int]=None)->bool:
+        """
+        Check if a given position is inside any room in the current environment.
+
+        Parameters:
+            pos (Tuple[int, int]): The position to check, represented as a tuple of integers (row, column).
+            exception (Tuple[int, int], optional): A position that should be excluded from the check. Defaults to None.
+
+        Returns:
+            bool: True if the position is inside any room, False otherwise.
+        """
         for room in self.rooms:
             room_mask = room.generate_inner_area_mask()
 
@@ -523,7 +623,13 @@ class Maze:
         # If we reached here, the position isn't inside any room
         return False
 
-    def generate_global_room_mask(self):
+    def generate_global_room_mask(self) -> np.ndarray:
+        """
+        Generate a global mask for the entire room.
+        
+        Returns:
+            np.ndarray: The global room mask.
+        """
         global_room_mask = np.zeros((self.rows, self.cols), dtype=bool)
 
         for room in self.rooms:
@@ -539,10 +645,14 @@ class Maze:
         return global_room_mask
 
     #### Validate maze ####
-    def is_valid_maze(self):
-        """Validate if all access points are reachable from the starting point.
-        Sanity check function, was not included in the constructor but can be used after generation.
+    def is_valid_maze(self)->bool:
         """
+        Checks if the maze is valid.
+
+        Returns:
+            bool: True if the maze is valid, False otherwise.
+        """
+        
         start_point = self.start_position
         visited = set([start_point])
         queue = deque([start_point])
@@ -564,8 +674,17 @@ class Maze:
 
         return visited == all_path_cells
 
-    def get_neighbors(self, x, y):
-        """Get neighboring PATH cells of a given cell (x, y)."""
+    def get_neighbors(self, x: int, y: int) -> List[Tuple[int, int]]:
+        """
+        Given the coordinates (x, y), this function returns a list of neighboring coordinates.
+        
+        Parameters:
+            x (int): The x-coordinate.
+            y (int): The y-coordinate.
+            
+        Returns:
+            List[Tuple[int, int]]: A list of neighboring coordinates, represented as tuples of (x, y).
+        """
         neighbors = []
         for dx, dy in [(1, 0), (-1, 0), (0, 1), (0, -1)]:
             nx, ny = x + dx, y + dy

@@ -2,11 +2,16 @@ import numpy as np
 from ..constants import *
 
 
-
-
 def generate_ellipse(
-    rows, cols, a, b, center_x, center_y, value_true=PATH, value_false=WALL
-):
+    rows: int,
+    cols: int,
+    a: int,
+    b: int,
+    center_x: int,
+    center_y: int,
+    value_true: float = PATH,
+    value_false: float = WALL,
+) -> np.ndarray:
     """
     Generate an ellipse shape in a 2D grid.
 
@@ -17,6 +22,8 @@ def generate_ellipse(
         b (int): The vertical radius of the ellipse.
         center_x (int): The x-axis offset of the ellipse.
         center_y (int): The y-axis offset of the ellipse.
+        value_true (float): The value to assign to the center of the ellipse.
+        value_false (float): The value to assign to the outside of the ellipse.
 
     Returns:
         np.ndarray: An array representing the generated ellipse shape in the grid.
@@ -33,6 +40,17 @@ def generate_ellipse(
     return ellipse
 
 
-def clamp(value, min_value, max_value):
-    """Clamp a value between a minimum and a maximum."""
+def clamp(value, min_value: float, max_value: float) -> float:
+    """
+    Clamp a value between a minimum and maximum value.
+
+    Parameters:
+        value (float): The value to be clamped.
+        min_value (float): The minimum value that the value parameter can be.
+        max_value (float): The maximum value that the value parameter can be.
+
+    Returns:
+        float: The clamped value.
+
+    """
     return max(min_value, min(value, max_value))

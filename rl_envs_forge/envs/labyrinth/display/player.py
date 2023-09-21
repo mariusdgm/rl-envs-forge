@@ -26,6 +26,12 @@ class PlayerDisplayer(EntityDisplayer):
         self.moving_sprite = self.player_frames[1]
 
     def get_sprite(self) -> pygame.Surface:
+        """
+        Returns the sprite for the entity.
+
+        Returns:
+            pygame.Surface: The sprite for the entity.
+        """
         sprite = self.moving_sprite if self.entity.moving else self.idle_sprite
 
         if self.entity.face_orientation == Action.RIGHT:
