@@ -97,7 +97,20 @@ class MazeFactory:
         self.corridor_sort_access_points_option = corridor_sort_access_points_option
         self._check_corridor_sort_access_points_option()
 
-    def create_maze(self):
+    def create_maze(self) -> "Maze":
+        """
+        Creates a maze based on the provided parameters.
+
+        Parameters:
+            None
+
+        Returns:
+            maze (Maze): The created maze object.
+
+        Raises:
+            ValueError: If the global room ratio is greater than 1 or if the global room ratio range is invalid.
+
+        """
         # Decide the number of rooms
         if self.nr_desired_rooms:
             num_rooms = self.nr_desired_rooms
@@ -164,6 +177,18 @@ class MazeFactory:
         return maze
 
     def _check_corridor_grid_connect_option(self):
+        """
+        Check the validity of the corridor_grid_connect_option parameter.
+
+        Parameters:
+        - None
+
+        Returns:
+        - None
+
+        Raises:
+        - ValueError: If the corridor_grid_connect_option is not a valid value.
+        """
         if self.corridor_grid_connect_option not in [True, False, "random"]:
             raise ValueError(
                 f"Invalid value for corridor_grid_connect_option. Got {self.corridor_grid_connect_option}, expected [True, False, 'random']."
