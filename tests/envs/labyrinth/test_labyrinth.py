@@ -150,6 +150,11 @@ class TestLabyrinth:
         labyrinth.reset()
         assert not np.array_equal(labyrinth.state, initial_state)
 
+    def test_reset_same_seed(self, labyrinth):
+        initial_state = labyrinth.state.copy()
+        labyrinth.reset(same_seed=True)
+        assert np.array_equal(labyrinth.state, initial_state)
+
     def test_seeding(self):
         env1 = Labyrinth(30, 30, seed=42)
         env2 = Labyrinth(30, 30, seed=42)

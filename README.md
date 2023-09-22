@@ -8,6 +8,7 @@
 Lightweight environments for reinforcement learning applications.
 
 ## Table of Contents
+
 - [Installation](#installation)
 - [Environments](#environments)
   - [Labyrinth](#labyrinth)
@@ -18,13 +19,13 @@ Lightweight environments for reinforcement learning applications.
 
 ## Installation
 
-
 ```bash
 pip install rl-envs-forge
 ```
 
 ## Environments
-### Labyrinth 
+
+### Labyrinth
 
 Labyrinth is a classic maze-solving environment, where the goal is to navigate from a start point to a target. The maze layout is randomly generated based on a set of parametrizable arguments.
 
@@ -59,7 +60,7 @@ while not done and not quit_event:
 
 Requirements: pytest and pytest-cov
 
-Run the tests in the root folder with: 
+Run the tests in the root folder with:
 
 ```bash
 pytest tests

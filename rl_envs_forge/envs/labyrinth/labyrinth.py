@@ -231,7 +231,7 @@ class Labyrinth(gym.Env):
         new_position = self.player.potential_next_position(action)
         self.player.position = new_position
 
-    def reset(self, seed: int = None) -> None:
+    def reset(self, seed: int = None, same_seed: bool = False) -> None:
         """Reset and regenerate another labyrinth. If the same seed as the one at the initialization is provided,
         then the same labyrinth should be regenerated.
 
@@ -242,7 +242,10 @@ class Labyrinth(gym.Env):
         if seed:
             self.seed = seed
         else:
-            self.seed += 1
+            if same_seed:
+                self.seed = self.seed
+            else:
+                self.seed += 1
 
         self.setup_labyrinth()
 
