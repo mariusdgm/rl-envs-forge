@@ -87,7 +87,7 @@ env.human_play(print_info=True, animate=True)
 </tr>
 </table>
 
-## Settings effect on output:
+## Settings effect on output
 
 <table>
 <tr>
@@ -147,7 +147,9 @@ env.human_play(print_info=True, animate=True)
 ## UML diagrams
 
 ### Packages
+
 <img src="https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/docs/diagrams/packages_rl_envs_forge.png" alt="Pakages UML" width="300">
 
 ### Classes
+
 <img src="https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/docs/diagrams/classes_rl_envs_forge.png" alt="Pakages UML" width="300">
