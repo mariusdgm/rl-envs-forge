@@ -113,7 +113,7 @@ class Labyrinth(gym.Env):
 
         self.env_displayer = None  # only initialize if render is needed
 
-    def setup_labyrinth(self):
+    def setup_labyrinth(self) -> None:
         self.make_maze_factory()
         self.maze = self.maze_factory.create_maze()
 
@@ -121,7 +121,7 @@ class Labyrinth(gym.Env):
         self.player.rendered_position = self.player.position
         self.build_state_matrix()
 
-    def make_maze_factory(self):
+    def make_maze_factory(self) -> MazeFactory:
         maze_factory_seed = self.seed + 1
         self.maze_factory = MazeFactory(
             rows=self.rows,
@@ -143,7 +143,7 @@ class Labyrinth(gym.Env):
         )
         return self.maze_factory
 
-    def build_state_matrix(self):
+    def build_state_matrix(self) -> np.ndarray:
         """Sequentially build the state matrix."""
         self.state = self.maze.grid.copy()
         self.state[self.maze.start_position] = START
@@ -151,7 +151,22 @@ class Labyrinth(gym.Env):
         self.state[self.player.position] = PLAYER
         return self.state
 
-    def step(self, action):
+    def step(
+        self, action: Union[Action, int]
+    ) -> Tuple[np.ndarray, float, bool, bool, dict]:
+        """
+        Executes a single step in the environment based on the given action.
+
+        Parameters:
+            action (int): The action to be performed by the agent.
+
+        Returns:
+            state (ndarray): The updated state matrix after the step.
+            reward (float): The reward obtained from the step.
+            done (bool): A flag indicating if the episode is done.
+            truncated (bool): A flag indicating if the episode was truncated.
+            info (dict): Additional information about the step.
+        """
         action = Action(action)
 
         # Initial reward
@@ -182,7 +197,17 @@ class Labyrinth(gym.Env):
 
         return self.state, reward, done, truncated, {}
 
-    def is_valid_move(self, player, action):
+    def is_valid_move(self, player: Player, action: Action) -> bool:
+        """
+        Check if a move is valid for the player entity.
+
+        Args:
+            player (Player): The player entity.
+            action (Action): The action the player wants to take.
+
+        Returns:
+            bool: True if the move is valid, False otherwise.
+        """
         potential_position = player.potential_next_position(action)
         is_inside_bounds = (0 <= potential_position[0] < self.rows) and (
             0 <= potential_position[1] < self.cols
@@ -193,11 +218,20 @@ class Labyrinth(gym.Env):
             return False
         return True
 
-    def agent_move(self, action):
+    def agent_move(self, action: Action) -> None:
+        """
+        Move the agent to a new position based on the given action.
+
+        Parameters:
+            action (Action): The action to be taken by the agent.
+
+        Returns:
+            None
+        """
         new_position = self.player.potential_next_position(action)
         self.player.position = new_position
 
-    def reset(self, seed=None):
+    def reset(self, seed: int = None) -> None:
         """Reset and regenerate another labyrinth. If the same seed as the one at the initialization is provided,
         then the same labyrinth should be regenerated.
 
@@ -214,16 +248,16 @@ class Labyrinth(gym.Env):
 
     def render(
         self,
-        sleep_time: int = 100,
+        sleep_time: int = 15,
         window_size: Tuple[int, int] = (800, 800),
-        animate: bool = True,
+        animate: bool = False,
         process_arrow_keys: bool = False,
-    ):
+    ) -> Tuple[bool, Action]:
         """
         Renders the environment and handles user input events.
 
         Args:
-            sleep_time (int, optional): The sleep time in milliseconds between each frame of the animation. Defaults to 100.
+            sleep_time (int, optional): The sleep time in milliseconds between each frame of the animation. Defaults to 15.
             window_size (Tuple[int, int], optional): The size of the window in pixels. Defaults to (800, 800).
             animate (bool, optional): Whether to animate the rendering. Defaults to True.
             process_arrow_keys (bool, optional): Whether to process directional keys for user input. Defaults to False.
@@ -243,7 +277,7 @@ class Labyrinth(gym.Env):
 
         quit_event = False
         action = None
- 
+
         if not animate:
             self.player.rendered_position = self.player.position
 
@@ -274,7 +308,7 @@ class Labyrinth(gym.Env):
             if event.type == pygame.VIDEORESIZE:
                 self.env_displayer.resize(event.w, event.h)
                 self.env_displayer.draw_state()
-        
+
         if animate:
             # This animation effect makes the display slightly unresponsive as
             # it blocks the execution here
@@ -284,17 +318,29 @@ class Labyrinth(gym.Env):
                 self.player.moving = True
                 self.player.move_render_position()
                 self.env_displayer.draw_state()
-                pygame.time.wait(
-                    int(sleep_time / 10)
-                )  # Faster refresh for smoother animation
+                pygame.time.wait(int(sleep_time))
 
             self.player.moving = False
 
+            # draw one more time to update the sprite
+            self.env_displayer.draw_state()
+
         return quit_event, action
 
-    def human_play(self, print_info=False, window_size=(800, 800), animate=True):
-        """Continously display environment and allow user to play.
+    def human_play(
+        self,
+        print_info: bool = False,
+        window_size: Tuple[int, int] = (800, 800),
+        animate: bool = True,
+    ) -> None:
+        """
+        Continuously display environment and allow user to play.
         Exit by closing the window or pressing ESC.
+
+        Args:
+            print_info: Whether to print information about the environment.
+            window_size: The size of the window in pixels.
+            animate: Whether to animate the environment.
         """
         self.render(window_size=window_size, animate=animate, process_arrow_keys=True)
 
@@ -347,6 +393,12 @@ if __name__ == "__main__":
     #     pygame.time.wait(int(100))
 
     # env = Labyrinth(20, 20, room_types=["oval"])
-    
-    env = Labyrinth(30, 30)
+
+    env = Labyrinth(
+        30,
+        30,
+        seed=355325,
+        maze_corridor_algorithm="gbfs",
+        maze_corridor_sort_access_points_option=False,
+    )
     env.human_play(print_info=True, animate=True)

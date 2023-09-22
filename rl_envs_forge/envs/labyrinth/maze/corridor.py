@@ -2,7 +2,7 @@ import numpy as np
 import random
 from collections import deque
 from queue import PriorityQueue
-from typing import List, Tuple, Union, Optional
+from typing import List, Tuple, Union, Optional, Dict
 
 from ..constants import WALL, PATH, START, TARGET, CorridorMoveStatus, CorridorCosts
 
@@ -39,7 +39,7 @@ class CorridorBuilder:
         self.cols = self.maze.cols
 
     ########## Prim's algorithm logic ########################
-    def generate_corridor_prim(self):
+    def generate_corridor_prim(self) -> np.ndarray:
         """Generate corridors using an adaptation of Prim's algorithm.
 
         Builds the corridor around the rooms, without touching the rooms, so that
@@ -107,7 +107,16 @@ class CorridorBuilder:
 
         return grid
 
-    def is_out_of_bounds_maze(self, position):
+    def is_out_of_bounds_maze(self, position: Tuple[int, int]) -> bool:
+        """
+        Check if the given position is out of bounds in the maze.
+
+        Args:
+            position (Tuple[int, int]): The position to check.
+
+        Returns:
+            bool: True if the position is out of bounds, False otherwise.
+        """
         if (
             position[0] < 0
             or position[0] >= self.rows
@@ -117,7 +126,22 @@ class CorridorBuilder:
             return True
         return False
 
-    def is_valid_next_position(self, grid, position, direction):
+    def is_valid_next_position(
+        self, grid: np.ndarray, position: Tuple[int, int], direction: Tuple[int, int]
+    ) -> Tuple[bool, CorridorMoveStatus]:
+        """
+        Check if the next position is a valid move in the grid.
+
+        Args:
+            grid (np.ndarray): The grid representing the maze.
+            position (Tuple[int, int]): The current position in the grid.
+            direction (Tuple[int, int]): The direction of the next move.
+
+        Returns:
+            Tuple[bool, CorridorMoveStatus]: A tuple containing a boolean indicating
+                whether the next position is a valid move and a CorridorMoveStatus
+                indicating the status of the move.
+        """
         new_pos = (position[0] + direction[0], position[1] + direction[1])
 
         # Detect if new position is out of maze bounds
@@ -137,7 +161,16 @@ class CorridorBuilder:
 
         return (True, CorridorMoveStatus.VALID_MOVE)
 
-    def is_adjacent_to_room(self, position):
+    def is_adjacent_to_room(self, position: Tuple[int, int]) -> bool:
+        """
+        Check if a given position is adjacent to any room in the maze.
+
+        Parameters:
+            position (Tuple[int, int]): The position to check adjacency for.
+
+        Returns:
+            bool: True if the position is adjacent to a room, False otherwise.
+        """
         for dx in [-1, 0, 1]:
             for dy in [-1, 0, 1]:
                 if (
@@ -151,7 +184,21 @@ class CorridorBuilder:
                     return True
         return False
 
-    def greedy_sort(self, access_points, start_position):
+    def greedy_sort(
+        self, access_points: List[Tuple[int, int]], start_position: Tuple[int, int]
+    ) -> List[Tuple[int, int]]:
+        """
+        Sorts a list of access points based on their proximity to the start position.
+        At each step, the closest access point is added to the sorted list, and becomes the start_position reference.
+
+        Args:
+            access_points (List[Tuple[int, int]]): A list of tuples representing the coordinates of the access points.
+            start_position (Tuple[int, int]): A tuple representing the coordinates of the start position.
+
+        Returns:
+            List[Tuple[int, int]]: A sorted list of tuples representing the coordinates of the access points.
+
+        """
         # Initialize the sorted list with the start_position
         sorted_points = [start_position]
 
@@ -190,7 +237,9 @@ class CorridorBuilder:
                 if connection:
                     self.plot_path_from_to(global_access_point, connection)
 
-    def bfs_to_find_closest_path(self, access_point):
+    def bfs_to_find_closest_path(
+        self, access_point: Tuple[int, int]
+    ) -> Optional[Tuple[int, int]]:
         directions = [(1, 0), (-1, 0), (0, 1), (0, -1)]
 
         visited = np.zeros((self.rows, self.cols), dtype=bool)
@@ -225,7 +274,17 @@ class CorridorBuilder:
 
         return None
 
-    def plot_path_from_to(self, p1, p2):
+    def plot_path_from_to(self, p1: Tuple[int, int], p2: Tuple[int, int]) -> None:
+        """
+        Plot a path from point p1 to point p2 in the maze.
+
+        Args:
+            p1 (Tuple[int, int]): The starting point coordinates.
+            p2 (Tuple[int, int]): The ending point coordinates.
+
+        Returns:
+            None
+        """
         # Directly connect if the cells are adjacent and not diagonally so
         diff_x = abs(p1[0] - p2[0])
         diff_y = abs(p1[1] - p2[1])
@@ -246,9 +305,18 @@ class CorridorBuilder:
 
     ####### Grow path logic #########
     def grow_path_from(
-        self, start_pos, max_attempts=5000
-    ):  # Temporarily increased max_attempts
-        """Grow a path from start_pos until it reaches a corridor or max_attempts are reached."""
+        self, start_pos: Tuple[int, int], max_attempts: int = 1000
+    ) -> Tuple[int, int]:
+        """
+        Generates a path from a given starting position within the maze.
+
+        Args:
+            start_pos (Tuple[int, int]): The starting position of the path.
+            max_attempts (int, optional): The maximum number of attempts to generate the path. Defaults to 1000.
+
+        Returns:
+            Tuple[int, int]: The position of the generated path, or None if no path was found.
+        """
 
         current_pos = start_pos
         attempt = 0
@@ -323,7 +391,23 @@ class CorridorBuilder:
         # If we reached here, we didn't find a corridor
         return None
 
-    def direction_cost(self, current_pos, direction, target_pos):
+    def direction_cost(
+        self,
+        current_pos: Tuple[int, int],
+        direction: Tuple[int, int],
+        target_pos: Tuple[int, int],
+    ) -> int:
+        """
+        Calculates the cost of moving in a given direction from the current position to the target position.
+
+        Parameters:
+            current_pos (Tuple[int, int]): The current position on the grid, represented as a tuple of integers (x, y).
+            direction (Tuple[int, int]): The direction in which to move, represented as a tuple of integers (dx, dy).
+            target_pos (Tuple[int, int]): The target position on the grid, represented as a tuple of integers (x, y).
+
+        Returns:
+            int: The cost of moving in the given direction from the current position to the target position. The cost is calculated based on the Manhattan distance between the new position and the target position, and is penalized if the new position is close to a room.
+        """
         new_pos = (current_pos[0] + direction[0], current_pos[1] + direction[1])
         base_cost = abs(new_pos[0] - target_pos[0]) + abs(new_pos[1] - target_pos[1])
 
@@ -333,8 +417,20 @@ class CorridorBuilder:
 
         return base_cost
 
-    def is_line_segment_intersecting_room(self, p1, p2):
-        """Check if the line segment p1p2 intersects any room cell."""
+    def is_line_segment_intersecting_room(
+        self, p1: Tuple[int, int], p2: Tuple[int, int]
+    ) -> bool:
+        """
+        Checks if a line segment defined by two points intersects with any room in the maze.
+
+        Parameters:
+            p1 (Tuple[int, int]): The first point of the line segment.
+            p2 (Tuple[int, int]): The second point of the line segment.
+
+        Returns:
+            bool: True if the line segment intersects with any room, False otherwise.
+        """
+
         for room in self.maze.rooms:
             for i in range(room.rows):
                 for j in range(room.cols):
@@ -355,6 +451,20 @@ class CorridorBuilder:
     ###### Post Processing logic ######
 
     def post_process_maze(self):
+        """
+        Post-processes the maze by filling in paths between rooms and along the border.
+
+        This function initializes the global room mask, collects border cells, shuffles them,
+        and then attempts to fill in paths between the cells using the "_attempt_fill_path"
+        method. It also collects the perimeter cells of all rooms, shuffles them, and
+        attempts to fill in paths between these perimeter cells and the global room mask.
+
+        Parameters:
+            None
+
+        Returns:
+            None
+        """
         # Initialize the global room mask
         global_room_mask = self.maze.generate_global_room_mask()
 
@@ -392,7 +502,19 @@ class CorridorBuilder:
         for cell in room_perimeter_cells:
             self._attempt_fill_path(cell, global_room_mask)
 
-    def _attempt_fill_path(self, pos, global_room_mask):
+    def _attempt_fill_path(
+        self, pos: Tuple[int, int], global_room_mask: np.ndarray
+    ) -> None:
+        """
+        Attempts to fill a path at a given position in the maze.
+
+        Args:
+            pos (Tuple[int, int]): The position in the maze where the path is to be filled.
+            global_room_mask (np.ndarray): The global room mask indicating the presence of rooms.
+
+        Returns:
+            None: This function does not return anything.
+        """
         if pos[0] < 0 or pos[0] >= self.rows or pos[1] < 0 or pos[1] >= self.cols:
             return
 
@@ -421,9 +543,12 @@ class CorridorBuilder:
             self.maze.corridor_grid[pos[0], pos[1]] = PATH
 
     ####### Greedy best first search logic #########
-    def generate_corridor_gbfs(self):
-        """Generate corridors using a slight variation of greedy best first search algorithm.
-        Instead of using only the heuristic we are also considering the cost matrix.
+    def generate_corridor_gbfs(self) -> np.ndarray:
+        """
+        Generates a corridor using the Greedy Best-First Search (GBFS) algorithm
+
+        Returns:
+            numpy.ndarray: The corridor grid with marked paths.
         """
 
         # Initialize a grid filled with walls
@@ -445,7 +570,20 @@ class CorridorBuilder:
 
         return corridor_grid
 
-    def gbfs(self, start, goal, cost_grid):
+    def gbfs(
+        self, start: Tuple[int, int], goal: Tuple[int, int], cost_grid: np.ndarray
+    ) -> List[Tuple[int, int]]:
+        """
+        Performs the Greedy Best-First Search algorithm to find the path from the start point to the goal point in a grid.
+
+        Parameters:
+            start (Tuple[int, int]): The coordinates of the start point.
+            goal (Tuple[int, int]): The coordinates of the goal point.
+            cost_grid (np.ndarray): The cost grid representing the obstacles and costs of each cell.
+
+        Returns:
+            List[Tuple[int, int]]: The path from the start point to the goal point as a list of coordinates.
+        """
         frontier = CustomPriorityQueue()
         frontier.put(0, start)
 
@@ -477,8 +615,13 @@ class CorridorBuilder:
         return path
 
     ####### A* direct corridor generation logic #########
-    def generate_corridor_a_star(self):
-        """Generate corridors using the A* algorithm."""
+    def generate_corridor_a_star(self) -> np.ndarray:
+        """
+        Generates a corridor using the A* algorithm.
+
+        Returns:
+            np.ndarray: The generated corridor grid with walls and paths.
+        """
 
         # Initialize a grid filled with walls
         corridor_grid = np.full((self.rows, self.cols), WALL)
@@ -499,7 +642,20 @@ class CorridorBuilder:
 
         return corridor_grid
 
-    def a_star_path(self, start, goal, cost_grid):
+    def a_star_path(
+        self, start: Tuple[int, int], goal: Tuple[int, int], cost_grid: np.ndarray
+    ) -> List[Tuple[int, int]]:
+        """
+        Finds the shortest path from the start coordinate to the goal coordinate using the A* algorithm.
+
+        Args:
+            start (Tuple[int, int]): The starting coordinate.
+            goal (Tuple[int, int]): The goal coordinate.
+            cost_grid (np.ndarray): The grid containing the cost of each cell.
+
+        Returns:
+            List[Tuple[int, int]]: The shortest path from the start to the goal.
+        """
         frontier = CustomPriorityQueue()
         frontier.put(0, start)
 
@@ -539,16 +695,18 @@ class CorridorBuilder:
         return path
 
     ### Common astar and gbfs helper functions ###
-    def get_global_access_points(self, current_endpoint):
+    def get_global_access_points(
+        self, current_endpoint: Tuple[int, int]
+    ) -> List[Tuple[int, int]]:
         """
         Retrieves the access points in the rooms of the maze in global coordinates.
         Sorts the access points by heuristic to get even more direct paths.
 
         Parameters:
-            current_endpoint (Endpoint): The current endpoint in the maze.
+            current_endpoint (Tuple[int, int]): The current endpoint in the maze.
 
         Returns:
-            list: A list of global access points in the maze.
+            List[Tuple[int, int]: A list of global access points in the maze.
         """
 
         access_points = []
@@ -567,7 +725,19 @@ class CorridorBuilder:
 
         return access_points
 
-    def make_cost_grid(self, access_points, corridor_grid):
+    def make_cost_grid(
+        self, access_points: List[Tuple[int, int]], corridor_grid: np.ndarray
+    ) -> np.ndarray:
+        """
+        Generates a cost grid based on the given access points and corridor grid.
+
+        Parameters:
+            access_points (List[Tuple[int, int]]): A list of tuples representing the coordinates of the access points.
+            corridor_grid (np.ndarray): A numpy array representing the corridor grid.
+
+        Returns:
+            np.ndarray: A numpy array representing the cost grid.
+        """
         cost_grid = np.full((self.rows, self.cols), CorridorCosts.BASE)
 
         global_room_mask = self.maze.generate_global_room_mask()
@@ -592,7 +762,23 @@ class CorridorBuilder:
 
         return cost_grid
 
-    def reconstruct_path(self, came_from, start, goal):
+    def reconstruct_path(
+        self,
+        came_from: Dict[Tuple[int, int], Tuple[int, int]],
+        start: Tuple[int, int],
+        goal: Tuple[int, int],
+    ) -> List[Tuple[int, int]]:
+        """
+        Reconstructs the path from the start to the goal using the came_from dictionary.
+
+        Args:
+            came_from (Dict[Tuple[int, int], Tuple[int, int]]): A dictionary that maps each cell to the cell it came from.
+            start (Tuple[int, int]): The starting cell.
+            goal (Tuple[int, int]): The goal cell.
+
+        Returns:
+            List[Tuple[int, int]]: The reconstructed path from the start to the goal.
+        """
         current = goal
         path = []
         while current != start:
@@ -601,12 +787,19 @@ class CorridorBuilder:
         path.append(start)
         path.reverse()
 
-        
-
         return path
 
-    def is_next_to_access_point(self, position, access_points=None):
-        """Checks if the given position is adjacent to any of the room's access points."""
+    def is_next_to_access_point(self, position: Tuple[int, int], access_points: Optional[List[Tuple[int, int]]]=None)->bool:
+        """
+        Check if the given position is next to any access point.
+
+        Parameters:
+            position (Tuple[int, int]): The position to check.
+            access_points (Optional[List[Tuple[int, int]]]): The list of access points to check against. If not provided, all access points in the maze will be considered.
+            
+        Returns:
+            bool: True if the position is next to an access point, False otherwise.
+        """
         if access_points is None:
             access_points = []
             for room in self.maze.rooms:
@@ -622,8 +815,18 @@ class CorridorBuilder:
                     return True
         return False
 
-    def heuristic(self, goal, next_node, cost_grid=None):
-        """Manhattan distance heuristic."""
+    def heuristic(self, goal: Tuple[int, int], next_node: Tuple[int, int], cost_grid: Optional[np.ndarray]=None)->Union[int, float]:
+        """
+        Calculate the heuristic value between the current node and the goal node.
+
+        Args:
+            goal (Tuple[int, int]): The coordinates of the goal node.
+            next_node (Tuple[int, int]): The coordinates of the current node.
+            cost_grid (Optional[np.ndarray], optional): A grid representing the cost of each node. Defaults to None.
+
+        Returns:
+            Union[int, float]: The calculated heuristic value.
+        """
         heuristic = abs(goal[0] - next_node[0]) + abs(goal[1] - next_node[1])
         if cost_grid is not None:
             heuristic += cost_grid[next_node[0], next_node[1]]

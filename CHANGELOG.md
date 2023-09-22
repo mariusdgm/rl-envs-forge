@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.1] - 2023.09.22
+
+### Added
+
+- Added script for UML generation with pyreverse
+
+### Changed
+
+- Improved documentation doctrings
+- Added sphinx auto documentation
+
+### Fixed
+
+- Added one more draw call in render when the animation loop ends
+
 ## [1.2.0] - 2023.09.18
 
 ### Added

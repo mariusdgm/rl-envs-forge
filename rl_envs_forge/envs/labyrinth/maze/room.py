@@ -52,7 +52,7 @@ class RoomFactory:
             "donut",
             "t_shape",
             "l_shape",
-            "triangle"
+            "triangle",
         ]
         self.room_types = room_types
         if self.room_types is None:
@@ -63,10 +63,39 @@ class RoomFactory:
 
     def create_room(
         self,
-        rows=None,
-        cols=None,
-        desired_area=None,
-    ):
+        rows: int = None,
+        cols: int = None,
+        desired_area: float = None,
+    ) -> "Room":
+        """
+        Create a room with the specified dimensions or desired area.
+
+        Parameters:
+            rows (int): The number of rows in the room. Default is None.
+            cols (int): The number of columns in the room. Default is None.
+            desired_area (float): The desired area of the room. Default is None.
+
+        Returns:
+            Room: The created room object.
+
+        Raises:
+            ValueError: If the desired area is less than or equal to 3.
+
+        Notes:
+            - If desired_area is provided, it takes precedence over rows and cols.
+            - If ratio is not set, it is randomly selected from the ratio_range.
+            - The number of access points is either specified by access_points_nr or randomly selected from the access_points_range.
+            - Each room has a unique seed value.
+            - The type of the room is randomly selected from the available room types.
+
+        Available room types:
+            - rectangle
+            - oval
+            - donut
+            - t_shape
+            - l_shape
+            - triangle
+        """
         if desired_area:
             if desired_area <= 3:
                 raise ValueError(
@@ -123,7 +152,9 @@ class RoomFactory:
                 f"Unknown room type: {room_type}. Available types: {self.all_available_room_types}"
             )
 
-    def _estimate_dimensions_from_area(self, desired_area, ratio=1):
+    def _estimate_dimensions_from_area(
+        self, desired_area: float, ratio: float = 1
+    ) -> Tuple[int, int]:
         """Estimate room dimensions based on desired area and given ratio."""
 
         cols = int(math.sqrt(desired_area / ratio))
@@ -131,20 +162,64 @@ class RoomFactory:
 
         return rows, cols
 
-    def create_rectangle_room(self, rows=None, cols=None, nr_access_points=1):
-        """Create a rectangle room using given rows."""
+    def create_rectangle_room(
+        self, rows: int = None, cols: int = None, nr_access_points: int = 1
+    ) -> "RectangleRoom":
+        """
+        Create a new rectangle room with the specified number of rows, columns, and
+        number of access points.
+
+        Args:
+            rows (int): The number of rows in the room. If not specified, a default value
+                will be used.
+            cols (int): The number of columns in the room. If not specified, a default
+                value will be used.
+            nr_access_points (int): The number of access points in the room. If not
+                specified, a default value will be used.
+
+        Returns:
+            RectangleRoom: The newly created rectangle room.
+        """
+
         return RectangleRoom(
             rows=rows, cols=cols, nr_access_points=nr_access_points, seed=self.room_seed
         )
 
-    def create_oval_room(self, rows=None, cols=None, nr_access_points=1):
-        """Create an oval room using given rows, columns."""
+    def create_oval_room(
+        self, rows: int = None, cols: int = None, nr_access_points: int = 1
+    ) -> "OvalRoom":
+        """
+        Creates an `OvalRoom` object with the specified dimensions and number of access points.
+
+        Parameters:
+            rows (int, optional): The number of rows in the room. Defaults to None.
+            cols (int, optional): The number of columns in the room. Defaults to None.
+            nr_access_points (int, optional): The number of access points in the room. Defaults to 1.
+
+        Returns:
+            OvalRoom: An `OvalRoom` object with the specified dimensions and number of access points.
+        """
+
         return OvalRoom(
             rows=rows, cols=cols, nr_access_points=nr_access_points, seed=self.room_seed
         )
 
-    def create_donut_room(self, rows=None, cols=None, nr_access_points=1):
-        """Create a donut room using given rows, columns."""
+    def create_donut_room(
+        self, rows: int = None, cols: int = None, nr_access_points: int = 1
+    ) -> "DonutRoom":
+        """
+        Creates a new DonutRoom object with the specified dimensions and access points.
+
+        Args:
+            rows (int): The number of rows in the room. Defaults to None.
+            cols (int): The number of columns in the room. Defaults to None.
+            nr_access_points (int): The number of access points in the room. Defaults to 1.
+
+        Returns:
+            DonutRoom: The newly created DonutRoom object.
+
+        """
+
         min_ring_width = 1
         max_ring_width = min(rows, cols) // 1.75
         if max_ring_width <= min_ring_width:
@@ -167,8 +242,21 @@ class RoomFactory:
             seed=self.room_seed,
         )
 
-    def create_t_shape_room(self, rows=None, cols=None, nr_access_points=1):
-        """Create a t shape room using given rows, columns."""
+    def create_t_shape_room(
+        self, rows: int = None, cols: int = None, nr_access_points: int = 1
+    ) -> "TShapeRoom":
+        """
+        Creates a T-shaped room.
+
+        Args:
+            rows (int, optional): The number of rows in the room. Defaults to None.
+            cols (int, optional): The number of columns in the room. Defaults to None.
+            nr_access_points (int, optional): The number of access points in the room. Defaults to 1.
+
+        Returns:
+            TShapeRoom: The created T-shaped room instance.
+        """
+
         horizontal_carve = 0.5 + self.py_random.random() * 0.5
         vertical_carve = 0.5 + self.py_random.random() * 0.5
         rotation = self.py_random.choice(["top", "right", "down", "left"])
@@ -183,8 +271,21 @@ class RoomFactory:
             seed=self.room_seed,
         )
 
-    def create_l_shape_room(self, rows=None, cols=None, nr_access_points=1):
-        """Create a l shape room using given rows, columns."""
+    def create_l_shape_room(
+        self, rows: int = None, cols: int = None, nr_access_points: int = 1
+    ) -> "LShapeRoom":
+        """
+        Create an L-shape room.
+
+        Args:
+            rows (int, optional): The number of rows in the room. Defaults to None.
+            cols (int, optional): The number of columns in the room. Defaults to None.
+            nr_access_points (int, optional): The number of access points in the room. Defaults to 1.
+
+        Returns:
+            LShapeRoom: The created L-shape room.
+        """
+
         horizontal_carve = 0.5 + self.py_random.random() * 0.5
         vertical_carve = 0.5 + self.py_random.random() * 0.5
         corner = self.py_random.choice(
@@ -200,12 +301,18 @@ class RoomFactory:
             seed=self.room_seed,
         )
 
-    def create_triangle_room(self, rows=None, cols=None, nr_access_points=1):
+    def create_triangle_room(
+        self, rows: int = None, cols: int = None, nr_access_points: int = 1
+    ) -> "TriangleRoom":
         corner = self.py_random.choice(
             ["top_left", "top_right", "down_left", "down_right"]
         )
         return TriangleRoom(
-            rows=rows, cols=cols, corner=corner, nr_access_points=nr_access_points, seed=self.room_seed
+            rows=rows,
+            cols=cols,
+            corner=corner,
+            nr_access_points=nr_access_points,
+            seed=self.room_seed,
         )
 
 
@@ -269,7 +376,17 @@ class Room(ABC):
     def generate_room_layout(self):
         pass
 
-    def get_perimeter_cells(self, padding=0):
+    def get_perimeter_cells(self, padding: int = 0) -> List[Tuple[int, int]]:
+        """
+        Generates a list of perimeter cells for the given grid, with an optional padding.
+        Note: in the maze generation the mose interest is in the perimeter cells with padding 0, 1 and 2
+
+        Args:
+            padding (int, optional): The amount of padding to add around the grid. Defaults to 0.
+
+        Returns:
+            list: A list of perimeter cells as tuples (row, col).
+        """
         room_mask = self.generate_inner_area_mask()
 
         # Always add a padding of 1 to ensure that rooms touching the edge are handled
@@ -310,6 +427,16 @@ class Room(ABC):
         return perimeter_cells
 
     def is_perimeter(self, mask: np.ndarray, cell: Tuple[int, int]) -> bool:
+        """
+        Determines if a given cell is on the perimeter of a mask.
+
+        Parameters:
+            mask (np.ndarray): The mask representing the room.
+            cell (Tuple[int, int]): The coordinates of the cell.
+
+        Returns:
+            bool: True if the cell is on the perimeter, False otherwise.
+        """
         i, j = cell
         neighbors = [(i - 1, j), (i + 1, j), (i, j - 1), (i, j + 1)]
         if mask[i, j]:
@@ -321,21 +448,48 @@ class Room(ABC):
                         return True
         return False
 
-    def set_access_points(self):
-        """Define default access points for the room, based on its shape.
-
-        Access points should be represented as a set of (x, y) tuples.
+    def set_access_points(self) -> None:
         """
+        Sets the access points for the object.
+
+        This function selects a number of perimeter cells from the grid and assigns them as access points. The number of access points is determined by the `nr_access_points` attribute of the object.
+
+        Parameters:
+            None
+
+        Returns:
+            None
+        """
+
         perimeter_cells = self.get_perimeter_cells()
         chosen_indices = self.np_random.choice(
             len(perimeter_cells), self.nr_access_points, replace=False
         )
         self.access_points = {perimeter_cells[i] for i in chosen_indices}
 
-    def generate_inner_area_mask(self):
+    def generate_inner_area_mask(self) -> np.ndarray:
+        """
+        Generate the inner area mask for the grid.
+        The inner area represent all the cells that are withing the perimeter of the room
+        (in case of a room with hollow areas this is not equal to the room mask!)
+
+        Returns:
+            np.ndarray: The inner area mask as a numpy array.
+        """
         return (self.grid == PATH).astype(int)
 
-    def get_non_perimeter_inner_cells(self):
+    def get_non_perimeter_inner_cells(self) -> np.ndarray:
+        """
+        Returns a numpy array of non-perimeter inner cells.
+
+        This function generates a binary mask of the inner area using the `generate_inner_area_mask` method. It then retrieves the list of perimeter cells using the `get_perimeter_cells` method with a padding of 0. The list of perimeter cells is then converted into a binary mask called `perimeter_mask` for easier subtraction. The `perimeter_mask` is subtracted from the `inner_mask` to obtain a mask where cells that are inside the inner area but not part of the perimeter are marked with 1s. The resulting mask is returned as a numpy array.
+
+        Parameters:
+            self (object): The instance of the class.
+
+        Returns:
+            np.ndarray: A numpy array of non-perimeter inner cells.
+        """
         inner_mask = self.generate_inner_area_mask()
 
         # Get the list of perimeter cells.
@@ -350,7 +504,6 @@ class Room(ABC):
         # This will give a mask where cells that are inside the inner area but not part of the perimeter are marked with 1s.
         non_perimeter_mask = inner_mask - perimeter_mask
 
-        # Count the number of cells (1s) in the resulting mask.
         return non_perimeter_mask
 
 
@@ -388,7 +541,13 @@ class RectangleRoom(Room):
         self.generate_room_layout()
         self.set_access_points()
 
-    def generate_room_layout(self):
+    def generate_room_layout(self) -> np.ndarray:
+        """
+        Generate the room layout by setting all elements of the grid to PATH.
+
+        Returns:
+            List[List[str]]: The updated grid representing the room layout.
+        """
         self.grid[:] = PATH
         return self.grid
 
@@ -419,7 +578,13 @@ class OvalRoom(Room):
         self.generate_room_layout()
         self.set_access_points()
 
-    def generate_room_layout(self):
+    def generate_room_layout(self) -> np.ndarray:
+        """
+        Generates a room layout as a numpy array.
+
+        Returns:
+            np.ndarray: The generated room layout.
+        """
         center_y, center_x = self.rows // 2, self.cols // 2
         a, b = center_x, center_y
 
@@ -497,7 +662,13 @@ class DonutRoom(Room):
         self.generate_room_layout()
         self.set_access_points()
 
-    def generate_room_layout(self):
+    def generate_room_layout(self)->np.ndarray:
+        """
+        Generates a room layout by creating a grid of cells based on the given parameters.
+        
+        Returns:
+        - np.ndarray: The generated grid representing the room layout.
+        """
         center_y, center_x = self.rows // 2, self.cols // 2
         a_outer, b_outer = center_x, center_y
 
@@ -515,7 +686,21 @@ class DonutRoom(Room):
         self.grid = self._outer_mask - self._inner_mask
         return self.grid
 
-    def _generate_shape_mask(self, shape, a, b, center_x, center_y, level="outer"):
+    def _generate_shape_mask(self, shape: str, a: int, b: int, center_x: int, center_y: int, level: str="outer")->np.ndarray:
+        """
+        Generates a shape mask based on the given parameters.
+
+        Args:
+            shape (str): The shape of the mask to generate. Must be either "oval" or "rectangle".
+            a (int): The length of the shape's horizontal axis.
+            b (int): The length of the shape's vertical axis.
+            center_x (int): The x-coordinate of the center of the shape.
+            center_y (int): The y-coordinate of the center of the shape.
+            level (str, optional): The level of the shape mask. Defaults to "outer".
+
+        Returns:
+            np.ndarray: The generated shape mask.
+        """
         if a == 0 and b == 0:
             a, b = 1, 1
 
@@ -524,7 +709,27 @@ class DonutRoom(Room):
         elif shape == "rectangle":
             return self.generate_rectangle_mask(a, b, center_x, center_y, level)
 
-    def generate_rectangle_mask(self, a, b, center_x, center_y, level="outer"):
+    def generate_rectangle_mask(self, a: int, b: int, center_x: int, center_y: int, level: str="outer")->np.ndarray:
+        """
+        Generate a rectangle mask with the specified dimensions and center position.
+
+        Args:
+            a (int): The width of the rectangle.
+            b (int): The height of the rectangle.
+            center_x (int): The x-coordinate of the center position.
+            center_y (int): The y-coordinate of the center position.
+            level (str, optional): The level of the mask. Defaults to "outer".
+
+        Returns:
+            np.ndarray: The generated rectangle mask.
+
+        Note:
+            - If the level is set to "inner", the width and height of the rectangle 
+              are adjusted using a math solution.
+            - If the outer shape is "oval" and the adjusted width and height are 
+              greater than 1, the position of the top leftmost corner of the 
+              rectangle is further adjusted.
+        """
         if level == "inner":
             # math solution
             a, b = int(a / math.sqrt(2)), int(b / math.sqrt(2))
@@ -540,7 +745,13 @@ class DonutRoom(Room):
         mask[center_y - b : center_y + b + 1, center_x - a : center_x + a + 1] = 1
         return mask
 
-    def generate_inner_area_mask(self):
+    def generate_inner_area_mask(self)->np.ndarray:
+        """
+        Generate the inner area mask based on the specified outer shape.
+
+        Returns:
+            np.ndarray: The inner area mask.
+        """
         center_y, center_x = self.rows // 2, self.cols // 2
         a, b = center_x, center_y
         if self.outer_shape == "oval":
@@ -591,10 +802,29 @@ class LShapeRoom(Room):
         self.generate_room_layout()
         self.set_access_points()
 
-    def carve_amount(self, size, carve_ratio):
+    def carve_amount(self, size: int, carve_ratio: float) -> int:
+        """
+        Carves out a certain amount from the given size based on the carve ratio.
+
+        Parameters:
+            size (int): The size of the input.
+            carve_ratio (float): The ratio of the size to be carved out.
+
+        Returns:
+            int: The carved out amount from the size, with a minimum of 2.
+        """
         return max(2, int(size * carve_ratio))
 
-    def generate_room_layout(self):
+    def generate_room_layout(self)->np.ndarray:
+        """
+        Generates the layout of the room based on the given parameters.
+
+        Parameters:
+            self (object): The instance of the class.
+        
+        Returns:
+            np.ndarray: The generated room layout as a NumPy array.
+        """
         self.grid[:] = PATH  # Resetting the room to be full
 
         # Determine which carving ratio corresponds to vertical/horizontal carving
@@ -654,10 +884,26 @@ class TShapeRoom(Room):
         self.generate_room_layout()
         self.set_access_points()
 
-    def carve_amount(self, size, carve_ratio):
+    def carve_amount(self, size: int, carve_ratio: float) -> int:
+        """
+        Calculate the amount to carve based on the given size and carve ratio.
+
+        Parameters:
+            size (int): The size of the object to be carved.
+            carve_ratio (float): The ratio of the object to be carved.
+
+        Returns:
+            int: The amount to carve, which is the maximum of 2 or the result of multiplying the size and carve ratio.
+        """
         return max(2, int(size * carve_ratio))
 
-    def generate_room_layout(self):
+    def generate_room_layout(self)->np.ndarray:
+        """
+        Generates the layout of the room based on the given rotation and carving ratios.
+
+        Returns:
+            np.ndarray: The generated room layout as a NumPy array.
+        """
         self.grid[:] = PATH  # Resetting the room to be full
 
         # Based on the rotation, determine which carving ratio corresponds to vertical/horizontal carving
@@ -708,7 +954,13 @@ class TriangleRoom(Room):
         self.generate_room_layout()
         self.set_access_points()
 
-    def generate_room_layout(self):
+    def generate_room_layout(self)->np.ndarray:
+        """
+        Generate the room layout based on the specified corner position.
+
+        Returns:
+            np.ndarray: The generated room layout as a 2D numpy array.
+        """
         self.grid.fill(WALL)
 
         if self.corner == "top_right":
