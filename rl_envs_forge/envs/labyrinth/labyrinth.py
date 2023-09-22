@@ -151,7 +151,9 @@ class Labyrinth(gym.Env):
         self.state[self.player.position] = PLAYER
         return self.state
 
-    def step(self, action:Union[Action, int]) -> Tuple[np.ndarray, float, bool, bool, dict]:
+    def step(
+        self, action: Union[Action, int]
+    ) -> Tuple[np.ndarray, float, bool, bool, dict]:
         """
         Executes a single step in the environment based on the given action.
 
@@ -216,7 +218,7 @@ class Labyrinth(gym.Env):
             return False
         return True
 
-    def agent_move(self, action:Action) -> None:
+    def agent_move(self, action: Action) -> None:
         """
         Move the agent to a new position based on the given action.
 
@@ -246,16 +248,16 @@ class Labyrinth(gym.Env):
 
     def render(
         self,
-        sleep_time: int = 100,
+        sleep_time: int = 15,
         window_size: Tuple[int, int] = (800, 800),
-        animate: bool = True,
+        animate: bool = False,
         process_arrow_keys: bool = False,
     ) -> Tuple[bool, Action]:
         """
         Renders the environment and handles user input events.
 
         Args:
-            sleep_time (int, optional): The sleep time in milliseconds between each frame of the animation. Defaults to 100.
+            sleep_time (int, optional): The sleep time in milliseconds between each frame of the animation. Defaults to 15.
             window_size (Tuple[int, int], optional): The size of the window in pixels. Defaults to (800, 800).
             animate (bool, optional): Whether to animate the rendering. Defaults to True.
             process_arrow_keys (bool, optional): Whether to process directional keys for user input. Defaults to False.
@@ -316,11 +318,12 @@ class Labyrinth(gym.Env):
                 self.player.moving = True
                 self.player.move_render_position()
                 self.env_displayer.draw_state()
-                pygame.time.wait(
-                    int(sleep_time / 10)
-                )  # Faster refresh for smoother animation
+                pygame.time.wait(int(sleep_time))
 
             self.player.moving = False
+
+            # draw one more time to update the sprite
+            self.env_displayer.draw_state()
 
         return quit_event, action
 
@@ -391,5 +394,11 @@ if __name__ == "__main__":
 
     # env = Labyrinth(20, 20, room_types=["oval"])
 
-    env = Labyrinth(30, 30)
+    env = Labyrinth(
+        30,
+        30,
+        seed=355325,
+        maze_corridor_algorithm="gbfs",
+        maze_corridor_sort_access_points_option=False,
+    )
     env.human_play(print_info=True, animate=True)

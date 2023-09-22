@@ -79,14 +79,14 @@ class Player:
 
         self._rendered_position = new_rendered_position
 
-    def _positions_are_close(self, pos1: Tuple[int, int], pos2: Tuple[int, int], threshold: float=0.015)->bool:
+    def _positions_are_close(self, pos1: Tuple[int, int], pos2: Tuple[int, int], threshold: float=0.025)->bool:
         """
         Check if the given positions are close to each other within a threshold.
 
         Args:
             pos1 (Tuple[int, int]): The first position.
             pos2 (Tuple[int, int]): The second position.
-            threshold (float, optional): The threshold value for closeness. Defaults to 0.015.
+            threshold (float, optional): The threshold value for closeness. Defaults to 0.025.
 
         Returns:
             bool: True if the positions are close, False otherwise.

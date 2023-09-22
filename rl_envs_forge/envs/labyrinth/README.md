@@ -86,3 +86,68 @@ env.human_play(print_info=True, animate=True)
 </td>
 </tr>
 </table>
+
+## Settings effect on output:
+
+<table>
+<tr>
+    <th colspan="1">Corridor algorithm: prim</th>
+</tr>
+<tr>
+    <th colspan="1">post_process:False, grid_connect:False</th>
+    <th colspan="1">post_process:True, grid_connect:False</th>
+    <th colspan="1">post_process:True, grid_connect:True</th>
+</tr>
+<tr>
+<td>
+<img src="https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/assets/labyrinth/doc_imgs/comp_prim_grid_f_postproc_f.png" alt="Comp Screenshot 1" width="200">
+</td>
+<td>
+<img src="https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/assets/labyrinth/doc_imgs/comp_prim_grid_f_postproc_t.png" alt="Comp Screenshot 2" width="200">
+</td>
+<td>
+<img src="https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/assets/labyrinth/doc_imgs/comp_prim_grid_t_postproc_t.png" alt="Comp Screenshot 3" width="200">
+</td>
+</tr>
+
+<tr>
+    <th colspan="1">Corridor algorithm: astar</th>
+</tr>
+<tr>
+    <th colspan="1">sort_access_points:False</th>
+    <th colspan="1">sort_access_points:True</th>
+</tr>
+<tr>
+<td>
+<img src="https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/assets/labyrinth/doc_imgs/comp_astar_acess_sort_f.png" alt="Comp Screenshot 1" width="300">
+</td>
+<td>
+<img src="https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/assets/labyrinth/doc_imgs/comp_astar_acess_sort_t.png" alt="Comp Screenshot 2" width="300">
+</td>
+</tr>
+
+<tr>
+    <th colspan="1">Corridor algorithm: gbfs</th>
+</tr>
+<tr>
+    <th colspan="1">sort_access_points:False</th>
+    <th colspan="1">sort_access_points:True</th>
+</tr>
+<tr>
+<td>
+<img src="https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/assets/labyrinth/doc_imgs/comp_gbfs_acess_sort_f.png" alt="Comp Screenshot 1" width="300">
+</td>
+<td>
+<img src="https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/assets/labyrinth/doc_imgs/comp_gbfs_acess_sort_t.png" alt="Comp Screenshot 2" width="300">
+</td>
+</tr>
+
+</table>
+
+## UML diagrams
+
+### Packages
+<img src="https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/docs/diagrams/packages_rl_envs_forge.png" alt="Pakages UML" width="300">
+
+### Classes
+<img src="https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/docs/diagrams/classes_rl_envs_forge.png" alt="Pakages UML" width="300">
