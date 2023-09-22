@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.2] - 2023.09.22
+
+### Fixed
+
+- LFS tracked file moved to normal git so they can be displayed in the readmes
+
 ## [1.2.1] - 2023.09.22
 
 ### Added
