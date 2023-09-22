@@ -21,7 +21,6 @@ author = 'mariusdgm'
 extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
-    'sphinx.ext.inheritance_diagram',
     'sphinx.ext.napoleon'
 ]
 

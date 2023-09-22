@@ -12,9 +12,3 @@ Labyrinth Module
 
    rl_envs_forge.envs
 
-
-Inheritance Diagram for Labyrinth
----------------------------------
-
-.. inheritance-diagram:: rl_envs_forge.envs.labyrinth.labyrinth
-   :parts: 1
