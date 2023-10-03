@@ -357,6 +357,7 @@ class Labyrinth(gym.Env):
             )
 
             if quit_event:
+                self.env_displayer = None
                 break
 
             if action is not None:
