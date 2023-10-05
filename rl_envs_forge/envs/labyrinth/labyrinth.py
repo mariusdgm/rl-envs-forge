@@ -4,6 +4,7 @@ import gymnasium as gym
 import numpy as np
 import random
 import pygame
+import copy
 
 from .maze.maze import MazeFactory
 from .constants import WALL, PATH, TARGET, START, PLAYER, Action
@@ -384,6 +385,30 @@ class Labyrinth(gym.Env):
             if done:
                 first_info_printed = True
                 self.reset()
+
+    def __deepcopy__(self, memo):
+        # Check if the object is in memo
+        if id(self) in memo:
+            return memo[id(self)]
+        
+        # Create a shallow copy of the current environment
+        new_env = copy.copy(self)
+        
+        # Add the new environment to memo to avoid infinite loops
+        memo[id(self)] = new_env
+        
+        # Manually deep copy attributes that need to be deeply copied
+        new_env.state = np.copy(self.state)
+        new_env.py_random = copy.deepcopy(self.py_random, memo)
+        new_env.np_random = copy.deepcopy(self.np_random, memo)
+        new_env.reward_schema = copy.deepcopy(self.reward_schema, memo)
+        new_env.player = copy.deepcopy(self.player, memo)
+        new_env.maze = copy.deepcopy(self.maze, memo)
+
+        # Do not deeply copy the env_displayer; set it to None in the copied environment
+        new_env.env_displayer = None
+        
+        return new_env
 
 
 if __name__ == "__main__":

@@ -4,6 +4,7 @@ import pygame
 import numpy as np
 import os
 import random
+import copy
 
 # So we avoid the screen appearing during testing
 os.environ["SDL_VIDEODRIVER"] = "dummy"
@@ -45,6 +46,26 @@ class TestLabyrinth:
 
         # Return the simulated event in the expected format
         return False, action
+
+    def test_deepcopy(self):
+        env_original = Labyrinth(rows=20, cols=20)
+
+        # Make a deep copy of the original environment
+        env_copy = copy.deepcopy(env_original)
+
+        # Verify that all attributes in both environments are equal
+        # This will check attributes like state, seed, py_random, etc.
+        for attr in dir(env_original):
+            if callable(getattr(env_original, attr)) or attr.startswith("__"):
+                # Skip methods and special methods
+                continue
+            assert np.array_equal(getattr(env_original, attr), getattr(env_copy, attr)), f"Attribute {attr} differs after deepcopy"
+
+        # Perform a valid move on the original environment
+        env_original.step(Action.UP)
+
+        # Verify that the states in both environments are no longer equal
+        assert not np.array_equal(env_original.state, env_copy.state), "States are still equal after a move"
 
     def test_human_play(self):
         env = Labyrinth(rows=20, cols=20)

@@ -2,12 +2,13 @@
 Functions to generate a Markov Decision Process view of the Labyrinth environment.
 """
 import numpy as np
+import copy
 
 
 class LabyrinthMDP:
-    def state_to_key(self, grid):
+    def state_to_key(self, state):
         """Converts grid to a tuple that can be used as a dictionary key."""
-        return tuple(grid.flatten())
+        return tuple(state.flatten())
 
     def key_to_state(self, key, shape):
         """Converts a tuple key back to a grid."""
@@ -34,21 +35,27 @@ class LabyrinthMDP:
             if (state_key, action) in transition_reward_dict:
                 continue  # Skip already explored state-action pairs
 
-            # Reset environment to the current state
-            env.reset(same_seed=True)
-            env.state = self.key_to_state(state_key, env.state.shape)
+            # Create a copy of the environment
+            env_copy = copy.deepcopy(env)
 
-            # Simulate step
-            next_state, reward, _, _, _ = env.step(action)
+            # Set the environment copy to the desired state
+            env_copy.state = self.key_to_state(state_key, env_copy.state.shape)
+
+            # Simulate step on the environment copy
+            next_state, reward, _, _, _ = env_copy.step(action)
 
             # Update the transition and reward dictionary
             next_state_key = self.state_to_key(next_state)
             transition_reward_dict[(state_key, action)] = (next_state_key, reward)
             explored_states.add(next_state_key)
 
-            # Add neighboring state-action pairs to the exploration stack
-            for next_action in range(num_actions):
-                to_explore.append((next_state_key, next_action))
+            # Check if the state has been explored already
+            if next_state_key not in explored_states:
+                explored_states.add(next_state_key)
+
+                # Add neighboring state-action pairs to the exploration stack
+                for next_action in range(num_actions):
+                    to_explore.append((next_state_key, next_action))
 
         # Build P and R matrices from the transition and reward dictionary
         # Due to the complexity of the state, constructing P and R in a traditional way may not be straightforward.
