@@ -112,7 +112,24 @@ class Labyrinth(gym.Env):
 
         self.setup_labyrinth()
 
-        self.env_displayer = None  # only initialize if render is needed
+        self._env_displayer = None  # only initialize if render is needed
+        self.displayer_window_size = (800, 800)
+
+    @property
+    def env_displayer(self):
+        if self._env_displayer is None:
+            self._env_displayer = EnvDisplay(
+                self.rows,
+                self.cols,
+                window_width=self.displayer_window_size[0],
+                window_height=self.displayer_window_size[1],
+                labyrinth=self,
+            )
+        return self._env_displayer
+
+    @env_displayer.setter
+    def env_displayer(self, value):
+        self._env_displayer = value
 
     def setup_labyrinth(self) -> None:
         self.make_maze_factory()
@@ -269,16 +286,7 @@ class Labyrinth(gym.Env):
         Returns:
             Tuple[bool, Action]: A tuple containing a boolean value indicating if the quit event occurred and the action taken by the user.
         """
-        if self.env_displayer is None:
-            # Initialize only if render is needed
-            self.env_displayer = EnvDisplay(
-                self.rows,
-                self.cols,
-                window_width=window_size[0],
-                window_height=window_size[1],
-                labyrinth=self,
-            )
-
+        self.displayer_window_size = window_size
         quit_event = False
         action = None
 
@@ -390,24 +398,28 @@ class Labyrinth(gym.Env):
         # Check if the object is in memo
         if id(self) in memo:
             return memo[id(self)]
-        
+
         # Create a shallow copy of the current environment
         new_env = copy.copy(self)
-        
+
         # Add the new environment to memo to avoid infinite loops
         memo[id(self)] = new_env
-        
+
         # Manually deep copy attributes that need to be deeply copied
         new_env.state = np.copy(self.state)
         new_env.py_random = copy.deepcopy(self.py_random, memo)
-        new_env.np_random = copy.deepcopy(self.np_random, memo)
+
+        # Manually deep copy the _np_random attribute
+        new_env._np_random = np.random.RandomState()
+        new_env._np_random.set_state(self._np_random.get_state())
         new_env.reward_schema = copy.deepcopy(self.reward_schema, memo)
         new_env.player = copy.deepcopy(self.player, memo)
         new_env.maze = copy.deepcopy(self.maze, memo)
 
         # Do not deeply copy the env_displayer; set it to None in the copied environment
-        new_env.env_displayer = None
-        
+        if self._env_displayer is not None:
+            new_env._env_displayer = None
+
         return new_env
 
 

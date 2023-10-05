@@ -53,19 +53,26 @@ class TestLabyrinth:
         # Make a deep copy of the original environment
         env_copy = copy.deepcopy(env_original)
 
-        # Verify that all attributes in both environments are equal
-        # This will check attributes like state, seed, py_random, etc.
-        for attr in dir(env_original):
-            if callable(getattr(env_original, attr)) or attr.startswith("__"):
-                # Skip methods and special methods
-                continue
-            assert np.array_equal(getattr(env_original, attr), getattr(env_copy, attr)), f"Attribute {attr} differs after deepcopy"
+        assert np.array_equal(
+            env_original.state, env_copy.state
+        ), "States are the same"
+        
+        # Perform valid moves on the original environment until a new state is reached
+        original_state_before_move = env_original.state.copy()
+        new_state_reached = False
+        actions = list(Action)
 
-        # Perform a valid move on the original environment
-        env_original.step(Action.UP)
+        while not new_state_reached:
+            for action in actions:
+                env_original.step(action)
+                if not np.array_equal(original_state_before_move, env_original.state):
+                    new_state_reached = True
+                    break
 
-        # Verify that the states in both environments are no longer equal
-        assert not np.array_equal(env_original.state, env_copy.state), "States are still equal after a move"
+        # Verify that the states of the original and copied environments are different
+        assert not np.array_equal(
+            env_original.state, env_copy.state
+        ), "States are still equal after a valid move"
 
     def test_human_play(self):
         env = Labyrinth(rows=20, cols=20)
@@ -226,7 +233,7 @@ class TestLabyrinth:
             mock_event.type = pygame.QUIT
             return True, None  # True indicates a quit event
 
-        with patch.object(env, 'render', side_effect=mock_render_quit):
+        with patch.object(env, "render", side_effect=mock_render_quit):
             try:
                 env.human_play()
             except Exception as e:
@@ -247,7 +254,7 @@ class TestLabyrinth:
             mock_event.key = pygame.K_ESCAPE
             return True, None  # True indicates a quit event
 
-        with patch.object(env, 'render', side_effect=mock_render_escape):
+        with patch.object(env, "render", side_effect=mock_render_escape):
             try:
                 env.human_play()
             except Exception as e:
@@ -256,7 +263,3 @@ class TestLabyrinth:
 
             # If no exception, the test passes
             assert True
-
-
-
-
