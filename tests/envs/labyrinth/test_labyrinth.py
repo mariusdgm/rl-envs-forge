@@ -53,10 +53,8 @@ class TestLabyrinth:
         # Make a deep copy of the original environment
         env_copy = copy.deepcopy(env_original)
 
-        assert np.array_equal(
-            env_original.state, env_copy.state
-        ), "States are the same"
-        
+        assert np.array_equal(env_original.state, env_copy.state), "States are the same"
+
         # Perform valid moves on the original environment until a new state is reached
         original_state_before_move = env_original.state.copy()
         new_state_reached = False
@@ -73,6 +71,37 @@ class TestLabyrinth:
         assert not np.array_equal(
             env_original.state, env_copy.state
         ), "States are still equal after a valid move"
+
+    def test_set_state(self):
+        labyrinth = Labyrinth(rows=10, cols=10)
+
+        with pytest.raises(
+            ValueError, match="Invalid position, the player can't be on a wall."
+        ):
+            wall_positions = np.argwhere(labyrinth.maze.grid == WALL)
+            random_wall_position = tuple(
+                wall_positions[np.random.choice(wall_positions.shape[0])]
+            )
+
+            labyrinth.set_state(random_wall_position)
+
+        with pytest.raises(
+            ValueError,
+            match="Invalid position, can't place the player on the target position.",
+        ):
+            labyrinth.set_state(labyrinth.maze.target_position)
+
+        path_positions = np.argwhere(labyrinth.maze.grid == PATH)
+
+        valid_pos = None
+        for position in path_positions:
+            if not np.array_equal(position, labyrinth.maze.target_position):
+                valid_pos = position
+                break
+
+        labyrinth.set_state(valid_pos)
+        assert np.array_equal(labyrinth.player.position, valid_pos)
+        assert np.array_equal(labyrinth.player.rendered_position, valid_pos)
 
     def test_human_play(self):
         env = Labyrinth(rows=20, cols=20)

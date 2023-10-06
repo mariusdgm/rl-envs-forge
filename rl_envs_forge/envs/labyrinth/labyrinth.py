@@ -236,6 +236,24 @@ class Labyrinth(gym.Env):
             return False
         return True
 
+    def set_state(self, player_position: Tuple[int, int]) -> None:
+        """Sets the state of the environment. For this environment, we just place the player in a certain position.
+
+        Args:
+            player_position (Tuple[int, int]): The position of the player.
+        """
+        # check that the position is valid
+        if self.maze.grid[player_position[0], player_position[1]] == WALL:
+            raise ValueError("Invalid position, the player can't be on a wall.")
+
+        if np.array_equal(player_position, self.maze.target_position):
+            raise ValueError(
+                "Invalid position, can't place the player on the target position."
+            )
+
+        self.player.position = player_position
+        self.player.rendered_position = player_position
+
     def agent_move(self, action: Action) -> None:
         """
         Move the agent to a new position based on the given action.
