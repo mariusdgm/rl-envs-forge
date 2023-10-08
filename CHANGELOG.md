@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Added pseudo MDP builder that uses a DFS traversal of the environment
+- Deepcopy procedure and state setter for Labyrinth
+
+### Fixed
+
+- Displayer instantiation behavior (relevant when render or human play are stopped)
 
 ## [1.2.2] - 2023.09.22
 
