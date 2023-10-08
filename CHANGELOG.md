@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2023.10.08
+
+### Added
+
+- Added pseudo MDP builder that uses a DFS traversal of the environment
+
 ## [1.2.2] - 2023.09.22
 
 ### Fixed
