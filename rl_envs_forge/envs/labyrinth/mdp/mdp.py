@@ -1,20 +1,30 @@
 """
 Functions to generate a Markov Decision Process view of the Labyrinth environment.
 """
+from typing import Tuple
 import numpy as np
 import copy
 
 
 class LabyrinthMDP:
-    def position_to_key(self, position):
+    def position_to_key(self, position: Tuple[int, ...]) -> np.ndarray:
         """Converts position to a tuple that can be used as a dictionary key."""
         return tuple(position)
 
-    def key_to_position(self, key):
+    def key_to_position(self, key: Tuple[int, ...]) -> np.ndarray:
         """Converts a tuple key back to a position."""
         return np.array(key).astype(int)
 
-    def build_mdp(self, env):
+    def build_mdp(self, env: "Labyrinth") -> Tuple[dict, set]:
+        """
+        Builds an MDP (Markov Decision Process) for the given Labyrinth environment.
+
+        Parameters:
+            env (Labyrinth): The Labyrinth environment to build the MDP for.
+
+        Returns:
+            Tuple[dict, set]: A tuple containing the transition and reward dictionary and the set of explored positions.
+        """
         num_actions = env.action_space.n
 
         # Dictionary to store transition and reward information
