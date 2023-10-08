@@ -4,6 +4,7 @@ import pygame
 import numpy as np
 import os
 import random
+import copy
 
 # So we avoid the screen appearing during testing
 os.environ["SDL_VIDEODRIVER"] = "dummy"
@@ -45,6 +46,62 @@ class TestLabyrinth:
 
         # Return the simulated event in the expected format
         return False, action
+
+    def test_deepcopy(self):
+        env_original = Labyrinth(rows=20, cols=20)
+
+        # Make a deep copy of the original environment
+        env_copy = copy.deepcopy(env_original)
+
+        assert np.array_equal(env_original.state, env_copy.state), "States are the same"
+
+        # Perform valid moves on the original environment until a new state is reached
+        original_state_before_move = env_original.state.copy()
+        new_state_reached = False
+        actions = list(Action)
+
+        while not new_state_reached:
+            for action in actions:
+                env_original.step(action)
+                if not np.array_equal(original_state_before_move, env_original.state):
+                    new_state_reached = True
+                    break
+
+        # Verify that the states of the original and copied environments are different
+        assert not np.array_equal(
+            env_original.state, env_copy.state
+        ), "States are still equal after a valid move"
+
+    def test_set_state(self):
+        labyrinth = Labyrinth(rows=10, cols=10)
+
+        with pytest.raises(
+            ValueError, match="Invalid position, the player can't be on a wall."
+        ):
+            wall_positions = np.argwhere(labyrinth.maze.grid == WALL)
+            random_wall_position = tuple(
+                wall_positions[np.random.choice(wall_positions.shape[0])]
+            )
+
+            labyrinth.set_state(random_wall_position)
+
+        with pytest.raises(
+            ValueError,
+            match="Invalid position, can't place the player on the target position.",
+        ):
+            labyrinth.set_state(labyrinth.maze.target_position)
+
+        path_positions = np.argwhere(labyrinth.maze.grid == PATH)
+
+        valid_pos = None
+        for position in path_positions:
+            if not np.array_equal(position, labyrinth.maze.target_position):
+                valid_pos = position
+                break
+
+        labyrinth.set_state(valid_pos)
+        assert np.array_equal(labyrinth.player.position, valid_pos)
+        assert np.array_equal(labyrinth.player.rendered_position, valid_pos)
 
     def test_human_play(self):
         env = Labyrinth(rows=20, cols=20)
@@ -150,6 +207,11 @@ class TestLabyrinth:
         labyrinth.reset()
         assert not np.array_equal(labyrinth.state, initial_state)
 
+    def test_reset_same_seed(self, labyrinth):
+        initial_state = labyrinth.state.copy()
+        labyrinth.reset(same_seed=True)
+        assert np.array_equal(labyrinth.state, initial_state)
+
     def test_seeding(self):
         env1 = Labyrinth(30, 30, seed=42)
         env2 = Labyrinth(30, 30, seed=42)
@@ -200,7 +262,7 @@ class TestLabyrinth:
             mock_event.type = pygame.QUIT
             return True, None  # True indicates a quit event
 
-        with patch.object(env, 'render', side_effect=mock_render_quit):
+        with patch.object(env, "render", side_effect=mock_render_quit):
             try:
                 env.human_play()
             except Exception as e:
@@ -221,7 +283,7 @@ class TestLabyrinth:
             mock_event.key = pygame.K_ESCAPE
             return True, None  # True indicates a quit event
 
-        with patch.object(env, 'render', side_effect=mock_render_escape):
+        with patch.object(env, "render", side_effect=mock_render_escape):
             try:
                 env.human_play()
             except Exception as e:
@@ -230,7 +292,3 @@ class TestLabyrinth:
 
             # If no exception, the test passes
             assert True
-
-
-
-

@@ -1,4 +1,5 @@
 from typing import Tuple
+import copy
 
 from ..constants import Action
 from ..display.player import PlayerDisplayer
@@ -13,7 +14,19 @@ class Player:
         self.moving = False
         self.face_orientation = Action.LEFT  # default sprite looks left
 
-        self.displayer = PlayerDisplayer(self)
+        self._displayer = None
+
+    def __deepcopy__(self, memo):
+        new_player = copy.copy(self)
+        memo[id(self)] = new_player
+        new_player._displayer = None
+        return new_player
+
+    @property
+    def displayer(self):
+        if self._displayer is None:
+            self._displayer = PlayerDisplayer(self)
+        return self._displayer
 
     @property
     def position(self):
@@ -47,7 +60,7 @@ class Player:
         Returns:
             Tuple[int, int]: The potential next position.
         """
-        potential_position = list(self.position)  
+        potential_position = list(self.position)
 
         if action == Action.UP:  # Up
             potential_position[0] -= 1
@@ -60,7 +73,7 @@ class Player:
 
         return tuple(potential_position)
 
-    def move_render_position(self)->None:
+    def move_render_position(self) -> None:
         """
         Updates the rendered position of the object based on its current position and movement speed.
 
@@ -79,7 +92,9 @@ class Player:
 
         self._rendered_position = new_rendered_position
 
-    def _positions_are_close(self, pos1: Tuple[int, int], pos2: Tuple[int, int], threshold: float=0.025)->bool:
+    def _positions_are_close(
+        self, pos1: Tuple[int, int], pos2: Tuple[int, int], threshold: float = 0.025
+    ) -> bool:
         """
         Check if the given positions are close to each other within a threshold.
 
