@@ -30,7 +30,6 @@ class LabyrinthMDP:
             to_explore.append((initial_position, action))
 
         while to_explore:
-            print(len(to_explore))
             position_key, action = to_explore.pop()
 
             if (position_key, action) in transition_reward_dict:
@@ -47,14 +46,15 @@ class LabyrinthMDP:
             # Update the transition and reward dictionary
             next_position_key = self.position_to_key(env_copy.player.position)
             transition_reward_dict[(position_key, action)] = (next_position_key, reward)
-                
+
             # Check if the position has been explored already
-            if (next_position_key not in explored_positions) and (not done):
+            if next_position_key not in explored_positions:
                 explored_positions.add(next_position_key)
 
-                # Add neighboring state-action pairs to the exploration stack
-                for next_action in range(num_actions):
-                    to_explore.append((next_position_key, next_action))
+                if not done:  # If not done, keep exploring
+                    # Add neighboring state-action pairs to the exploration stack
+                    for next_action in range(num_actions):
+                        to_explore.append((next_position_key, next_action))
 
         return transition_reward_dict, explored_positions
 
