@@ -6,13 +6,13 @@ import copy
 
 
 class LabyrinthMDP:
-    def state_to_key(self, state):
-        """Converts grid to a tuple that can be used as a dictionary key."""
-        return tuple(state.flatten())
+    def position_to_key(self, position):
+        """Converts position to a tuple that can be used as a dictionary key."""
+        return tuple(position)
 
-    def key_to_state(self, key, shape):
-        """Converts a tuple key back to a grid."""
-        return np.array(key).reshape(shape)
+    def key_to_position(self, key):
+        """Converts a tuple key back to a position."""
+        return np.array(key).astype(int)
 
     def build_mdp(self, env):
         num_actions = env.action_space.n
@@ -22,41 +22,41 @@ class LabyrinthMDP:
 
         # Stack to keep track of state-action pairs to explore
         to_explore = []
-        explored_states = set()
+        explored_positions = set()
 
         # Start exploring from the initial state
-        initial_state = self.state_to_key(env.state)
+        initial_position = self.position_to_key(env.player.position)
         for action in range(num_actions):
-            to_explore.append((initial_state, action))
+            to_explore.append((initial_position, action))
 
         while to_explore:
             print(len(to_explore))
-            state_key, action = to_explore.pop()
+            position_key, action = to_explore.pop()
 
-            if (state_key, action) in transition_reward_dict:
+            if (position_key, action) in transition_reward_dict:
                 continue  # Skip already explored state-action pairs
-            
-            # TODO: add env state setup
-            
-            # Create a copy of the environment
+
+            # Set the environment state using the position
             env_copy = copy.deepcopy(env)
+            player_position = self.key_to_position(position_key)
+            env_copy.set_state(player_position)
 
             # Simulate step on the environment copy
             next_state, reward, done, _, _ = env_copy.step(action)
 
             # Update the transition and reward dictionary
-            next_state_key = self.state_to_key(next_state)
-            transition_reward_dict[(state_key, action)] = (next_state_key, reward)
+            next_position_key = self.position_to_key(env_copy.player.position)
+            transition_reward_dict[(position_key, action)] = (next_position_key, reward)
                 
-            # Check if the state has been explored already
-            if (next_state_key not in explored_states) and (not done):
-                explored_states.add(next_state_key)
+            # Check if the position has been explored already
+            if (next_position_key not in explored_positions) and (not done):
+                explored_positions.add(next_position_key)
 
                 # Add neighboring state-action pairs to the exploration stack
                 for next_action in range(num_actions):
-                    to_explore.append((next_state_key, next_action))
+                    to_explore.append((next_position_key, next_action))
 
-        return transition_reward_dict, explored_states
+        return transition_reward_dict, explored_positions
 
 
 # # Build MDP
