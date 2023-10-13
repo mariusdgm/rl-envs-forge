@@ -53,9 +53,7 @@ class TestDonutRoom:
         assert np.sum(combined_mask) > 1
 
     def test_oval_outer_rectangle_inner(self):
-        room = DonutRoom(
-            rows=7, cols=7, inner_shape="rectangle", outer_shape="oval"
-        )
+        room = DonutRoom(rows=7, cols=7, inner_shape="rectangle", outer_shape="oval")
         assert room.outer_shape == "oval"
         assert room.inner_shape == "rectangle"
         assert len(room.get_perimeter_cells()) > 1
@@ -66,9 +64,7 @@ class TestDonutRoom:
         assert np.sum(combined_mask) > 1
 
     def test_rectangle_outer_oval_inner(self):
-        room = DonutRoom(
-            rows=7, cols=7, inner_shape="oval", outer_shape="rectangle"
-        )
+        room = DonutRoom(rows=7, cols=7, inner_shape="oval", outer_shape="rectangle")
         assert room.outer_shape == "rectangle"
         assert room.inner_shape == "oval"
         assert len(room.get_perimeter_cells()) > 1

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2023.10.13
+
+### Changed
+
+- Added the 'done' signal in the mdp transition graph
+  
 ## [1.3.0] - 2023.10.08
 
 ### Added

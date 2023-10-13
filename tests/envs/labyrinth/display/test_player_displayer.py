@@ -16,7 +16,10 @@ class TestPlayerDisplayer:
 
     @pytest.fixture
     def player_displayer(self, mock_sprite_sheet):
-        with patch("rl_envs_forge.envs.labyrinth.display.player.pygame.image.load", return_value=mock_sprite_sheet):
+        with patch(
+            "rl_envs_forge.envs.labyrinth.display.player.pygame.image.load",
+            return_value=mock_sprite_sheet,
+        ):
             entity_mock = MagicMock()
             entity_mock.moving = False
             entity_mock.face_orientation = Action.LEFT

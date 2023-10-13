@@ -789,14 +789,18 @@ class CorridorBuilder:
 
         return path
 
-    def is_next_to_access_point(self, position: Tuple[int, int], access_points: Optional[List[Tuple[int, int]]]=None)->bool:
+    def is_next_to_access_point(
+        self,
+        position: Tuple[int, int],
+        access_points: Optional[List[Tuple[int, int]]] = None,
+    ) -> bool:
         """
         Check if the given position is next to any access point.
 
         Parameters:
             position (Tuple[int, int]): The position to check.
             access_points (Optional[List[Tuple[int, int]]]): The list of access points to check against. If not provided, all access points in the maze will be considered.
-            
+
         Returns:
             bool: True if the position is next to an access point, False otherwise.
         """
@@ -815,7 +819,12 @@ class CorridorBuilder:
                     return True
         return False
 
-    def heuristic(self, goal: Tuple[int, int], next_node: Tuple[int, int], cost_grid: Optional[np.ndarray]=None)->Union[int, float]:
+    def heuristic(
+        self,
+        goal: Tuple[int, int],
+        next_node: Tuple[int, int],
+        cost_grid: Optional[np.ndarray] = None,
+    ) -> Union[int, float]:
         """
         Calculate the heuristic value between the current node and the goal node.
 

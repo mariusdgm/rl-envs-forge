@@ -5,6 +5,8 @@ from typing import Tuple
 import numpy as np
 import copy
 
+from ..constants import PATH
+
 
 class LabyrinthMDP:
     def position_to_key(self, position: Tuple[int, ...]) -> np.ndarray:
@@ -17,7 +19,48 @@ class LabyrinthMDP:
 
     def build_mdp(self, env: "Labyrinth") -> Tuple[dict, set]:
         """
-        Builds an MDP (Markov Decision Process) for the given Labyrinth environment.
+        Builds an MDP for the given Labyrinth environment using the maze layout.
+
+        Parameters:
+            env (Labyrinth): The Labyrinth environment to build the MDP for.
+
+        Returns:
+            Tuple[dict, set]: A tuple containing the transition and reward dictionary and the set of explored positions.
+        """
+        num_actions = env.action_space.n
+        transition_reward_dict = {}
+        explored_positions = set()
+
+        # Iterate through each position in the grid where the value is PATH
+        for position in np.argwhere(env.maze.grid == PATH):
+            position_key = self.position_to_key(tuple(position))
+
+            # If the position is terminal, skip it
+            if env.maze.target_position == position_key:
+                continue
+
+            explored_positions.add(position_key)
+
+            # For each action, determine the transition and reward
+            for action in range(num_actions):
+                env.set_state(tuple(position))  # Set the state for the current position
+                next_state, reward, done, _, _ = env.step(action)
+
+                # We are using env.player.position as state
+                next_position_key = self.position_to_key(env.player.position)
+                transition_reward_dict[(position_key, action)] = (
+                    next_position_key,
+                    reward,
+                    done,
+                )
+
+        return transition_reward_dict, explored_positions
+
+    def build_mdp_dfs(self, env: "Labyrinth") -> Tuple[dict, set]:
+        """
+        Builds an MDP (Markov Decision Process) for the given Labyrinth environment using DFS.
+
+        WARNING: if a state is unreachable because the terminal state is blocking it, then the MDP will not be valid.
 
         Parameters:
             env (Labyrinth): The Labyrinth environment to build the MDP for.
@@ -55,13 +98,17 @@ class LabyrinthMDP:
 
             # Update the transition and reward dictionary
             next_position_key = self.position_to_key(env_copy.player.position)
-            transition_reward_dict[(position_key, action)] = (next_position_key, reward)
+            transition_reward_dict[(position_key, action)] = (
+                next_position_key,
+                reward,
+                done,
+            )
 
             # Check if the position has been explored already
             if next_position_key not in explored_positions:
-                explored_positions.add(next_position_key)
-
                 if not done:  # If not done, keep exploring
+                    explored_positions.add(next_position_key)
+
                     # Add neighboring state-action pairs to the exploration stack
                     for next_action in range(num_actions):
                         to_explore.append((next_position_key, next_action))

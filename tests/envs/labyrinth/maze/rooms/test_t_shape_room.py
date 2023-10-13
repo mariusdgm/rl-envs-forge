@@ -57,11 +57,15 @@ class TestTShapeRoom:
         assert np.sum(grid == WALL) == 8
 
     def test_6_4_ratio_075_left(self):
-        room = TShapeRoom(rows=6, cols=4, rotation="left", vertical_carve=0.75, horizontal_carve=0.5)
+        room = TShapeRoom(
+            rows=6, cols=4, rotation="left", vertical_carve=0.75, horizontal_carve=0.5
+        )
         grid = room.generate_room_layout()
         assert np.sum(grid == WALL) == 8
 
     def test_6_4_ratio_1_left(self):
-        room = TShapeRoom(rows=6, cols=4,rotation="left", vertical_carve=1, horizontal_carve=0.5)
+        room = TShapeRoom(
+            rows=6, cols=4, rotation="left", vertical_carve=1, horizontal_carve=0.5
+        )
         grid = room.generate_room_layout()
         assert np.sum(grid == WALL) == 8

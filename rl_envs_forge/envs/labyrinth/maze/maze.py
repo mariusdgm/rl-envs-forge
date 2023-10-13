@@ -538,7 +538,7 @@ class Maze:
 
         Returns:
             Tuple[int, int]: The row and column indices of the chosen target position.
-        
+
         Raises:
             ValueError: If a valid target position could not be found in any room.
         """
@@ -591,7 +591,9 @@ class Maze:
         self.start_position = self.choose_start_position()
         self.target_position = self.choose_target_position()
 
-    def is_inside_any_room(self, pos: Tuple[int, int], exception: Tuple[int, int]=None)->bool:
+    def is_inside_any_room(
+        self, pos: Tuple[int, int], exception: Tuple[int, int] = None
+    ) -> bool:
         """
         Check if a given position is inside any room in the current environment.
 
@@ -626,7 +628,7 @@ class Maze:
     def generate_global_room_mask(self) -> np.ndarray:
         """
         Generate a global mask for the entire room.
-        
+
         Returns:
             np.ndarray: The global room mask.
         """
@@ -645,14 +647,14 @@ class Maze:
         return global_room_mask
 
     #### Validate maze ####
-    def is_valid_maze(self)->bool:
+    def is_valid_maze(self) -> bool:
         """
         Checks if the maze is valid.
 
         Returns:
             bool: True if the maze is valid, False otherwise.
         """
-        
+
         start_point = self.start_position
         visited = set([start_point])
         queue = deque([start_point])
@@ -677,11 +679,11 @@ class Maze:
     def get_neighbors(self, x: int, y: int) -> List[Tuple[int, int]]:
         """
         Given the coordinates (x, y), this function returns a list of neighboring coordinates.
-        
+
         Parameters:
             x (int): The x-coordinate.
             y (int): The y-coordinate.
-            
+
         Returns:
             List[Tuple[int, int]]: A list of neighboring coordinates, represented as tuples of (x, y).
         """

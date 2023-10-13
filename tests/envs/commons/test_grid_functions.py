@@ -4,8 +4,8 @@ import random
 
 from rl_envs_forge.envs.common.grid_functions import on_line
 
-class TestGridFucntions:    
 
+class TestGridFucntions:
     def test_on_line_positive_case(self):
         p = (1, 1)
         q = (2, 2)
