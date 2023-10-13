@@ -56,17 +56,17 @@ class TestRectangleRoom:
     def test_get_perimeter_cells_with_padding_2(self):
         room = RectangleRoom(rows=3, cols=4)
         perimeter_cells = set(room.get_perimeter_cells(padding=2))
-        
+
         expected_perimeter = set()
 
         # Top and bottom with padding
         for col in range(-2, room.cols + 2):
             expected_perimeter.add((-2, col))
             expected_perimeter.add((room.rows + 1, col))
-            
+
         # Left and right with padding (excluding the corners)
         for row in range(1 - 2, room.rows - 1 + 2):
             expected_perimeter.add((row, -2))
             expected_perimeter.add((row, room.cols + 1))
-        
+
         assert perimeter_cells == expected_perimeter

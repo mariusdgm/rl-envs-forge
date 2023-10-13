@@ -3,6 +3,7 @@ import numpy as np
 from rl_envs_forge.envs.labyrinth.maze.room import LShapeRoom
 from rl_envs_forge.envs.labyrinth.constants import *
 
+
 class TestLShapeRoom:
     def test_default_lshape(self):
         room = LShapeRoom()
@@ -53,11 +54,19 @@ class TestLShapeRoom:
         assert np.sum(grid == WALL) == 8
 
     def test_6_4_ratio_075_down_right(self):
-        room = LShapeRoom(rows=6, cols=4, corner="down_right", vertical_carve=0.75, horizontal_carve=0.5)
+        room = LShapeRoom(
+            rows=6,
+            cols=4,
+            corner="down_right",
+            vertical_carve=0.75,
+            horizontal_carve=0.5,
+        )
         grid = room.generate_room_layout()
         assert np.sum(grid == WALL) == 6
 
     def test_6_4_ratio_1_down_right(self):
-        room = LShapeRoom(rows=6, cols=4, corner="down_right", vertical_carve=1, horizontal_carve=0.5)
+        room = LShapeRoom(
+            rows=6, cols=4, corner="down_right", vertical_carve=1, horizontal_carve=0.5
+        )
         grid = room.generate_room_layout()
         assert np.sum(grid == WALL) == 8

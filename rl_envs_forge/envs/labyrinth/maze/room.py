@@ -662,10 +662,10 @@ class DonutRoom(Room):
         self.generate_room_layout()
         self.set_access_points()
 
-    def generate_room_layout(self)->np.ndarray:
+    def generate_room_layout(self) -> np.ndarray:
         """
         Generates a room layout by creating a grid of cells based on the given parameters.
-        
+
         Returns:
         - np.ndarray: The generated grid representing the room layout.
         """
@@ -686,7 +686,15 @@ class DonutRoom(Room):
         self.grid = self._outer_mask - self._inner_mask
         return self.grid
 
-    def _generate_shape_mask(self, shape: str, a: int, b: int, center_x: int, center_y: int, level: str="outer")->np.ndarray:
+    def _generate_shape_mask(
+        self,
+        shape: str,
+        a: int,
+        b: int,
+        center_x: int,
+        center_y: int,
+        level: str = "outer",
+    ) -> np.ndarray:
         """
         Generates a shape mask based on the given parameters.
 
@@ -709,7 +717,9 @@ class DonutRoom(Room):
         elif shape == "rectangle":
             return self.generate_rectangle_mask(a, b, center_x, center_y, level)
 
-    def generate_rectangle_mask(self, a: int, b: int, center_x: int, center_y: int, level: str="outer")->np.ndarray:
+    def generate_rectangle_mask(
+        self, a: int, b: int, center_x: int, center_y: int, level: str = "outer"
+    ) -> np.ndarray:
         """
         Generate a rectangle mask with the specified dimensions and center position.
 
@@ -724,10 +734,10 @@ class DonutRoom(Room):
             np.ndarray: The generated rectangle mask.
 
         Note:
-            - If the level is set to "inner", the width and height of the rectangle 
+            - If the level is set to "inner", the width and height of the rectangle
               are adjusted using a math solution.
-            - If the outer shape is "oval" and the adjusted width and height are 
-              greater than 1, the position of the top leftmost corner of the 
+            - If the outer shape is "oval" and the adjusted width and height are
+              greater than 1, the position of the top leftmost corner of the
               rectangle is further adjusted.
         """
         if level == "inner":
@@ -745,7 +755,7 @@ class DonutRoom(Room):
         mask[center_y - b : center_y + b + 1, center_x - a : center_x + a + 1] = 1
         return mask
 
-    def generate_inner_area_mask(self)->np.ndarray:
+    def generate_inner_area_mask(self) -> np.ndarray:
         """
         Generate the inner area mask based on the specified outer shape.
 
@@ -815,13 +825,13 @@ class LShapeRoom(Room):
         """
         return max(2, int(size * carve_ratio))
 
-    def generate_room_layout(self)->np.ndarray:
+    def generate_room_layout(self) -> np.ndarray:
         """
         Generates the layout of the room based on the given parameters.
 
         Parameters:
             self (object): The instance of the class.
-        
+
         Returns:
             np.ndarray: The generated room layout as a NumPy array.
         """
@@ -897,7 +907,7 @@ class TShapeRoom(Room):
         """
         return max(2, int(size * carve_ratio))
 
-    def generate_room_layout(self)->np.ndarray:
+    def generate_room_layout(self) -> np.ndarray:
         """
         Generates the layout of the room based on the given rotation and carving ratios.
 
@@ -954,7 +964,7 @@ class TriangleRoom(Room):
         self.generate_room_layout()
         self.set_access_points()
 
-    def generate_room_layout(self)->np.ndarray:
+    def generate_room_layout(self) -> np.ndarray:
         """
         Generate the room layout based on the specified corner position.
 

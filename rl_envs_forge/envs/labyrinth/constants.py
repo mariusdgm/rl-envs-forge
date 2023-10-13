@@ -10,8 +10,8 @@ class Action(IntEnum):
 
 ### Constants for states in the maze
 WALL = 0
-PATH = 1 
-TARGET = 2 
+PATH = 1
+TARGET = 2
 START = 3
 PLAYER = 4
 
@@ -23,6 +23,7 @@ class CorridorMoveStatus(IntEnum):
     ROOM_BOUNDARY = 3
     INVALID = 4
 
+
 class CorridorCosts(IntEnum):
     BASE = 1
     CORRIDOR = 0
@@ -30,5 +31,3 @@ class CorridorCosts(IntEnum):
     ADJACENT_ROOM = 100
     ADJACENT_ACCESS_POINT = 0
     ROOM_CELL = 100000
-
-

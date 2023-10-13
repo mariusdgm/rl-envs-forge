@@ -6,12 +6,10 @@ from rl_envs_forge.envs.labyrinth.constants import WALL, PATH
 
 
 class TestEnvDisplay:
-
     @pytest.fixture
     def mock_pygame(self):
         with patch("rl_envs_forge.envs.labyrinth.display.display.pygame") as mock:
             yield mock
-
 
     @pytest.fixture
     def env_display(self, mock_pygame):
@@ -28,7 +26,7 @@ class TestEnvDisplay:
         assert env_display.cell_width == (800 - 2 * EnvDisplay.BORDER_PADDING) // 5
         assert env_display.cell_height == (800 - 2 * EnvDisplay.BORDER_PADDING) // 5
 
-    def test_adjust_coords_for_padding(self, env_display): 
+    def test_adjust_coords_for_padding(self, env_display):
         x, y = env_display._adjust_coords_for_padding(1, 1)
         expected_x = env_display.additional_padding_x + env_display.cell_width
         expected_y = env_display.additional_padding_y + env_display.cell_height
@@ -37,15 +35,17 @@ class TestEnvDisplay:
 
     def test_compute_sizes_and_paddings_additional_paddings(self, env_display):
         env_display._compute_sizes_and_paddings()
-        
+
         total_cell_width = round(env_display.cell_width * env_display.cols)
         total_cell_height = round(env_display.cell_height * env_display.rows)
-        
+
         expected_padding_x = (
             env_display.window_width - total_cell_width - 2 * EnvDisplay.BORDER_PADDING
         )
         expected_padding_y = (
-            env_display.window_height - total_cell_height - 2 * EnvDisplay.BORDER_PADDING
+            env_display.window_height
+            - total_cell_height
+            - 2 * EnvDisplay.BORDER_PADDING
         )
 
         assert env_display.additional_padding_x == expected_padding_x
