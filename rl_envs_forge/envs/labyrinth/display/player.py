@@ -1,5 +1,6 @@
 import os
 import pygame
+import pkg_resources
 
 from .display import EntityDisplayer
 from ..constants import Action
@@ -10,7 +11,10 @@ class PlayerDisplayer(EntityDisplayer):
         super().__init__(entity)
 
         sprite_sheet = pygame.image.load(
-            os.path.join("assets", "labyrinth", "sprites", "player.png")
+            pkg_resources.resource_filename(
+                "rl_envs_forge",
+                os.path.join("envs", "labyrinth", "display", "sprites", "player.png"),
+            )
         )
         frame_height = sprite_sheet.get_height() // 2
         self.player_frames = [

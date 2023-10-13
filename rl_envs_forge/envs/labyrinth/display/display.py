@@ -1,5 +1,6 @@
 import os
 import pygame
+import pkg_resources
 from abc import ABC, abstractmethod
 
 from ..constants import *
@@ -56,7 +57,10 @@ class EnvDisplay:
         self.labyrinth = labyrinth
 
         self.target_sprite = pygame.image.load(
-            os.path.join("assets", "labyrinth", "sprites", "flag.png")
+            pkg_resources.resource_filename(
+                "rl_envs_forge",
+                os.path.join("envs", "labyrinth", "display", "sprites", "flag.png"),
+            )
         )
 
         self.player_displayer = self.labyrinth.player.displayer
