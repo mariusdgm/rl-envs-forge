@@ -241,6 +241,9 @@ class Labyrinth(gym.Env):
 
         Args:
             player_position (Tuple[int, int]): The position of the player.
+
+        Returns:
+
         """
         # check that the position is valid
         if self.maze.grid[player_position[0], player_position[1]] == WALL:
@@ -267,12 +270,15 @@ class Labyrinth(gym.Env):
         new_position = self.player.potential_next_position(action)
         self.player.position = new_position
 
-    def reset(self, seed: int = None, same_seed: bool = False) -> None:
+    def reset(self, seed: int = None, same_seed: bool = False) -> np.ndarray:
         """Reset and regenerate another labyrinth. If the same seed as the one at the initialization is provided,
         then the same labyrinth should be regenerated.
 
         Args:
             seed (int, optional): External seed if a user wants to provide one. Defaults to None.
+
+        Returns:
+            np.ndarray: The new state matrix.
 
         """
         if seed:
@@ -284,6 +290,9 @@ class Labyrinth(gym.Env):
                 self.seed += 1
 
         self.setup_labyrinth()
+        self.state = self.build_state_matrix()
+
+        return self.state
 
     def render(
         self,
