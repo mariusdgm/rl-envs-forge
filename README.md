@@ -34,7 +34,7 @@ Labyrinth is a classic maze-solving environment, where the goal is to navigate f
 
 ### Rendered example
 
-![Labyrinth render GIF](https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/assets/labyrinth/doc_imgs/auto_play_demo.gif)
+![Labyrinth render GIF](https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/docs/figures/labyrinth/doc_imgs/auto_play_demo.gif)
 
 ## Usage
 
