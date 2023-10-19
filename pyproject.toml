@@ -18,6 +18,7 @@ sphinx = "^7.2.6"
 sphinxcontrib-napoleon = "^0.7"
 graphviz = "^0.20.1"
 toml = "^0.10.2"
+seaborn = "^0.13.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.1"

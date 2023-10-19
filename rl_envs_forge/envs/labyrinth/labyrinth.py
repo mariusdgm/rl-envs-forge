@@ -69,7 +69,7 @@ class Labyrinth(gym.Env):
         super().__init__()
 
         self.rows, self.cols = rows, cols
-        self.state = np.ones((rows, cols), dtype=np.uint8) * WALL
+        self._state = np.ones((rows, cols), dtype=np.uint8) * WALL
 
         self.seed = seed
         if self.seed is None:
@@ -161,13 +161,23 @@ class Labyrinth(gym.Env):
         )
         return self.maze_factory
 
+    @property
+    def state(self) -> np.ndarray:
+        """Return the current state matrix.
+        See build_state_matrix for more information.
+
+        Returns:
+            np.ndarray: The current state matrix.
+        """
+        return self.build_state_matrix()
+
     def build_state_matrix(self) -> np.ndarray:
         """Sequentially build the state matrix."""
-        self.state = self.maze.grid.copy()
-        self.state[self.maze.start_position] = START
-        self.state[self.maze.target_position] = TARGET
-        self.state[self.player.position] = PLAYER
-        return self.state
+        self._state = self.maze.grid.copy()
+        self._state[self.maze.start_position] = START
+        self._state[self.maze.target_position] = TARGET
+        self._state[self.player.position] = PLAYER
+        return self._state
 
     def step(
         self, action: Union[Action, int]
@@ -209,9 +219,6 @@ class Labyrinth(gym.Env):
             reward = self.reward_schema["target_reached_reward"]
             done = True
             return self.state, reward, done, truncated, {"info": "Reached the target!"}
-
-        # Flush all info to state matrix
-        self.state = self.build_state_matrix()
 
         return self.state, reward, done, truncated, {}
 
@@ -290,7 +297,6 @@ class Labyrinth(gym.Env):
                 self.seed += 1
 
         self.setup_labyrinth()
-        self.state = self.build_state_matrix()
 
         return self.state
 
@@ -437,7 +443,7 @@ class Labyrinth(gym.Env):
         memo[id(self)] = new_env
 
         # Manually deep copy attributes that need to be deeply copied
-        new_env.state = np.copy(self.state)
+        new_env._state = np.copy(self._state)
         new_env.py_random = copy.deepcopy(self.py_random, memo)
 
         # Manually deep copy the _np_random attribute

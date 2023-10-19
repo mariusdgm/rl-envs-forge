@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added close method to Labyrinth
+- KArmedBandit environment 
+- Added 'close' method and property 'state' to Labyrinth
 
 ### Changed
 
