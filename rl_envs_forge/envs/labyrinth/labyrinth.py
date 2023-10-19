@@ -421,6 +421,10 @@ class Labyrinth(gym.Env):
                 first_info_printed = True
                 self.reset()
 
+    def close(self):
+        """Close the environment."""
+        self.env_displayer = None
+
     def __deepcopy__(self, memo):
         # Check if the object is in memo
         if id(self) in memo:

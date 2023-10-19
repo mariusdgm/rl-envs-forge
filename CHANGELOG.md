@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added close method to Labyrinth
+
 ### Changed
 
 - In Labyrinth: made the reset method to return the current state
