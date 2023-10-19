@@ -10,13 +10,16 @@ Lightweight environments for reinforcement learning applications.
 
 ## Table of Contents
 
-- [Installation](#installation)
-- [Environments](#environments)
-  - [Labyrinth](#labyrinth)
-- [Usage](#usage)
-- [Tests](#tests)
-- [License](#license)
-- [Contact & Support](#contact--support)
+- [rl-envs-forge](#rl-envs-forge)
+  - [Table of Contents](#table-of-contents)
+  - [Installation](#installation)
+  - [Environments](#environments)
+    - [Labyrinth](#labyrinth)
+    - [Rendered example](#rendered-example)
+  - [Usage](#usage)
+  - [Tests](#tests)
+  - [License](#license)
+  - [Contact \& Support](#contact--support)
 
 ## Installation
 
@@ -30,6 +33,7 @@ pip install rl-envs-forge
 
 Labyrinth is a classic maze-solving environment, where the goal is to navigate from a start point to a target. The maze layout is randomly generated based on a set of parametrizable arguments.
 
+<!-- Use github paths for these figures so they will show up in the pypi page -->
 📖 **Detailed Documentation**: [Click here to read more about the Labyrinth environment](https://github.com/mariusdgm/rl-envs-forge/blob/main/rl_envs_forge/envs/labyrinth/README.md)
 
 ### Rendered example
