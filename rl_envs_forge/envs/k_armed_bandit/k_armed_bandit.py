@@ -148,7 +148,8 @@ class KArmedBandit(gym.Env):
 
         self.action_space = gym.spaces.Discrete(k)
         self.observation_space = gym.spaces.Discrete(1)
-
+        
+        self.arms = None
         self._init_arms()
 
     def _init_arms(self):
@@ -157,6 +158,7 @@ class KArmedBandit(gym.Env):
             self._create_custom_arms(self.arm_params)
 
     def _create_default_arms(self):
+        """By default instantiate normal distribution arms."""
         default_means = self.np_random.randn(self.k)
         self.arms = [
             Arm(distribution="normal", mean=mean, std=1) for mean in default_means
