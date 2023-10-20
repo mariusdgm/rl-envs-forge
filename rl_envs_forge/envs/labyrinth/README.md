@@ -25,7 +25,7 @@ while not done and not quit_event:
     sleep(0.1)
 ```
 
-![Labyrinth render GIF](https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/assets/labyrinth/doc_imgs/auto_play_demo.gif)
+![Labyrinth render GIF](../../../docs/figures/labyrinth/auto_play_demo.gif)
 
 <br>
 
@@ -46,19 +46,19 @@ env.human_play(print_info=True, animate=True)
 </tr>
 <tr>
 <td>
-<img src="https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/assets/labyrinth/doc_imgs/ss1.png" alt="Screenshot 1" width="300">
+<img src="../../../docs/figures/labyrinth/ss1.png" alt="Screenshot 1" width="300">
 </td>
 <td>
-<img src="https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/assets/labyrinth/doc_imgs/ss2.png" alt="Screenshot 2" width="300">
+<img src="../../../docs/figures/labyrinth/ss2.png" alt="Screenshot 2" width="300">
 </td>
 </tr>
 
 <tr>
 <td>
-<img src="https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/assets/labyrinth/doc_imgs/ss3.png" alt="Screenshot 3" width="300">
+<img src="../../../docs/figures/labyrinth/ss3.png" alt="Screenshot 3" width="300">
 </td>
 <td>
-<img src="https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/assets/labyrinth/doc_imgs/ss4.png" alt="Screenshot 4" width="300">
+<img src="../../../docs/figures/labyrinth/ss4.png" alt="Screenshot 4" width="300">
 </td>
 </tr>
 
@@ -67,10 +67,10 @@ env.human_play(print_info=True, animate=True)
 </tr>
 <tr>
 <td>
-<img src="https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/assets/labyrinth/doc_imgs/ss5.png" alt="Screenshot 5" width="300">
+<img src="../../../docs/figures/labyrinth/ss5.png" alt="Screenshot 5" width="300">
 </td>
 <td>
-<img src="https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/assets/labyrinth/doc_imgs/ss6.png" alt="Screenshot 6" width="300">
+<img src="../../../docs/figures/labyrinth/ss6.png" alt="Screenshot 6" width="300">
 </td>
 </tr>
 
@@ -79,10 +79,10 @@ env.human_play(print_info=True, animate=True)
 </tr>
 <tr>
 <td>
-<img src="https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/assets/labyrinth/doc_imgs/ss7.png" alt="Screenshot 7" width="300">
+<img src="../../../docs/figures/labyrinth/ss7.png" alt="Screenshot 7" width="300">
 </td>
 <td>
-<img src="https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/assets/labyrinth/doc_imgs/ss8.png" alt="Screenshot 8" width="300">
+<img src="../../../docs/figures/labyrinth/ss8.png" alt="Screenshot 8" width="300">
 </td>
 </tr>
 </table>
@@ -100,13 +100,13 @@ env.human_play(print_info=True, animate=True)
 </tr>
 <tr>
 <td>
-<img src="https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/assets/labyrinth/doc_imgs/comp_prim_grid_f_postproc_f.png" alt="Comp Screenshot 1" width="200">
+<img src="../../../docs/figures/labyrinth/comp_prim_grid_f_postproc_f.png" alt="Comp Screenshot 1" width="200">
 </td>
 <td>
-<img src="https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/assets/labyrinth/doc_imgs/comp_prim_grid_f_postproc_t.png" alt="Comp Screenshot 2" width="200">
+<img src="../../../docs/figures/labyrinth/comp_prim_grid_f_postproc_t.png" alt="Comp Screenshot 2" width="200">
 </td>
 <td>
-<img src="https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/assets/labyrinth/doc_imgs/comp_prim_grid_t_postproc_t.png" alt="Comp Screenshot 3" width="200">
+<img src="../../../docs/figures/labyrinth/comp_prim_grid_t_postproc_t.png" alt="Comp Screenshot 3" width="200">
 </td>
 </tr>
 
@@ -119,10 +119,10 @@ env.human_play(print_info=True, animate=True)
 </tr>
 <tr>
 <td>
-<img src="https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/assets/labyrinth/doc_imgs/comp_astar_acess_sort_f.png" alt="Comp Screenshot 1" width="300">
+<img src="../../../docs/figures/labyrinth/comp_astar_acess_sort_f.png" alt="Comp Screenshot 1" width="300">
 </td>
 <td>
-<img src="https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/assets/labyrinth/doc_imgs/comp_astar_acess_sort_t.png" alt="Comp Screenshot 2" width="300">
+<img src="../../../docs/figures/labyrinth/comp_astar_acess_sort_t.png" alt="Comp Screenshot 2" width="300">
 </td>
 </tr>
 
@@ -135,10 +135,10 @@ env.human_play(print_info=True, animate=True)
 </tr>
 <tr>
 <td>
-<img src="https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/assets/labyrinth/doc_imgs/comp_gbfs_acess_sort_f.png" alt="Comp Screenshot 1" width="300">
+<img src="../../../docs/figures/labyrinth/comp_gbfs_acess_sort_f.png" alt="Comp Screenshot 1" width="300">
 </td>
 <td>
-<img src="https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/assets/labyrinth/doc_imgs/comp_gbfs_acess_sort_t.png" alt="Comp Screenshot 2" width="300">
+<img src="../../../docs/figures/labyrinth/comp_gbfs_acess_sort_t.png" alt="Comp Screenshot 2" width="300">
 </td>
 </tr>
 
@@ -148,8 +148,8 @@ env.human_play(print_info=True, animate=True)
 
 ### Packages
 
-<img src="https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/docs/diagrams/packages_rl_envs_forge.png" alt="Pakages UML" width="300">
+<img src="../../../docs/diagrams/labyrinth/packages_labyrinth.png" alt="Pakages UML" width="300">
 
 ### Classes
 
-<img src="https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/docs/diagrams/classes_rl_envs_forge.png" alt="Pakages UML" width="300">
+<img src="../../../docs/diagrams/labyrinth/classes_labyrinth.png" alt="Pakages UML" width="300">

@@ -3,19 +3,25 @@
 [![GitHub](https://img.shields.io/badge/-GitHub-black?logo=github)](https://github.com/mariusdgm/rl-envs-forge)
 [![PyPI version](https://img.shields.io/pypi/v/rl-envs-forge.svg)](https://pypi.org/project/rl-envs-forge/)
 ![License: MIT](https://img.shields.io/github/license/mariusdgm/rl-envs-forge)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 <!--  -->
 
 Lightweight environments for reinforcement learning applications.
 
 ## Table of Contents
 
-- [Installation](#installation)
-- [Environments](#environments)
-  - [Labyrinth](#labyrinth)
-- [Usage](#usage)
-- [Tests](#tests)
-- [License](#license)
-- [Contact & Support](#contact--support)
+- [rl-envs-forge](#rl-envs-forge)
+  - [Table of Contents](#table-of-contents)
+  - [Installation](#installation)
+  - [Environments](#environments)
+    - [Labyrinth](#labyrinth)
+      - [Labyrinth rendered example](#labyrinth-rendered-example)
+    - [KArmedBandit](#karmedbandit)
+      - [KArmedBandit rendered example](#karmedbandit-rendered-example)
+  - [Usage](#usage)
+  - [Tests](#tests)
+  - [License](#license)
+  - [Contact \& Support](#contact--support)
 
 ## Installation
 
@@ -29,11 +35,23 @@ pip install rl-envs-forge
 
 Labyrinth is a classic maze-solving environment, where the goal is to navigate from a start point to a target. The maze layout is randomly generated based on a set of parametrizable arguments.
 
+<!-- Use github paths for these figures so they will show up in the pypi page -->
 📖 **Detailed Documentation**: [Click here to read more about the Labyrinth environment](https://github.com/mariusdgm/rl-envs-forge/blob/main/rl_envs_forge/envs/labyrinth/README.md)
 
-### Rendered example
+#### Labyrinth rendered example
 
-![Labyrinth render GIF](https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/assets/labyrinth/doc_imgs/auto_play_demo.gif)
+![Labyrinth render GIF](https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/docs/figures/labyrinth/auto_play_demo.gif)
+
+
+### KArmedBandit
+
+KArmedBandit is a bandit environment, which returns a reward from a distribution associated with the chosen arm at each timestep. This implementation includes multiple distributions, and the possibility to shift the distribution parameters during sampling.
+
+📖 **Detailed Documentation**: [Click here to read more about the KArmedBandit environment](https://github.com/mariusdgm/rl-envs-forge/blob/main/rl_envs_forge/envs/k_armed_bandit/README.md)
+
+#### KArmedBandit rendered example
+
+![KArmedBandit render](https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/docs/figures/k_armed_bandit/different_distributions.png)
 
 ## Usage
 

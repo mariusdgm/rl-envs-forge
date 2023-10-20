@@ -69,7 +69,7 @@ class Labyrinth(gym.Env):
         super().__init__()
 
         self.rows, self.cols = rows, cols
-        self.state = np.ones((rows, cols), dtype=np.uint8) * WALL
+        self._state = np.ones((rows, cols), dtype=np.uint8) * WALL
 
         self.seed = seed
         if self.seed is None:
@@ -161,13 +161,23 @@ class Labyrinth(gym.Env):
         )
         return self.maze_factory
 
+    @property
+    def state(self) -> np.ndarray:
+        """Return the current state matrix.
+        See build_state_matrix for more information.
+
+        Returns:
+            np.ndarray: The current state matrix.
+        """
+        return self.build_state_matrix()
+
     def build_state_matrix(self) -> np.ndarray:
         """Sequentially build the state matrix."""
-        self.state = self.maze.grid.copy()
-        self.state[self.maze.start_position] = START
-        self.state[self.maze.target_position] = TARGET
-        self.state[self.player.position] = PLAYER
-        return self.state
+        self._state = self.maze.grid.copy()
+        self._state[self.maze.start_position] = START
+        self._state[self.maze.target_position] = TARGET
+        self._state[self.player.position] = PLAYER
+        return self._state
 
     def step(
         self, action: Union[Action, int]
@@ -210,9 +220,6 @@ class Labyrinth(gym.Env):
             done = True
             return self.state, reward, done, truncated, {"info": "Reached the target!"}
 
-        # Flush all info to state matrix
-        self.state = self.build_state_matrix()
-
         return self.state, reward, done, truncated, {}
 
     def is_valid_move(self, player: Player, action: Action) -> bool:
@@ -241,6 +248,9 @@ class Labyrinth(gym.Env):
 
         Args:
             player_position (Tuple[int, int]): The position of the player.
+
+        Returns:
+
         """
         # check that the position is valid
         if self.maze.grid[player_position[0], player_position[1]] == WALL:
@@ -267,12 +277,15 @@ class Labyrinth(gym.Env):
         new_position = self.player.potential_next_position(action)
         self.player.position = new_position
 
-    def reset(self, seed: int = None, same_seed: bool = False) -> None:
+    def reset(self, seed: int = None, same_seed: bool = False) -> np.ndarray:
         """Reset and regenerate another labyrinth. If the same seed as the one at the initialization is provided,
         then the same labyrinth should be regenerated.
 
         Args:
             seed (int, optional): External seed if a user wants to provide one. Defaults to None.
+
+        Returns:
+            np.ndarray: The new state matrix.
 
         """
         if seed:
@@ -284,6 +297,8 @@ class Labyrinth(gym.Env):
                 self.seed += 1
 
         self.setup_labyrinth()
+
+        return self.state
 
     def render(
         self,
@@ -412,6 +427,10 @@ class Labyrinth(gym.Env):
                 first_info_printed = True
                 self.reset()
 
+    def close(self):
+        """Close the environment."""
+        self.env_displayer = None
+
     def __deepcopy__(self, memo):
         # Check if the object is in memo
         if id(self) in memo:
@@ -424,7 +443,7 @@ class Labyrinth(gym.Env):
         memo[id(self)] = new_env
 
         # Manually deep copy attributes that need to be deeply copied
-        new_env.state = np.copy(self.state)
+        new_env._state = np.copy(self._state)
         new_env.py_random = copy.deepcopy(self.py_random, memo)
 
         # Manually deep copy the _np_random attribute
