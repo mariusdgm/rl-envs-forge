@@ -9,6 +9,17 @@ sns.set()
 
 
 class Arm:
+    IMPLEMENTED_DISTRIBUTIONS = [
+        "normal",
+        "uniform",
+        "exponential",
+        "gamma",
+        "beta",
+        "logistic",
+        "weibull",
+        "lognormal",
+    ]
+
     def __init__(
         self,
         distribution: str = "normal",
@@ -27,6 +38,10 @@ class Arm:
 
         """
         self.distribution = distribution
+        if self.distribution not in self.IMPLEMENTED_DISTRIBUTIONS:
+            raise ValueError(
+                f"Invalid distribution: {self.distribution}. Please use one of {self.IMPLEMENTED_DISTRIBUTIONS}."
+            )
         self.params = kwargs
         self.param_functions = param_functions if param_functions else []
 
@@ -100,11 +115,6 @@ class Arm:
             mean = self.params.get("mean", 0)
             sigma = self.params.get("sigma", 1)
             return np_random.lognormal(mean, sigma)
-
-        else:
-            raise ValueError(
-                f"Unknown distribution: {self.distribution}. Available distributions: normal, uniform, exponential, gamma, beta, logistic, weibull, lognormal."
-            )
 
 
 class KArmedBandit(gym.Env):
