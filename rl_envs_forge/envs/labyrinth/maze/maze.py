@@ -562,7 +562,7 @@ class Maze:
                 row, col = candidates[0]
                 return (room_top_left_row + row, room_top_left_col + col)
 
-        # if no such cel could not be found, place target on a non access perimeter
+        # if no such cell could not be found, place target on a non access perimeter
         for random_room in shuffled_rooms:
             perimeter_cells = random_room.get_perimeter_cells()
             non_acces_perimeter_cells = [
