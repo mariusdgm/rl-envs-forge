@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.5.0] - 2023.10.20
 
+### Fixed
+
+- Fixed a behavior of the shifting parameters in the Arms of the Bandit
+
 ### Added
 
 - KArmedBandit environment 

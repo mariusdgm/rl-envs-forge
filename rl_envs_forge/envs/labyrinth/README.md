@@ -91,7 +91,7 @@ env.human_play(print_info=True, animate=True)
 
 <table>
 <tr>
-    <th colspan="1">Corridor algorithm: prim</th>
+    <th colspan="3">Corridor algorithm: prim</th>
 </tr>
 <tr>
     <th colspan="1">post_process:False, grid_connect:False</th>
@@ -111,7 +111,7 @@ env.human_play(print_info=True, animate=True)
 </tr>
 
 <tr>
-    <th colspan="1">Corridor algorithm: astar</th>
+    <th colspan="2">Corridor algorithm: astar</th>
 </tr>
 <tr>
     <th colspan="1">sort_access_points:False</th>
@@ -127,7 +127,7 @@ env.human_play(print_info=True, animate=True)
 </tr>
 
 <tr>
-    <th colspan="1">Corridor algorithm: gbfs</th>
+    <th colspan="2">Corridor algorithm: gbfs</th>
 </tr>
 <tr>
     <th colspan="1">sort_access_points:False</th>
