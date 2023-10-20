@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.0] - 2023.10.20
+
 ### Added
 
 - KArmedBandit environment 
@@ -16,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - In Labyrinth: made the reset method to return the current state
 - Changed the diagram script to dynamically make separate diagrams for each env
+
+### Fixed
+
+- Diagram script fixed to skip folders it should not parse
 
 ## [1.4.1] - 2023.10.13
 

@@ -15,7 +15,9 @@ Lightweight environments for reinforcement learning applications.
   - [Installation](#installation)
   - [Environments](#environments)
     - [Labyrinth](#labyrinth)
-    - [Rendered example](#rendered-example)
+      - [Labyrinth rendered example](#labyrinth-rendered-example)
+    - [KArmedBandit](#karmedbandit)
+      - [KArmedBandit rendered example](#karmedbandit-rendered-example)
   - [Usage](#usage)
   - [Tests](#tests)
   - [License](#license)
@@ -36,9 +38,20 @@ Labyrinth is a classic maze-solving environment, where the goal is to navigate f
 <!-- Use github paths for these figures so they will show up in the pypi page -->
 📖 **Detailed Documentation**: [Click here to read more about the Labyrinth environment](https://github.com/mariusdgm/rl-envs-forge/blob/main/rl_envs_forge/envs/labyrinth/README.md)
 
-### Rendered example
+#### Labyrinth rendered example
 
-![Labyrinth render GIF](https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/docs/figures/labyrinth/doc_imgs/auto_play_demo.gif)
+![Labyrinth render GIF](https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/docs/figures/labyrinth/auto_play_demo.gif)
+
+
+### KArmedBandit
+
+KArmedBandit is a bandit environment, which returns a reward from a distribution associated with the chosen arm at each timestep. This implementation includes multiple distributions, and the possibility to shift the distribution parameters during sampling.
+
+📖 **Detailed Documentation**: [Click here to read more about the KArmedBandit environment](https://github.com/mariusdgm/rl-envs-forge/blob/main/rl_envs_forge/envs/k_armed_bandit/README.md)
+
+#### KArmedBandit rendered example
+
+![KArmedBandit render](https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/docs/figures/k_armed_bandit/different_distributions.png)
 
 ## Usage
 

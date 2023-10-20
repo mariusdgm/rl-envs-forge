@@ -260,3 +260,14 @@ class KArmedBandit(gym.Env):
         For this simple environment, there's nothing to close, but it's added for API consistency.
         """
         pass
+    
+    @property
+    def state(self):
+        """
+        Returns the current state of the k-armed bandit environment.
+
+        Returns:
+            tuple: (current timestep, list of current parameters for all arms)
+        """
+        arm_parameters = [arm.params for arm in self.arms]
+        return self.timestep, arm_parameters
