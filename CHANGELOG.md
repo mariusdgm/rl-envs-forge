@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2023.10.22
+
+### Fixed
+
+- Fixed a behavior of the shifting parameters in the Arms of the Bandit
+- Properly incremented the major release digit as we have a new environment now  
+
 ## [1.5.0] - 2023.10.20
 
 ### Added

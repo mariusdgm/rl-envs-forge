@@ -42,7 +42,12 @@ class Arm:
             raise ValueError(
                 f"Invalid distribution: {self.distribution}. Please use one of {self.IMPLEMENTED_DISTRIBUTIONS}."
             )
-        self.params = kwargs
+        self.init_params = (
+            kwargs.copy()
+        )  # keep a copy of the initial params for updating
+        self.current_params = (
+            kwargs.copy()
+        )  # these are the actual params used for sampling
         self.param_functions = param_functions if param_functions else []
 
     def update_param(self, timestep: int):
@@ -54,8 +59,8 @@ class Arm:
         """
         for func_dict in self.param_functions:
             shift_value = func_dict["function"](timestep)
-            self.params[func_dict["target_param"]] = (
-                self.params[func_dict["target_param"]] + shift_value
+            self.current_params[func_dict["target_param"]] = (
+                self.init_params[func_dict["target_param"]] + shift_value
             )
 
     def sample(self, np_random) -> float:
@@ -69,22 +74,22 @@ class Arm:
             float: The sampled reward.
         """
         if self.distribution == "normal":
-            mean = self.params.get("mean", 0)
-            std = self.params.get("std", 1)
+            mean = self.current_params.get("mean", 0)
+            std = self.current_params.get("std", 1)
             return np_random.normal(mean, std)
 
         elif self.distribution == "uniform":
-            low = self.params.get("low", 0)
-            high = self.params.get("high", 1)
+            low = self.current_params.get("low", 0)
+            high = self.current_params.get("high", 1)
             return np_random.uniform(low, high)
 
         elif self.distribution == "exponential":
-            scale = self.params.get("scale", 1)
+            scale = self.current_params.get("scale", 1)
             return np_random.exponential(scale)
 
         elif self.distribution == "gamma":
-            shape = self.params.get("shape")
-            scale = self.params.get("scale")
+            shape = self.current_params.get("shape")
+            scale = self.current_params.get("scale")
             if shape is None or scale is None:
                 raise ValueError(
                     "For gamma distribution, both 'shape' and 'scale' params are required."
@@ -92,8 +97,8 @@ class Arm:
             return np_random.gamma(shape, scale)
 
         elif self.distribution == "beta":
-            a = self.params.get("a")
-            b = self.params.get("b")
+            a = self.current_params.get("a")
+            b = self.current_params.get("b")
             if a is None or b is None:
                 raise ValueError(
                     "For beta distribution, both 'a' and 'b' params are required."
@@ -101,19 +106,19 @@ class Arm:
             return np_random.beta(a, b)
 
         elif self.distribution == "logistic":
-            loc = self.params.get("loc", 0)
-            scale = self.params.get("scale", 1)
+            loc = self.current_params.get("loc", 0)
+            scale = self.current_params.get("scale", 1)
             return np_random.logistic(loc, scale)
 
         elif self.distribution == "weibull":
-            a = self.params.get("a")
+            a = self.current_params.get("a")
             if a is None:
                 raise ValueError("For weibull distribution, 'a' param is required.")
             return np_random.weibull(a)
 
         elif self.distribution == "lognormal":
-            mean = self.params.get("mean", 0)
-            sigma = self.params.get("sigma", 1)
+            mean = self.current_params.get("mean", 0)
+            sigma = self.current_params.get("sigma", 1)
             return np_random.lognormal(mean, sigma)
 
 
@@ -143,7 +148,8 @@ class KArmedBandit(gym.Env):
 
         self.action_space = gym.spaces.Discrete(k)
         self.observation_space = gym.spaces.Discrete(1)
-
+        
+        self.arms = None
         self._init_arms()
 
     def _init_arms(self):
@@ -152,6 +158,7 @@ class KArmedBandit(gym.Env):
             self._create_custom_arms(self.arm_params)
 
     def _create_default_arms(self):
+        """By default instantiate normal distribution arms."""
         default_means = self.np_random.randn(self.k)
         self.arms = [
             Arm(distribution="normal", mean=mean, std=1) for mean in default_means
@@ -249,7 +256,7 @@ class KArmedBandit(gym.Env):
         for i, arm in enumerate(self.arms):
             print(f"Arm {i}:")
             print(f"\tDistribution: {arm.distribution.capitalize()}")
-            for param, value in arm.params.items():
+            for param, value in arm.current_params.items():
                 print(f"\t{param.capitalize()}: {value:.2f}")
             print("-" * 30)
 
@@ -260,7 +267,7 @@ class KArmedBandit(gym.Env):
         For this simple environment, there's nothing to close, but it's added for API consistency.
         """
         pass
-    
+
     @property
     def state(self):
         """
@@ -269,5 +276,5 @@ class KArmedBandit(gym.Env):
         Returns:
             tuple: (current timestep, list of current parameters for all arms)
         """
-        arm_parameters = [arm.params for arm in self.arms]
+        arm_parameters = [arm.current_params for arm in self.arms]
         return self.timestep, arm_parameters

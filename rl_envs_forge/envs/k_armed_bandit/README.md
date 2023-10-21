@@ -87,10 +87,10 @@ arm_params = {
     }
 }
 
-custom_bandit = KArmedBandit(k=10, arm_params=arm_params)
+custom_bandit = KArmedBandit(k=2, arm_params=arm_params)
 custom_bandit.render()
 
-for timestep in range(10):
+for timestep in range(20):
     custom_bandit.step(1)
     
 custom_bandit.render()

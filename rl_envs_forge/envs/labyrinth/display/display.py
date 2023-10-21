@@ -126,8 +126,9 @@ class EnvDisplay:
         # 2. Draw maze
         self.draw_maze(self.labyrinth.maze.grid)
 
-        # 3. Draw target #TODO
-        self.draw_target_at_position(self.labyrinth.maze.target_position)
+        # 3. Draw target 
+        if self.labyrinth.maze.target_position is not None:
+            self.draw_target_at_position(self.labyrinth.maze.target_position)
 
         # 4. Draw the grid
         self.draw_grid(
@@ -136,7 +137,7 @@ class EnvDisplay:
 
         #### Draw special features
         # 5. Draw player
-        self.draw_player()  # TODO
+        self.draw_player()  
 
         pygame.display.flip()
 
@@ -152,6 +153,9 @@ class EnvDisplay:
         Returns:
             None
         """
+        if self.labyrinth.player.rendered_position is None:
+            return
+        
         draw_pos = self.labyrinth.player.rendered_position
 
         x, y = self._adjust_coords_for_padding(*draw_pos)
