@@ -6,7 +6,7 @@ import random
 import pygame
 import copy
 
-from .maze.maze import MazeFactory
+from .maze.maze import MazeFactory, Maze
 from .constants import WALL, PATH, TARGET, START, PLAYER, Action
 from .display.display import EnvDisplay
 from .entities.player import Player
@@ -15,8 +15,9 @@ from .entities.player import Player
 class Labyrinth(gym.Env):
     def __init__(
         self,
-        rows: int,
-        cols: int,
+        rows: int = 10,
+        cols: int = 10,
+        maze_layout_predetermined: Optional[np.ndarray] = None,
         maze_nr_desired_rooms: Optional[int] = None,
         maze_nr_desired_rooms_range: Tuple[int, int] = (1, 8),
         maze_global_room_ratio: Optional[float] = None,
@@ -43,8 +44,9 @@ class Labyrinth(gym.Env):
         considers all the implemented room types
 
         Args:
-            rows (int): The number of rows in the labyrinth.
-            cols (int): The number of columns in the labyrinth.
+            rows (int): The number of rows in the labyrinth. Defaults to 10.
+            cols (int): The number of columns in the labyrinth. Defaults to 10.
+            maze_layout_predetermined (np.ndarray, optional): The layout of the labyrinth.
             maze_nr_desired_rooms (int, optional): The desired number of rooms in the maze. Defaults to None.
             maze_nr_desired_rooms_range (tuple, optional): The range of desired number of rooms. Defaults to (1, 8).
             maze_global_room_ratio (float, optional): The global room ratio in the maze. Defaults to None.
@@ -69,6 +71,11 @@ class Labyrinth(gym.Env):
         super().__init__()
 
         self.rows, self.cols = rows, cols
+
+        self.maze_layout_predetermined = maze_layout_predetermined
+        if self.maze_layout_predetermined is not None:
+            self.rows, self.cols = self.maze_layout_predetermined.shape
+
         self._state = np.ones((rows, cols), dtype=np.uint8) * WALL
 
         self.seed = seed
@@ -133,7 +140,14 @@ class Labyrinth(gym.Env):
 
     def setup_labyrinth(self) -> None:
         self.make_maze_factory()
-        self.maze = self.maze_factory.create_maze()
+        if self.maze_layout_predetermined is not None:
+            self.maze = Maze(
+                rows=self.maze_layout_predetermined.shape[0],
+                cols=self.maze_layout_predetermined.shape[1],
+                layout=self.maze_layout_predetermined,
+            )
+        else:
+            self.maze = self.maze_factory.create_maze()
 
         self.player.position = self.maze.start_position
         self.player.rendered_position = self.player.position
@@ -354,7 +368,7 @@ class Labyrinth(gym.Env):
                 self.env_displayer.resize(event.w, event.h)
                 self.env_displayer.draw_state()
 
-        if animate:
+        if animate and self.player.rendered_position and self.player.position:
             # This animation effect makes the display slightly unresponsive as
             # it blocks the execution here
             while not self.player._positions_are_close(
@@ -425,7 +439,11 @@ class Labyrinth(gym.Env):
 
             if done:
                 first_info_printed = True
-                self.reset()
+                if self.maze_layout_predetermined is None:
+                    self.reset()
+                else:
+                    self.env_displayer = None
+                    return True
 
     def close(self):
         """Close the environment."""
