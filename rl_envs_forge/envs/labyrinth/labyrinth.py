@@ -442,8 +442,9 @@ class Labyrinth(gym.Env):
                 if self.maze_layout_predetermined is None:
                     self.reset()
                 else:
+                    pygame.quit()
                     self.env_displayer = None
-                    return True
+                    return None
 
     def close(self):
         """Close the environment."""
