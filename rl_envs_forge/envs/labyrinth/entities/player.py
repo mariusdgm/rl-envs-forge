@@ -16,6 +16,10 @@ class Player:
 
         self._displayer = None
 
+    def set_position(self, position):
+        self.position = position
+        self.rendered_position = position
+        
     def __deepcopy__(self, memo):
         new_player = copy.copy(self)
         memo[id(self)] = new_player
@@ -30,6 +34,8 @@ class Player:
 
     @property
     def position(self):
+        if self._position is None:
+            return None
         return tuple(self._position)
 
     @position.setter
@@ -41,6 +47,8 @@ class Player:
 
     @property
     def rendered_position(self):
+        if self._rendered_position is None:
+            return None
         return tuple(self._rendered_position)
 
     @rendered_position.setter

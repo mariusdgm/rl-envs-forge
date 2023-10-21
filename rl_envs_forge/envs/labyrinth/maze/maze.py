@@ -200,6 +200,7 @@ class Maze:
         self,
         rows: int,
         cols: int,
+        layout: Optional[np.ndarray] = None,
         nr_desired_rooms: int = 3,
         global_room_ratio: float = 0.5,
         access_points_per_room: Optional[int] = None,
@@ -218,6 +219,7 @@ class Maze:
         Args:
             rows (int): The number of rows in the maze.
             cols (int): The number of columns in the maze.
+            layout (np.ndarray, optional): The layout of the maze. Defaults to None. Leads to overriding the generation behavior.
             nr_desired_rooms (int, optional): The desired number of rooms in the maze. Defaults to 3.
             global_room_ratio (float, optional): The global room ratio in the maze. Defaults to 0.5.
             access_points_per_room (int, optional): The number of access points in each room. Defaults to None.
@@ -234,7 +236,7 @@ class Maze:
             corridor_sort_access_points_option (bool, optional): Whether to sort the access points in corridor generation. Defaults to False.
             seed (int, optional): The seed to use for generating random numbers. Defaults to None.
         """
-        if rows < 10 or cols < 10:
+        if layout is None and (rows < 10 or cols < 10):
             raise ValueError(
                 "Maze dimensions must be at least 10x10, otherwise the maze generation logic risks breaking."
             )
@@ -282,7 +284,10 @@ class Maze:
         # Make Corridor Builder
         self.corridor_builder = CorridorBuilder(self)
 
-        self._build_maze()
+        if layout is None:
+            self._build_maze()
+        else:
+            self.grid = layout
 
     def _build_maze(self):
         """
