@@ -17,6 +17,8 @@ class Labyrinth(gym.Env):
         self,
         rows: int = 10,
         cols: int = 10,
+        state_screen_capture: bool = False, # TODO
+        state_vision_range: Optional[int] = None, # TODO
         maze_layout_predetermined: Optional[np.ndarray] = None,
         maze_nr_desired_rooms: Optional[int] = None,
         maze_nr_desired_rooms_range: Tuple[int, int] = (1, 8),
