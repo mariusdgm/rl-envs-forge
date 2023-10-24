@@ -6,7 +6,7 @@ from enum import Enum
 
 from .room import RoomFactory, Room
 from .corridor import CorridorBuilder
-from ..constants import WALL, PATH, START, TARGET, CorridorMoveStatus
+from ..constants import WALL, PATH, TARGET, CorridorMoveStatus
 
 from ...common.grid_functions import on_line
 

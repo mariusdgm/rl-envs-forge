@@ -1,5 +1,6 @@
 import pytest
 import matplotlib.pyplot as plt
+import numpy as np
 
 from rl_envs_forge.envs.k_armed_bandit.k_armed_bandit import KArmedBandit
 
@@ -92,3 +93,37 @@ class TestKArmedBandit:
             KArmedBandit(
                 seed=0, k=1, arm_params={0: {"distribution": "not_implemented"}}
             )
+
+    def test_linear_param_shift(self):
+        """
+        Test if the linear parameter shift works correctly.
+        """
+
+        def linear_function(timestep):
+            return timestep
+
+        initial_mean = 0
+
+        bandit = KArmedBandit(
+            k=1,
+            arm_params={
+                0: {
+                    "distribution": "normal",
+                    "mean": initial_mean,
+                    "std": 1,
+                    "param_functions": [
+                        {"function": linear_function, "target_param": "mean"}
+                    ],
+                }
+            },
+        )
+
+        # Perform 10 steps
+        for _ in range(10):
+            bandit.step(0)
+
+        # Check if the current mean of the arm is equal to 10 + initial mean
+        current_mean = bandit.arms[0].current_params["mean"]
+        assert (
+            current_mean == 10 + initial_mean
+        ), f"Expected mean {10 + initial_mean}, but got {current_mean}"

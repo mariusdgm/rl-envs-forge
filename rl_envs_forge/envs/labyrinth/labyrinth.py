@@ -17,8 +17,7 @@ class Labyrinth(gym.Env):
         self,
         rows: int = 10,
         cols: int = 10,
-        state_screen_capture: bool = False, # TODO
-        state_vision_range: Optional[int] = None, # TODO
+        state_vision_range: Optional[int] = None,  
         maze_layout_predetermined: Optional[np.ndarray] = None,
         maze_nr_desired_rooms: Optional[int] = None,
         maze_nr_desired_rooms_range: Tuple[int, int] = (1, 8),
@@ -48,6 +47,9 @@ class Labyrinth(gym.Env):
         Args:
             rows (int): The number of rows in the labyrinth. Defaults to 10.
             cols (int): The number of columns in the labyrinth. Defaults to 10.
+            state_vision_range (int, optional): The vision range of the player. Defaults to None.
+                                                If None, then the entire Labyrinth state is returned.
+                                                If a positive integer N, then the N closest cells around the player are returned.
             maze_layout_predetermined (np.ndarray, optional): The layout of the labyrinth.
             maze_nr_desired_rooms (int, optional): The desired number of rooms in the maze. Defaults to None.
             maze_nr_desired_rooms_range (tuple, optional): The range of desired number of rooms. Defaults to (1, 8).
@@ -79,6 +81,7 @@ class Labyrinth(gym.Env):
             self.rows, self.cols = self.maze_layout_predetermined.shape
 
         self._state = np.ones((rows, cols), dtype=np.uint8) * WALL
+        self.state_vision_range = state_vision_range
 
         self.seed = seed
         if self.seed is None:
@@ -89,9 +92,19 @@ class Labyrinth(gym.Env):
 
         # Define action and observation spaces
         self.action_space = gym.spaces.Discrete(4)  # Up, Right, Down, Left
-        self.observation_space = gym.spaces.Box(
-            low=0, high=4, shape=(rows, cols), dtype=np.uint8
-        )
+
+        if state_vision_range is None:
+            self.observation_space = gym.spaces.Box(
+                low=0, high=4, shape=(rows, cols), dtype=np.uint8
+            )
+        else:
+            assert (
+                isinstance(state_vision_range, int) and state_vision_range > 0
+            ), "state_vision_range must be a positive integer or None"
+            vision_diameter = 2 * state_vision_range + 1
+            self.observation_space = gym.spaces.Box(
+                low=0, high=4, shape=(vision_diameter, vision_diameter), dtype=np.uint8
+            )
 
         if not reward_schema:
             self.reward_schema = {
@@ -185,15 +198,48 @@ class Labyrinth(gym.Env):
         Returns:
             np.ndarray: The current state matrix.
         """
-        return self.build_state_matrix()
+        full_state = self.build_state_matrix()
+
+        if self.state_vision_range is None:
+            return full_state
+        else:
+            return self.build_state_around_the_player(full_state)
 
     def build_state_matrix(self) -> np.ndarray:
         """Sequentially build the state matrix."""
         self._state = self.maze.grid.copy()
-        self._state[self.maze.start_position] = START
         self._state[self.maze.target_position] = TARGET
         self._state[self.player.position] = PLAYER
         return self._state
+
+    def build_state_around_the_player(self, full_state) -> np.ndarray:
+        # Get the local state around the player position
+        start_row = max(0, self.player.position[0] - self.state_vision_range)
+        end_row = min(self.rows, self.player.position[0] + self.state_vision_range + 1)
+        start_col = max(0, self.player.position[1] - self.state_vision_range)
+        end_col = min(self.cols, self.player.position[1] + self.state_vision_range + 1)
+
+        local_state = full_state[start_row:end_row, start_col:end_col]
+
+        # Create a blank state filled with WALL values
+        full_local_state = (
+            np.ones(
+                (2 * self.state_vision_range + 1, 2 * self.state_vision_range + 1),
+                dtype=np.uint8,
+            )
+            * WALL
+        )
+
+        # Calculate where to place the local_state in the full_local_state
+        row_offset = self.state_vision_range - (self.player.position[0] - start_row)
+        col_offset = self.state_vision_range - (self.player.position[1] - start_col)
+
+        full_local_state[
+            row_offset : row_offset + local_state.shape[0],
+            col_offset : col_offset + local_state.shape[1],
+        ] = local_state
+
+        return full_local_state
 
     def step(
         self, action: Union[Action, int]
