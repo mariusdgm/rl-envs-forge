@@ -292,3 +292,124 @@ class TestLabyrinth:
 
             # If no exception, the test passes
             assert True
+
+    def test_maze_layout_predetermined(self):
+        # Define a predetermined maze layout
+        predesign = np.array(
+            [
+                [WALL, WALL, WALL, WALL, WALL],
+                [WALL, PATH, PATH, PATH, WALL],
+                [WALL, PATH, WALL, PATH, WALL],
+                [WALL, PATH, PATH, PATH, WALL],
+                [WALL, WALL, WALL, WALL, WALL],
+            ],
+            dtype=np.uint8,
+        )
+
+        # Create a Labyrinth instance using the predetermined layout
+        lab = Labyrinth(maze_layout_predetermined=predesign)
+        lab.set_state((1, 1))
+        lab.maze.target_position = (3, 3)
+
+        assert lab.player.position == (1, 1)
+
+    def test_invalid_state_vision_range(self):
+        with pytest.raises(
+            AssertionError,
+            match="state_vision_range must be a positive integer or None",
+        ):
+            Labyrinth(
+                rows=20, cols=20, state_vision_range=-1
+            )  # Using an invalid state_vision_range
+
+    def test_state_vision_range_3_middle(self):
+        # Create a simple predefined maze of size 10x10
+        vision_range = 3
+        player_pos = (5, 5)
+        target_pos = (6, 6)
+
+        rows, cols = 10, 10
+        predesign = np.ones((rows, cols), dtype=np.uint8) * WALL
+        predesign[
+            vision_range : rows - vision_range, vision_range : cols - vision_range
+        ] = PATH
+
+        lab = Labyrinth(maze_layout_predetermined=predesign, state_vision_range=3)
+        lab.set_state(player_pos)
+        lab.maze.target_position = target_pos
+
+        # Retrieve the state
+        state = lab.state
+
+        # Check the shape of the state
+        assert state.shape == (
+            2 * 3 + 1,
+            2 * 3 + 1,
+        )  # Given N=3, the shape should be 7x7
+
+        # Check that the player is in the middle of this grid
+        assert state[3, 3] == PLAYER
+
+        target_offset = (target_pos[0] - player_pos[0], target_pos[1] - player_pos[1])
+
+        # Extract a 7x7 grid around the player (with vision=3)
+        for i in range(-vision_range, vision_range + 1):  # 7x7 grid
+            for j in range(-vision_range, vision_range + 1):
+                # Exclude the center cell (which is the player) and the target cell
+                if (i, j) != (0, 0) and (
+                    i,
+                    j,
+                ) != target_offset:  # (0, 0) is the center, i.e., the player's position
+                    assert (
+                        state[vision_range + i, vision_range + j]
+                        == lab.maze.grid[player_pos[0] + i, player_pos[1] + j]
+                    ), f"Expected cell ({vision_range + i}, {vision_range + j}) to be {lab.maze.grid[player_pos[0] + i, player_pos[1] + j]} but got {state[vision_range + i, vision_range + j]}"
+
+    def test_state_vision_range_2_corner(self):
+        # Create a simple predefined maze of size 10x10
+        vision_range = 2
+        player_pos = (0, 0)  # Top-left corner
+        target_pos = (2, 2)  # Just to place it within the player's vision
+
+        rows, cols = 10, 10
+        predesign = np.ones((rows, cols), dtype=np.uint8) * WALL
+        predesign[0 : vision_range + 1, 0 : vision_range + 1] = PATH
+
+        lab = Labyrinth(
+            maze_layout_predetermined=predesign, state_vision_range=vision_range
+        )
+        lab.set_state(player_pos)
+        lab.maze.target_position = target_pos
+
+        # Retrieve the state
+        state = lab.state
+
+        # Check the shape of the state
+        expected_shape = (2 * vision_range + 1, 2 * vision_range + 1)
+        assert (
+            state.shape == expected_shape
+        ), f"Expected shape {expected_shape} but got {state.shape}"
+
+        target_offset = (target_pos[0] - player_pos[0], target_pos[1] - player_pos[1])
+
+        # Extract a 5x5 grid around the player (with vision=2)
+        for i in range(-vision_range, vision_range + 1):  # 5x5 grid
+            for j in range(-vision_range, vision_range + 1):
+                if (i, j) == target_offset:
+                    assert (
+                        state[vision_range + i, vision_range + j] == TARGET
+                    ), f"Expected cell ({vision_range + i}, {vision_range + j}) to be {TARGET} but got {state[vision_range + i, vision_range + j]}"
+                elif (i, j) == (0, 0):
+                    # Skip the player's position
+                    continue
+                else:
+                    # The cells that are outside the maze bounds should be WALL
+                    if player_pos[0] + i < 0 or player_pos[1] + j < 0:
+                        assert (
+                            state[vision_range + i, vision_range + j] == WALL
+                        ), f"Expected cell ({vision_range + i}, {vision_range + j}) to be {WALL} but got {state[vision_range + i, vision_range + j]}"
+                    else:
+                        assert (
+                            state[vision_range + i, vision_range + j]
+                            == lab.maze.grid[player_pos[0] + i, player_pos[1] + j]
+                        ), f"Expected cell ({vision_range + i}, {vision_range + j}) to be {lab.maze.grid[player_pos[0] + i, player_pos[1] + j]} but got {state[vision_range + i, vision_range + j]}"
