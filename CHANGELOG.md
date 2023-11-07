@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- simple grid_world environment (WIP)
+
 ## [2.1.0] - 2023.10.24
 
 ### Added
