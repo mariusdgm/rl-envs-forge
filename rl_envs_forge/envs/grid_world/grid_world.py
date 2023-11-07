@@ -18,10 +18,10 @@ class Action(IntEnum):
 class GridWorld(gym.Env):
     def __init__(
         self,
-        width: int = 5,
-        height: int = 5,
+        rows: int = 5,
+        cols: int = 5,
         start_state: Tuple[int, int] = (0, 0),
-        terminal_states: Dict[Tuple[int, int], float] = {(4, 4): 1.0},
+        terminal_states: Dict[Tuple[int, int], float] = {(3, 4): 1.0},
         transition_probs: Optional[Dict] = None,
         walls: Set[Tuple[int, int]] = None,  # Add this line
         special_transitions: Dict[
@@ -43,8 +43,8 @@ class GridWorld(gym.Env):
         """
         super().__init__()
 
-        self.width = width
-        self.height = height
+        self.rows = rows
+        self.cols = cols
         self.start_state = start_state
         self.terminal_states = terminal_states
         self.transition_probs = transition_probs or self._default_transition_probs()
@@ -54,11 +54,17 @@ class GridWorld(gym.Env):
 
         self.walls = walls or set()  # Initialize walls
         self.special_transitions = special_transitions or {}
-        self.rewards = rewards or {"valid_move": -0.1, "wall_collision": -1, "default": 0.0}
-        
+        self.rewards = rewards or {
+            "valid_move": -0.1,
+            "wall_collision": -1,
+            "out_of_bounds": -1,  # Added penalty for out-of-bounds
+            "terminal_state": 5,  # Added reward for reaching terminal state
+            "default": 0.0,
+        }
+
         self.action_space = gym.spaces.Discrete(4)  # up, down, left, right
         self.observation_space = gym.spaces.Tuple(
-            (gym.spaces.Discrete(self.width), gym.spaces.Discrete(self.height))
+            (gym.spaces.Discrete(self.rows), gym.spaces.Discrete(self.cols))
         )
 
     def _default_transition_probs(self):
@@ -66,10 +72,10 @@ class GridWorld(gym.Env):
         Default deterministic transition probabilities for grid world.
         """
         return {
-            Action.UP: lambda s: (s[0], max(s[1] - 1, 0)),
-            Action.DOWN: lambda s: (s[0], min(s[1] + 1, self.height - 1)),
-            Action.LEFT: lambda s: (max(s[0] - 1, 0), s[1]),
-            Action.RIGHT: lambda s: (min(s[0] + 1, self.width - 1), s[1]),
+            Action.UP: lambda s: (max(s[0] - 1, 0), s[1]),
+            Action.DOWN: lambda s: (min(s[0] + 1, self.rows - 1), s[1]),
+            Action.LEFT: lambda s: (s[0], max(s[1] - 1, 0)),
+            Action.RIGHT: lambda s: (s[0], min(s[1] + 1, self.cols - 1)),
         }
 
     def _custom_transition_probs(self):
@@ -82,11 +88,11 @@ class GridWorld(gym.Env):
             if action == Action.UP:
                 new_state = (state[0], max(state[1] - 1, 0))
             elif action == Action.DOWN:
-                new_state = (state[0], min(state[1] + 1, self.height - 1))
+                new_state = (state[0], min(state[1] + 1, self.rows - 1))
             elif action == Action.LEFT:
                 new_state = (max(state[0] - 1, 0), state[1])
             elif action == Action.RIGHT:
-                new_state = (min(state[0] + 1, self.width - 1), state[1])
+                new_state = (min(state[0] + 1, self.cols - 1), state[1])
 
             # If the new state is a wall, return the original state
             if new_state in self.walls:
@@ -127,7 +133,14 @@ class GridWorld(gym.Env):
             reward = self.special_transitions[(self.state, action)][1]
         else:
             # Otherwise, get the reward if any, from the terminal states
-            reward = self.terminal_states.get(new_state, 0.0)
+            reward = self.terminal_states.get(new_state, self.rewards["terminal_state"])
+
+        if new_state == self.state:
+            reward = (
+                self.rewards["wall_collision"]
+                if new_state in self.walls
+                else self.rewards["out_of_bounds"]
+            )
 
         # Update the current state
         self.state = new_state if not done else self.start_state
@@ -150,35 +163,47 @@ class GridWorld(gym.Env):
         black gridlines, and an 'A' where the agent is located.
         """
         fig, ax = plt.subplots()
-        ax.set_xlim(0, self.width)
-        ax.set_ylim(0, self.height)
+        ax.set_xlim(0, self.cols)
+        ax.set_ylim(0, self.rows)
 
         # Draw the black gridlines
-        for x in range(self.width + 1):
-            ax.axhline(x, color="black")
-            ax.axvline(x, color="black")
+        for y in range(self.rows + 1):
+            ax.axhline(y, color='black', lw=1)
+        for x in range(self.cols + 1):
+            ax.axvline(x, color='black', lw=1)
 
         # Draw the terminal state cell(s) in red
         for terminal_state, _ in self.terminal_states.items():
             ax.add_patch(
                 plt.Rectangle(
-                    (terminal_state[0], self.height - terminal_state[1] - 1),
+                    (terminal_state[1], self.rows - terminal_state[0] - 1),
                     1,
                     1,
-                    facecolor="red",
+                    facecolor='red'
+                )
+            )
+
+        # Draw the walls in dark gray
+        for wall in self.walls:
+            ax.add_patch(
+                plt.Rectangle(
+                    (wall[1], self.rows - wall[0] - 1),
+                    1,
+                    1,
+                    facecolor='darkgray'
                 )
             )
 
         # Indicate agent's position with an 'A'
         agent_pos = self.state
         ax.text(
-            agent_pos[0] + 0.5,
-            self.height - agent_pos[1] - 0.5,
-            "A",
-            color="black",
-            ha="center",
-            va="center",
-            fontsize=12,
+            agent_pos[1] + 0.5,
+            self.rows - agent_pos[0] - 0.5,
+            'A',
+            color='black',
+            ha='center',
+            va='center',
+            fontsize=12
         )
 
         # Remove the axis ticks and labels
