@@ -182,6 +182,7 @@ class KArmedBandit(gym.Env):
         Returns:
             tuple: observation, reward, done, info
         """
+        
         assert 0 <= action < self.k, "Invalid action, must be between 0 and k-1."
 
         # Get reward by sampling from the chosen arm
@@ -195,7 +196,8 @@ class KArmedBandit(gym.Env):
             arm.update_param(self.timestep)
 
         done = True
-        return action, reward, done, {}
+        truncated = False
+        return action, reward, done, truncated, {}
 
     def reset(self, seed: int = None) -> int:
         """

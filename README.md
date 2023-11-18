@@ -18,6 +18,8 @@ Lightweight environments for reinforcement learning applications.
       - [Labyrinth rendered example](#labyrinth-rendered-example)
     - [KArmedBandit](#karmedbandit)
       - [KArmedBandit rendered example](#karmedbandit-rendered-example)
+    - [GridWorld](#gridworld)
+      - [GridWorld rendered example](#gridworld-rendered-example)
   - [Usage](#usage)
   - [Tests](#tests)
   - [License](#license)
@@ -52,6 +54,16 @@ KArmedBandit is a bandit environment, which returns a reward from a distribution
 #### KArmedBandit rendered example
 
 ![KArmedBandit render](https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/docs/figures/k_armed_bandit/different_distributions.png)
+
+### GridWorld
+
+GridWorld is a customizable grid-based environment for reinforcement learning, featuring adjustable grid size, start and terminal states, walls, and special transitions. Each action taken by the agent results in a transition within the grid, adhering to the defined rules and probabilities. 
+
+📖 **Detailed Documentation**: [Click here to read more about the GridWorld environment](https://github.com/mariusdgm/rl-envs-forge/blob/main/rl_envs_forge/envs/grid_world/README.md)
+
+#### GridWorld rendered example
+
+![GridWorld render](https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/docs/figures/grid_world/EXAMPLE_TODO.png)
 
 ## Usage
 

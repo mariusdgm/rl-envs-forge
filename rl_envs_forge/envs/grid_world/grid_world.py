@@ -132,7 +132,6 @@ class GridWorld(gym.Env):
         if (self.state, action) in self.special_transitions:
             reward = self.special_transitions[(self.state, action)][1]
         else:
-            # Otherwise, get the reward if any, from the terminal states
             reward = self.terminal_states.get(new_state, self.rewards["terminal_state"])
 
         if new_state == self.state:
@@ -145,7 +144,8 @@ class GridWorld(gym.Env):
         # Update the current state
         self.state = new_state if not done else self.start_state
 
-        return self.state, reward, done, {}
+        truncated = False
+        return self.state, reward, done, truncated, {}
 
     def reset(self):
         """
