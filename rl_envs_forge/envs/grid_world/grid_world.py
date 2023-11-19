@@ -47,7 +47,7 @@ class GridWorld(gym.Env):
         self.cols = cols
         self.start_state = start_state
         self.terminal_states = terminal_states
-        self.transition_probs = transition_probs or self._default_transition_probs()
+        self.transition_probs = transition_probs or self.transition_probs()
         self.state = start_state
         self.seed = seed
         self.np_random, _ = gym.utils.seeding.np_random(seed)
@@ -58,7 +58,7 @@ class GridWorld(gym.Env):
             "valid_move": -0.1,
             "wall_collision": -1,
             "out_of_bounds": -1,  # Added penalty for out-of-bounds
-            "terminal_state": 5,  # Added reward for reaching terminal state
+            "terminal_state": 10,  # Added reward for reaching terminal state
             "default": 0.0,
         }
 
@@ -67,49 +67,61 @@ class GridWorld(gym.Env):
             (gym.spaces.Discrete(self.rows), gym.spaces.Discrete(self.cols))
         )
 
-    def _default_transition_probs(self):
-        """
-        Default deterministic transition probabilities for grid world.
-        """
-        return {
-            Action.UP: lambda s: (max(s[0] - 1, 0), s[1]),
-            Action.DOWN: lambda s: (min(s[0] + 1, self.rows - 1), s[1]),
-            Action.LEFT: lambda s: (s[0], max(s[1] - 1, 0)),
-            Action.RIGHT: lambda s: (s[0], min(s[1] + 1, self.cols - 1)),
-        }
+    def add_special_transition(
+        self,
+        from_state: Tuple[int, int],
+        action: Action,
+        to_state: Optional[Tuple[int, int]] = None,
+        reward: Optional[float] = None,
+    ):
+        """Adds a special transition to the environment."""
+        # Use default transition state if to_state is not provided
+        if to_state is None:
+            to_state = self.default_transition(from_state, action)
 
-    def _custom_transition_probs(self):
+        # Use default reward if reward is not provided
+        if reward is None:
+            reward = self.rewards["default"]
+
+        self.special_transitions[(from_state, action)] = (to_state, reward)
+
+    def make_transition(self, state, action):
+        # Check for a special transition first
+        if (state, action) in self.special_transitions:
+            return self.special_transitions[(state, action)][0]
+
+        # Calculate the proposed new state based on the action
+        new_state = self.default_transition(state, action)
+
+        # If the new state is a wall, return the original state
+        if new_state in self.walls:
+            return state
+
+        return new_state
+
+    def default_transition(self, state, action):
+        if action == Action.UP:
+            new_state = (max(state[0] - 1, 0), state[1])
+        elif action == Action.DOWN:
+            new_state = (min(state[0] + 1, self.rows - 1), state[1])
+        elif action == Action.LEFT:
+            new_state = (state[0], max(state[1] - 1, 0))
+        elif action == Action.RIGHT:
+            new_state = (state[0], min(state[1] + 1, self.cols - 1))
+
+        return new_state
+
+    def transition_probs(self):
         """
         Custom transition probabilities for grid world, considering walls and special transitions.
         """
 
-        def transition(state, action):
-            # Calculate the proposed new state based on the action
-            if action == Action.UP:
-                new_state = (state[0], max(state[1] - 1, 0))
-            elif action == Action.DOWN:
-                new_state = (state[0], min(state[1] + 1, self.rows - 1))
-            elif action == Action.LEFT:
-                new_state = (max(state[0] - 1, 0), state[1])
-            elif action == Action.RIGHT:
-                new_state = (min(state[0] + 1, self.cols - 1), state[1])
-
-            # If the new state is a wall, return the original state
-            if new_state in self.walls:
-                return state
-
-            # If there is a special transition defined, return the new state specified by the special transition
-            if (state, action) in self.special_transitions:
-                return self.special_transitions[(state, action)][0]
-
-            return new_state
-
         # Return a dictionary that maps each action to the transition function
         return {
-            Action.UP: lambda s: transition(s, Action.UP),
-            Action.DOWN: lambda s: transition(s, Action.DOWN),
-            Action.LEFT: lambda s: transition(s, Action.LEFT),
-            Action.RIGHT: lambda s: transition(s, Action.RIGHT),
+            Action.UP: lambda s: self.make_transition(s, Action.UP),
+            Action.DOWN: lambda s: self.make_transition(s, Action.DOWN),
+            Action.LEFT: lambda s: self.make_transition(s, Action.LEFT),
+            Action.RIGHT: lambda s: self.make_transition(s, Action.RIGHT),
         }
 
     def step(self, action: int):
@@ -122,26 +134,29 @@ class GridWorld(gym.Env):
         Returns:
             tuple: Observation (state), reward, done, info
         """
-        # Apply the action to the current state
-        new_state = self.transition_probs[action](self.state)
+        # Check for a special transition first
 
-        # Check if the new state is a terminal state
-        done = new_state in self.terminal_states
-
-        # Special case: if we have a special transition, get the reward from there
         if (self.state, action) in self.special_transitions:
-            reward = self.special_transitions[(self.state, action)][1]
+            new_state, reward = self.special_transitions[(self.state, action)]
         else:
-            reward = self.terminal_states.get(new_state, self.rewards["terminal_state"])
+            # Apply the action to the current state using default dynamics
+            new_state = self.transition_probs[action](self.state)
 
-        if new_state == self.state:
-            reward = (
-                self.rewards["wall_collision"]
-                if new_state in self.walls
-                else self.rewards["out_of_bounds"]
-            )
+            # Initialize the reward
+            reward = self.rewards["default"]
+            if new_state in self.terminal_states:
+                reward = self.terminal_states[new_state]
+            elif new_state == self.state:
+                reward = (
+                    self.rewards["wall_collision"]
+                    if new_state in self.walls
+                    else self.rewards["out_of_bounds"]
+                )
+            else:
+                reward = self.rewards["valid_move"]
 
-        # Update the current state
+        # Check if the new state is a terminal state and update the current state
+        done = new_state in self.terminal_states
         self.state = new_state if not done else self.start_state
 
         truncated = False
@@ -168,9 +183,9 @@ class GridWorld(gym.Env):
 
         # Draw the black gridlines
         for y in range(self.rows + 1):
-            ax.axhline(y, color='black', lw=1)
+            ax.axhline(y, color="black", lw=1)
         for x in range(self.cols + 1):
-            ax.axvline(x, color='black', lw=1)
+            ax.axvline(x, color="black", lw=1)
 
         # Draw the terminal state cell(s) in red
         for terminal_state, _ in self.terminal_states.items():
@@ -179,7 +194,7 @@ class GridWorld(gym.Env):
                     (terminal_state[1], self.rows - terminal_state[0] - 1),
                     1,
                     1,
-                    facecolor='red'
+                    facecolor="red",
                 )
             )
 
@@ -187,10 +202,7 @@ class GridWorld(gym.Env):
         for wall in self.walls:
             ax.add_patch(
                 plt.Rectangle(
-                    (wall[1], self.rows - wall[0] - 1),
-                    1,
-                    1,
-                    facecolor='darkgray'
+                    (wall[1], self.rows - wall[0] - 1), 1, 1, facecolor="darkgray"
                 )
             )
 
@@ -199,11 +211,11 @@ class GridWorld(gym.Env):
         ax.text(
             agent_pos[1] + 0.5,
             self.rows - agent_pos[0] - 0.5,
-            'A',
-            color='black',
-            ha='center',
-            va='center',
-            fontsize=12
+            "A",
+            color="black",
+            ha="center",
+            va="center",
+            fontsize=12,
         )
 
         # Remove the axis ticks and labels

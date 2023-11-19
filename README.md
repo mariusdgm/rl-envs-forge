@@ -63,7 +63,7 @@ GridWorld is a customizable grid-based environment for reinforcement learning, f
 
 #### GridWorld rendered example
 
-![GridWorld render](https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/docs/figures/grid_world/EXAMPLE_TODO.png)
+![GridWorld render](https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/docs/figures/grid_world/default.png)
 
 ## Usage
 
@@ -81,7 +81,7 @@ done = False
 quit_event = False
 while not done and not quit_event:
     action = env.action_space.sample()  
-    observation, reward, done, _, info = env.step(action)
+    observation, reward, done, truncated, info = env.step(action)
     quit_event, _ = env.render()
     sleep(0.1)
 ```

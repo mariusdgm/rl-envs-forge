@@ -1,6 +1,6 @@
 # GridWorld environment 
 
-The k-armed bandit problem is a classic dilemma in probability theory and statistics which models the decision-making process of choosing between multiple strategies (or actions) with uncertain outcomes. Imagine standing in front of a slot machine with k levers (or "arms"). Each lever provides a reward drawn from an unknown probability distribution specific to that lever. The challenge is to determine a strategy to maximize your total reward over a series of trials, without knowledge of the underlying distributions.
+The GridWorld environment is a grid-based simulation for reinforcement learning.. In this environment, an agent navigates through a grid, choosing actions (up, down, left, right) to move between cells, encountering various states. Some cells are terminal states, ending the episode, while others may contain walls or special transitions that alter the agent's path or rewards. The agent's goal is to maximize cumulative rewards, obtained by navigating efficiently while avoiding penalties like hitting walls. This setup offers a rich scenario for learning decision-making under uncertainty, ideal for testing reinforcement learning algorithms.
 
 
 ## Usage
@@ -10,20 +10,37 @@ Code example for getting started with the environment:
 ```python
 from rl_envs_forge.envs.grid_world.grid_world import GridWorld
 
-GridWorld
-```
-
-```output
-
-```
-
-```python
-GridWorld.render()
+env = GridWorld(rows=6, 
+                walls=[(5, 0), (5, 1), (5, 3), (5, 4)],
+                start_state=(1,1),
+                terminal_states={(0, 0): 1.0,
+                                 (4, 4): 1.0},
+                )
+env.render()
 ```
 
 ![GridWorld render default](../../../docs/figures/grid_world/default.png)
 
+#### Making a special transition:
 
+```python
+special_state = env.state 
+special_action = Action.DOWN
+jump_state = (3, 3)
+special_reward = 0.5
+env.add_special_transition(
+    from_state=special_state, 
+    action=special_action, 
+    to_state=jump_state, 
+    reward=special_reward
+)
+
+# Test the special transition
+new_state, reward, _, _, _ = env.step(special_action)
+env.render()
+```
+
+![GridWorld render default](../../../docs/figures/grid_world/special_transition.png)
 
 ## UML diagrams
 
