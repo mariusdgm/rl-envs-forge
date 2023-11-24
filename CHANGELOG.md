@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.0] - 2023.11.19
+
+### Added
+
+- added mdp builder to GridWorld
+
+### Changed
+
+- Changed the python version dependency
+
 ## [3.0.0] - 2023.11.19
 
 ### Added
