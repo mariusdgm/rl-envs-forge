@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "rl-envs-forge"
-version = "3.0.0"
+version = "3.1.0"
 description = "Environments for reinforcement learning"
 authors = ["mariusdgm <marius.dragomir.dgm@gmail.com>"]
 license = "MIT"
@@ -8,7 +8,7 @@ readme = "README.md"
 include = ["assets/labyrinth/sprites/*.png"]
 
 [tool.poetry.dependencies]
-python = ">=3.10,<3.13"
+python = ">=3.10,<4.0"
 gymnasium = "^0.29.1"
 numpy = "^1.24.1"
 pygame = "^2.5.1"
