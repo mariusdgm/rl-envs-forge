@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.1] - 2023.11.25
+
+### Fixed
+
+- Added manifest file to include the pyproject toml file in the package, as it is used for reading the __version__
+
 ## [3.1.0] - 2023.11.24
 
 ### Added
