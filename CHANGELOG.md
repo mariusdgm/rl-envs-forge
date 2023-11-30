@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.0] - 2023.11.30
+
+### Added
+
+- Added a new environment: JacksCarRental
+
 ## [3.1.2] - 2023.11.25
 
 ### Fixed

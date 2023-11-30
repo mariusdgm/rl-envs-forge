@@ -180,7 +180,7 @@ class KArmedBandit(gym.Env):
             action (int): The chosen arm.
 
         Returns:
-            tuple: observation, reward, done, info
+            tuple: observation, reward, done, truncated, info
         """
         
         assert 0 <= action < self.k, "Invalid action, must be between 0 and k-1."
