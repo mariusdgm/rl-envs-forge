@@ -58,7 +58,6 @@ class GridWorld(gym.Env):
             "valid_move": -0.1,
             "wall_collision": -1,
             "out_of_bounds": -1,  # Added penalty for out-of-bounds
-            "terminal_state": 10,  # Added reward for reaching terminal state
             "default": 0.0,
         }
 
