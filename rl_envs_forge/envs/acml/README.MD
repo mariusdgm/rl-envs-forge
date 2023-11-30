@@ -1,6 +1,6 @@
 # ACML environments
 
-The Adaptive Computation and Machine Learning (ACML) environments are a collection of toy environments presented.
+The Adaptive Computation and Machine Learning (ACML) environments are toy environments proposed in Reinforcement Learning: An Introduction* (2nd ed.).
 
 ## Implemented Environments
 - JacksCarRentalEnv: Jack's Car Rental problem
