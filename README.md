@@ -20,6 +20,7 @@ Lightweight environments for reinforcement learning applications.
       - [KArmedBandit rendered example](#karmedbandit-rendered-example)
     - [GridWorld](#gridworld)
       - [GridWorld rendered example](#gridworld-rendered-example)
+    - [ACML](#acml)
   - [Usage](#usage)
   - [Tests](#tests)
   - [License](#license)
@@ -64,6 +65,12 @@ GridWorld is a customizable grid-based environment for reinforcement learning, f
 #### GridWorld rendered example
 
 ![GridWorld render](https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/docs/figures/grid_world/default.png)
+
+### ACML
+
+The Adaptive Computation and Machine Learning (ACML) environments are toy environments proposed in Reinforcement Learning: An Introduction* (2nd ed.).
+
+📖 **Detailed Documentation**: [Click here to read more about the ACML environments](https://github.com/mariusdgm/rl-envs-forge/blob/main/rl_envs_forge/envs/acml/README.md)
 
 ## Usage
 
