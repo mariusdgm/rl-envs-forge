@@ -3,21 +3,27 @@ import numpy as np
 from typing import Tuple
 
 
-class GamblersProblemEnv(gym.Env):
+class GamblersProblem(gym.Env):
     """
     Gambler's Problem environment.
     """
 
-    def __init__(self, goal_amount: int = 100, win_prob: float = 0.4):
+    def __init__(
+        self,
+        goal_amount: int = 100,
+        win_probability: float = 0.4,
+        start_capital: int = 1,
+    ):
         """
         Initialize the environment.
 
         Args:
             goal_amount (int): The goal capital amount to be achieved.
-            win_prob (float): Probability of winning a bet.
+            win_probability (float): Probability of winning a bet.
         """
         self.goal_amount = goal_amount
-        self.win_prob = win_prob
+        self.win_probability = win_probability
+        self.start_capital = start_capital
 
         # Action space: bet an amount from 0 to the current capital
         # Observation space: current capital amount
@@ -43,7 +49,7 @@ class GamblersProblemEnv(gym.Env):
         reward = 0
 
         # Win case
-        if np.random.rand() < self.win_prob:
+        if np.random.rand() < self.win_probability:
             self.state += action
             if self.state >= self.goal_amount:
                 self.state = self.goal_amount
@@ -56,7 +62,8 @@ class GamblersProblemEnv(gym.Env):
                 self.state = 0
                 done = True
 
-        return self.state, reward, done, {}
+        truncated = False
+        return self.state, reward, done, truncated, {}
 
     def reset(self) -> int:
         """
@@ -65,10 +72,10 @@ class GamblersProblemEnv(gym.Env):
         Returns:
             The initial state.
         """
-        self.state = 1  # Start with capital of $1
+        self.state = self.start_capital
         return self.state
 
-    def render(self, mode="human"):
+    def render(self, mode="human") -> str:
         """
         Render the environment.
         """
@@ -78,3 +85,35 @@ class GamblersProblemEnv(gym.Env):
             return f"Current Capital: ${self.state}"
         else:
             raise NotImplementedError("Render mode not supported: " + mode)
+
+    def build_mdp(self) -> dict:
+        """
+        Build the MDP representation for the Gambler's Problem.
+        """
+        t_r_dict = {}
+
+        for state in range(1, self.goal_amount):  # States from 1 to goal_amount - 1
+            for action in range(
+                1, min(state, self.goal_amount - state) + 1
+            ):  # Possible bets
+                # Winning scenario
+                win_state = min(state + action, self.goal_amount)
+                win_reward = 1 if win_state == self.goal_amount else 0
+                win_prob = self.win_probability
+
+                # Losing scenario
+                lose_state = max(state - action, 0)
+                lose_reward = 0
+                lose_prob = 1 - self.win_probability
+
+                t_r_dict[(state, action)] = {
+                    "win": (
+                        win_state,
+                        win_reward,
+                        win_state == self.goal_amount,
+                        win_prob,
+                    ),
+                    "loss": (lose_state, lose_reward, lose_state == 0, lose_prob),
+                }
+
+        return t_r_dict
