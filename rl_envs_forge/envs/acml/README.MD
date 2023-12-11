@@ -11,9 +11,9 @@ The Adaptive Computation and Machine Learning (ACML) environments are toy enviro
 Code example for getting started with the environment:
 
 ```python
-from rl_envs_forge.envs.acml.car_rental.car_rental_env import JacksCarRentalEnv
+from rl_envs_forge.envs.acml.car_rental.car_rental_env import JacksCarRental
 
-env = JacksCarRentalEnv(
+env = JacksCarRental(
     max_cars=10,
     max_move_cars=3,
     request_lambda=[2, 2],
@@ -35,6 +35,33 @@ env.step(2)
 ((5, 3), 48, False, False, {})
 ```
 
+### Gambler's problem
+Code example for getting started with the environment:
+
+```python
+from rl_envs_forge.envs.acml.gambler_problem.gambler_problem import GamblersProblem
+
+env = GamblersProblem(
+    goal_amount=100, 
+    win_probability=0.40, 
+    start_capital=10
+)
+env.state
+```
+
+```output
+10
+```
+
+```python
+env.step(5)
+```
+
+```output
+(15, 0, False, False, {})
+```
+
+## Using DP algorithms with these environments
 Usage with policy iteration: [Algorithm Repository](https://github.com/mariusdgm/phd-rl-algos)
 
 ## UML diagrams

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.3.0] - 2023.12.11
+
+### Added
+
+- Added a new environment: Gambler's Problem
+
+### Fixed
+
+- ACML readme filename, and other info in the README
+
 ## [3.2.1] - 2023.11.30
 
 ### Fixed
