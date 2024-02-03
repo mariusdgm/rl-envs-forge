@@ -1,5 +1,6 @@
 import pytest
 import matplotlib.pyplot as plt
+import numpy as np
 from rl_envs_forge.envs.grid_world.grid_world import (
     GridWorld,
     Action,
@@ -60,3 +61,25 @@ class TestGridWorld:
 
         # Check if a figure has been generated
         assert plt.get_fignums()
+
+    def test_random_movements_with_constant_action(self):
+        """
+        Test that with a random_move_frequency of 1, performing the same action
+        repeatedly results in different states, indicating random movements.
+        """
+        random_states = set()
+        action = Action.RIGHT  # Use a constant action for all iterations
+
+        # Perform the action and reset/instantiate the environment each time
+        for _ in range(10):
+            env = GridWorld(random_move_frequency=1, rows=5, cols=5, start_state=(0, 0))
+            
+            # Perform the action
+            new_state, _, _, _, _ = env.step(action)
+            random_states.add(new_state)  # Add the new state to a set for uniqueness
+
+        # Since random_move_frequency is 1, all moves should be random.
+        # This should lead to a diverse set of states despite the same action being taken.
+        # Assert that we have multiple unique states from performing the same action,
+        # indicating randomness in movement.
+        assert len(random_states) > 1, "Expected random movements to result in multiple unique states when performing the same action repeatedly."
