@@ -29,17 +29,22 @@ class GridWorld(gym.Env):
         ] = None,
         rewards: Dict[str, float] = None,
         seed: Optional[int] = None,
+        random_move_frequency: float = 0.0,
     ):
         """
         Grid world environment for reinforcement learning.
 
         Args:
-            width (int): Width of the grid world.
-            height (int): Height of the grid world.
+            rows (int): Height of the grid world.
+            cols (int): Width of the grid world.
             start_state (Tuple[int, int]): Starting position in the grid.
             terminal_states (Dict[Tuple[int, int], float]): Terminal states and their rewards.
             transition_probs (Dict, optional): Transition probabilities for the environment dynamics.
+            walls (Set[Tuple[int, int]], optional): Set of walls in the grid world.
+            special_transitions (Dict[Tuple[Tuple[int, int], Action], Tuple[Tuple[int, int], float]], optional): Special transitions in the grid world.
+            rewards (Dict[str, float], optional): Rewards for the environment.
             seed (int, optional): Seed for reproducibility.
+            random_move_frequency (float, optional): Probability of random action.
         """
         super().__init__()
 
@@ -50,6 +55,8 @@ class GridWorld(gym.Env):
         self.transition_probs = transition_probs or self.transition_probs()
         self.state = start_state
         self.seed = seed
+        self.random_move_frequency = random_move_frequency
+        
         self.np_random, _ = gym.utils.seeding.np_random(seed)
 
         self.walls = walls or set()  # Initialize walls
@@ -85,6 +92,9 @@ class GridWorld(gym.Env):
         self.special_transitions[(from_state, action)] = (to_state, reward)
 
     def make_transition(self, state, action):
+        if np.random.rand() < self.random_move_frequency:
+            action = np.random.choice(list(Action))
+            
         # Check for a special transition first
         if (state, action) in self.special_transitions:
             return self.special_transitions[(state, action)][0]

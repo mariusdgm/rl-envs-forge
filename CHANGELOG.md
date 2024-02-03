@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.3.1] - 2024.02.03
+
+### Added
+
+- Added a random_move_frequency parameter for grid_world
+
 ## [3.3.0] - 2023.12.11
 
 ### Added
