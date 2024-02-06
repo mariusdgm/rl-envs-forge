@@ -57,7 +57,7 @@ class GridWorld(gym.Env):
         self.seed = seed
         self.random_move_frequency = random_move_frequency
         
-        self.np_random, _ = gym.utils.seeding.np_random(seed)
+        self.np_random = np.random.RandomState(self.seed)
 
         self.walls = walls or set()  # Initialize walls
         self.special_transitions = special_transitions or {}
@@ -92,8 +92,8 @@ class GridWorld(gym.Env):
         self.special_transitions[(from_state, action)] = (to_state, reward)
 
     def make_transition(self, state, action):
-        if np.random.rand() < self.random_move_frequency:
-            action = np.random.choice(list(Action))
+        if self.np_random.rand() < self.random_move_frequency:
+            action = self.np_random.choice(list(Action))
             
         # Check for a special transition first
         if (state, action) in self.special_transitions:
