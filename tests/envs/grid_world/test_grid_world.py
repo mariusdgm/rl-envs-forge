@@ -4,7 +4,7 @@ import numpy as np
 from rl_envs_forge.envs.grid_world.grid_world import (
     GridWorld,
     Action,
-)  # Replace with the actual import path
+)  
 
 
 @pytest.fixture
@@ -12,6 +12,10 @@ def default_env():
     """Fixture to create a default GridWorld environment for each test."""
     return GridWorld()
 
+@pytest.fixture
+def slippery_env():
+    """Fixture to create a GridWorld environment with slippage."""
+    return GridWorld(p_success=0.5, seed=42) 
 
 class TestGridWorld:
     def test_initialization(self, default_env):
@@ -48,8 +52,8 @@ class TestGridWorld:
         # Test the special transition
         default_env.state = special_state
         new_state, reward, _, _, _ = default_env.step(special_action)
-        assert reward == special_reward
         assert new_state == jump_state
+        assert reward == special_reward
         
     def test_render(self, default_env, monkeypatch):
         """
@@ -62,24 +66,23 @@ class TestGridWorld:
         # Check if a figure has been generated
         assert plt.get_fignums()
 
-    def test_random_movements_with_constant_action(self):
-        """
-        Test that with a random_move_frequency of 1, performing the same action
-        repeatedly results in different states, indicating random movements.
-        """
-        random_states = set()
-        action = Action.RIGHT  # Use a constant action for all iterations
+  
+    def test_slippage_occurs(self, slippery_env):
+        env = slippery_env
+        np.random.seed(42)  # Ensuring reproducibility
 
-        # Perform the action and reset/instantiate the environment each time
-        for _ in range(10):
-            env = GridWorld(random_move_frequency=1, rows=5, cols=5, start_state=(0, 0))
-            
-            # Perform the action
-            new_state, _, _, _, _ = env.step(action)
-            random_states.add(new_state)  # Add the new state to a set for uniqueness
+        # Perform a series of actions
+        actions = [Action.UP, Action.DOWN, Action.LEFT, Action.RIGHT]
+        intended_states = []
+        actual_states = []
 
-        # Since random_move_frequency is 1, all moves should be random.
-        # This should lead to a diverse set of states despite the same action being taken.
-        # Assert that we have multiple unique states from performing the same action,
-        # indicating randomness in movement.
-        assert len(random_states) > 1, "Expected random movements to result in multiple unique states when performing the same action repeatedly."
+        for action in actions:
+            intended_next_state = env.calculate_next_state(env.state, action)
+            intended_states.append(intended_next_state)
+            new_state, _, _, _, _ = env.step(action.value)  # Using action.value if your step function expects int
+            actual_states.append(new_state)
+            env.reset()  # Resetting to start state after each action
+
+        # Check if at least one action resulted in slippage
+        slippage_occurred = any(intended != actual for intended, actual in zip(intended_states, actual_states))
+        assert slippage_occurred, "Expected slippage to occur, but all actions resulted in intended states."
