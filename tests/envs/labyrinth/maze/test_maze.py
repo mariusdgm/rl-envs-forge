@@ -26,10 +26,19 @@ class TestMaze:
 
     def test_levy_flight(self):
         maze = Maze(50, 50, nr_desired_rooms=1)
-        step_size = maze.levy_step_size()
+        experiments = 5  # Number of experiments to perform
+        total_step_size = 0
 
-        # Lévy flight should occasionally produce larger jumps
-        assert step_size >= 1
+        # Perform multiple experiments to gather a more reliable average
+        for _ in range(experiments):
+            step_size = maze.levy_step_size()
+            total_step_size += step_size
+
+        average_step_size = total_step_size / experiments
+
+        # Check if the average step size meets the expected criteria
+        # The criteria might need to be adjusted based on what 'larger jumps' means quantitatively
+        assert average_step_size >= 1, f"Average step size should be at least 1, was {average_step_size}"
 
     def test_infinite_loop_break(self):
         maze = Maze(

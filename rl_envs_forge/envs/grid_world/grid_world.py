@@ -22,45 +22,48 @@ class GridWorld(gym.Env):
         cols: int = 5,
         start_state: Tuple[int, int] = (0, 0),
         terminal_states: Dict[Tuple[int, int], float] = {(3, 4): 1.0},
-        transition_probs: Optional[Dict] = None,
-        walls: Set[Tuple[int, int]] = None,  # Add this line
+        walls: Set[Tuple[int, int]] = None,
         special_transitions: Dict[
             Tuple[Tuple[int, int], Action], Tuple[Tuple[int, int], float]
         ] = None,
         rewards: Dict[str, float] = None,
         seed: Optional[int] = None,
-        random_move_frequency: float = 0.0,
+        slip_distribution: Optional[Dict[Action, float]] = None,
+        p_success: float = 1.0,
     ):
         """
-        Grid world environment for reinforcement learning.
+        Initializes a new instance of the class.
 
         Args:
-            rows (int): Height of the grid world.
-            cols (int): Width of the grid world.
-            start_state (Tuple[int, int]): Starting position in the grid.
-            terminal_states (Dict[Tuple[int, int], float]): Terminal states and their rewards.
-            transition_probs (Dict, optional): Transition probabilities for the environment dynamics.
-            walls (Set[Tuple[int, int]], optional): Set of walls in the grid world.
-            special_transitions (Dict[Tuple[Tuple[int, int], Action], Tuple[Tuple[int, int], float]], optional): Special transitions in the grid world.
-            rewards (Dict[str, float], optional): Rewards for the environment.
-            seed (int, optional): Seed for reproducibility.
-            random_move_frequency (float, optional): Probability of random action.
+            rows (int, optional): The number of rows in the grid. Defaults to 5.
+            cols (int, optional): The number of columns in the grid. Defaults to 5.
+            start_state (Tuple[int, int], optional): The starting state of the agent. Defaults to (0, 0).
+            terminal_states (Dict[Tuple[int, int], float], optional): A dictionary of terminal states and their corresponding probabilities. Defaults to {(3, 4): 1.0}.
+            walls (Set[Tuple[int, int]], optional): A set of walls in the grid. Defaults to None.
+            special_transitions (Dict[Tuple[Tuple[int, int], Action], Tuple[Tuple[int, int], float]], optional): A dictionary of special transitions and their corresponding probabilities. Defaults to None.
+            rewards (Dict[str, float], optional): A dictionary of rewards and their corresponding values. Defaults to None.
+            seed (Optional[int], optional): The seed for random number generation. Defaults to None.
+            slip_distribution (Optional[Dict[Action, float]], optional): A dictionary of slip probabilities for each action. Defaults to None.
+            p_success (float, optional): The success probability for slip actions. Defaults to 1.0.
+
+        Returns:
+            None
         """
         super().__init__()
-
-        self.rows = rows
-        self.cols = cols
+        self.np_random, _ = gym.utils.seeding.np_random(seed)
+        self.rows, self.cols = rows, cols
         self.start_state = start_state
         self.terminal_states = terminal_states
-        self.transition_probs = transition_probs or self.transition_probs()
-        self.state = start_state
-        self.seed = seed
-        self.random_move_frequency = random_move_frequency
-        
-        self.np_random = np.random.RandomState(self.seed)
-
         self.walls = walls or set()  # Initialize walls
         self.special_transitions = special_transitions or {}
+        self.state = start_state
+        self.seed = seed
+        self.p_success = p_success
+        self.slip_distribution = slip_distribution or {
+            action: (1.0 - p_success) / (len(Action) - 1) for action in Action
+        }
+
+        self.transition_probs = self.default_transition_probs()
         self.rewards = rewards or {
             "valid_move": -0.1,
             "wall_collision": -1,
@@ -73,6 +76,9 @@ class GridWorld(gym.Env):
             (gym.spaces.Discrete(self.rows), gym.spaces.Discrete(self.cols))
         )
 
+        self.build_mdp()
+        self.P = self.create_probability_matrix()
+
     def add_special_transition(
         self,
         from_state: Tuple[int, int],
@@ -80,35 +86,168 @@ class GridWorld(gym.Env):
         to_state: Optional[Tuple[int, int]] = None,
         reward: Optional[float] = None,
     ):
-        """Adds a special transition to the environment."""
-        # Use default transition state if to_state is not provided
-        if to_state is None:
-            to_state = self.default_transition(from_state, action)
+        """
+        Add a special transition to the Markov Decision Process (MDP) model.
 
-        # Use default reward if reward is not provided
+        Args:
+            from_state (Tuple[int, int]): The current state in the MDP.
+            action (Action): The action taken from the current state.
+            to_state (Optional[Tuple[int, int]]): The next state in the MDP (default is None).
+            reward (Optional[float]): The reward for the transition (default is None).
+
+        Returns:
+            None
+        """
+        if to_state is None:
+            to_state = self.calculate_next_state(
+                from_state, action, check_special=False
+            )
         if reward is None:
             reward = self.rewards["default"]
 
-        self.special_transitions[(from_state, action)] = (to_state, reward)
+        # Update or insert the special transition with its intended probability
+        done = to_state in self.terminal_states
+        # Retain original action probability for the special transition
+        self.mdp[(from_state, action)] = [(to_state, reward, done, self.p_success)]
+
+    def build_mdp(self):
+        """
+        Builds the Markov Decision Process (MDP) based on the current environment state.
+        Integrates special transitions directly into the MDP.
+        """
+        self.mdp = {}
+        for state in [
+            (r, c)
+            for r in range(self.rows)
+            for c in range(self.cols)
+            if ((r, c) not in self.walls) and ((r, c) not in self.terminal_states)
+        ]:
+            for action in Action:
+                self.mdp[(state, action)] = self.calculate_outcomes(state, action)
+
+        # Now integrate special transitions directly into the MDP
+        for (from_state, action), (
+            to_state,
+            reward,
+        ) in self.special_transitions.items():
+            done = to_state in self.terminal_states
+            # Override any existing outcomes with the special transition
+            self.mdp[(from_state, action)] = [(to_state, reward, done, self.p_success)]
+
+    def create_probability_matrix(self):
+        """
+        Initialize the probability matrix with zeros
+        The matrix size is (rows * cols, rows * cols, len(Action)) to accommodate all state transitions for each action
+        """
+        # Initialize the probability matrix with zeros
+        # The matrix size is (rows * cols, rows * cols, len(Action)) to accommodate all state transitions for each action
+        P = np.zeros((self.rows * self.cols, self.rows * self.cols, len(Action)))
+
+        for state in [(r, c) for r in range(self.rows) for c in range(self.cols)]:
+            state_index = state[0] * self.cols + state[1]
+
+            if state in self.terminal_states or state in self.walls:
+                # For terminal states or walls, set the transition probability to stay in the same state
+                for action in Action:
+                    P[state_index, state_index, action] = 1.0
+            else:
+                for action in Action:
+                    outcomes = self.mdp.get((state, action), [])
+                    for outcome in outcomes:
+                        next_state, _, _, prob = outcome
+                        next_state_index = next_state[0] * self.cols + next_state[1]
+                        P[state_index, next_state_index, action] += prob
+
+        return P
 
     def make_transition(self, state, action):
         if self.np_random.rand() < self.random_move_frequency:
             action = self.np_random.choice(list(Action))
-            
+
         # Check for a special transition first
         if (state, action) in self.special_transitions:
             return self.special_transitions[(state, action)][0]
 
-        # Calculate the proposed new state based on the action
-        new_state = self.default_transition(state, action)
+        for state in [(r, c) for r in range(self.rows) for c in range(self.cols)]:
+            state_index = state[0] * self.cols + state[1]
 
-        # If the new state is a wall, return the original state
-        if new_state in self.walls:
-            return state
+            if state in self.terminal_states or state in self.walls:
+                # For terminal states or walls, set the transition probability to stay in the same state
+                for action in Action:
+                    P[state_index, state_index, action] = 1.0
+            else:
+                for action in Action:
+                    outcomes = self.mdp.get((state, action), [])
+                    for outcome in outcomes:
+                        next_state, _, _, prob = outcome
+                        next_state_index = next_state[0] * self.cols + next_state[1]
+                        P[state_index, next_state_index, action] += prob
 
-        return new_state
+        return P
+
+    def calculate_outcomes(self, state, action):
+        """
+        Calculate the possible outcomes for taking a given action in a given state.
+
+        Args:
+            state: The current state of the environment.
+            action: The action to be taken in the current state.
+
+        Returns:
+            A list of tuples, each containing the next state, reward, and a flag indicating whether the episode is done, along with the probability of the outcome.
+        """
+        outcomes = []
+        # Handle intended action
+        intended_next_state, intended_reward, intended_done = self.calculate_transition(
+            state, action
+        )
+        outcomes.append(
+            (intended_next_state, intended_reward, intended_done, self.p_success)
+        )
+
+        # Handle slippage
+        if self.p_success < 1.0:
+            for slip_action in Action:
+                if slip_action != action:
+                    slip_next_state, slip_reward, slip_done = self.calculate_transition(
+                        state, slip_action
+                    )
+                    slip_prob = (1.0 - self.p_success) / (len(Action) - 1)
+                    outcomes.append(
+                        (slip_next_state, slip_reward, slip_done, slip_prob)
+                    )
+
+        return outcomes
+
+    def calculate_transition(self, state, action):
+        """
+        This method calculates the next state and reward, factoring in walls, out-of-bounds, and special transitions
+        """
+        # This method calculates the next state and reward, factoring in walls, out-of-bounds, and special transitions
+        if (state, action) in self.special_transitions:
+            # Handle special transition
+            to_state, reward = self.special_transitions[(state, action)]
+            done = to_state in self.terminal_states
+            return to_state, reward, done
+        else:
+            to_state = self.default_transition(state, action)
+            if to_state in self.walls:
+                to_state = state  # Stay in place if the next state is a wall
+            reward = self.calculate_reward(state, action, to_state)
+            done = to_state in self.terminal_states
+            return to_state, reward, done
 
     def default_transition(self, state, action):
+        """
+        Perform a default transition based on the given state and action.
+
+        Parameters:
+            state (tuple): The current state represented as a tuple (row, column).
+            action (Action): The action to be taken.
+
+        Returns:
+            tuple: The new state after applying the transition.
+        """
         if action == Action.UP:
             new_state = (max(state[0] - 1, 0), state[1])
         elif action == Action.DOWN:
@@ -120,56 +259,124 @@ class GridWorld(gym.Env):
 
         return new_state
 
-    def transition_probs(self):
+    def default_transition_probs(self):
         """
-        Custom transition probabilities for grid world, considering walls and special transitions.
-        """
+        Calculate the transition probabilities for each state-action pair in the environment.
 
-        # Return a dictionary that maps each action to the transition function
-        return {
-            Action.UP: lambda s: self.make_transition(s, Action.UP),
-            Action.DOWN: lambda s: self.make_transition(s, Action.DOWN),
-            Action.LEFT: lambda s: self.make_transition(s, Action.LEFT),
-            Action.RIGHT: lambda s: self.make_transition(s, Action.RIGHT),
-        }
+        Returns:
+            dict: A dictionary containing the transition probabilities for each state-action pair.
+        """
+        transition_probs = {}
+
+        for row in range(self.rows):
+            for col in range(self.cols):
+                state = (row, col)
+                if state in self.terminal_states or state in self.walls:
+                    continue
+
+                for action in Action:
+                    outcomes = {}
+                    # Success case
+                    next_state = self.calculate_next_state(state, action)
+                    outcomes[next_state] = outcomes.get(next_state, 0) + self.p_success
+
+                    # Slip case
+                    for slip_action, slip_prob in self.slip_distribution.items():
+                        slip_next_state = self.calculate_next_state(state, slip_action)
+                        if slip_next_state not in outcomes:
+                            outcomes[slip_next_state] = 0
+                        outcomes[slip_next_state] += (1 - self.p_success) * slip_prob
+
+                    transition_probs[(state, action)] = outcomes
+        return transition_probs
+
+    def calculate_next_state(self, state, action, check_special=True):
+        """
+        Calculate the next state based on the current state and the action taken.
+
+        Args:
+            state: tuple, the current state coordinates
+            action: Action, the action taken
+            check_special: bool, flag to check for special transitions (default True)
+
+        Returns:
+            tuple: the next state coordinates
+        """
+        if check_special and (state, action) in self.special_transitions:
+            return self.special_transitions[(state, action)][
+                0
+            ]  # Return the special next state directly
+
+        # Regular movement logic considering walls and bounds
+        row, col = state
+        if action == Action.UP:
+            next_state = (max(row - 1, 0), col)
+        elif action == Action.DOWN:
+            next_state = (min(row + 1, self.rows - 1), col)
+        elif action == Action.LEFT:
+            next_state = (row, max(col - 1, 0))
+        elif action == Action.RIGHT:
+            next_state = (row, min(col + 1, self.cols - 1))
+        else:
+            next_state = state
+
+        # Check for wall or out-of-bounds to stay in place
+        if next_state in self.walls or next_state == state:
+            return state
+        return next_state
+
+    def calculate_reward(self, current_state, action, next_state):
+        """
+        Calculate the reward based on the current state, action, and next state.
+
+        Parameters:
+            self (object): The object itself
+            current_state (int): The current state
+            action (str): The action taken
+            next_state (int): The next state
+
+        Returns:
+            float: The reward value based on the conditions
+        """
+        # If the next state is a terminal state, return its associated reward
+        if next_state in self.terminal_states:
+            return self.terminal_states[next_state]
+
+        # If the action leads to staying in place due to a wall or the boundary, return the 'wall_collision' or 'out_of_bounds' reward
+        if next_state == current_state:
+            return self.rewards.get("out_of_bounds", -1)
+
+        # If moving into a wall, specifically
+        if next_state in self.walls:
+            return self.rewards.get("wall_collision", -1)
+
+        # For any other movement, return the 'valid_move' reward
+        return self.rewards.get("valid_move", -0.1)
 
     def step(self, action: int):
         """
-        Take an action in the grid world, with transitions modified for walls and special transitions.
+        A method to take a step in the environment based on the given action.
 
         Args:
             action (int): The action to take.
 
         Returns:
-            tuple: Observation (state), reward, done, info
+            tuple: A tuple containing the next state, reward, and a flag indicating if the episode is done.
         """
-        # Check for a special transition first
+        action_enum = Action(action)
+        outcomes = self.mdp.get((self.state, action_enum), [])
+        if not outcomes:
+            raise ValueError(
+                f"No outcomes defined for state {self.state} and action {action_enum}"
+            )
 
-        if (self.state, action) in self.special_transitions:
-            new_state, reward = self.special_transitions[(self.state, action)]
-        else:
-            # Apply the action to the current state using default dynamics
-            new_state = self.transition_probs[action](self.state)
+        # Extracting probabilities for random choice
+        probabilities = [outcome[3] for outcome in outcomes]
+        selected_index = self.np_random.choice(len(outcomes), p=probabilities)
+        next_state, reward, done, _ = outcomes[selected_index]
 
-            # Initialize the reward
-            reward = self.rewards["default"]
-            if new_state in self.terminal_states:
-                reward = self.terminal_states[new_state]
-            elif new_state == self.state:
-                reward = (
-                    self.rewards["wall_collision"]
-                    if new_state in self.walls
-                    else self.rewards["out_of_bounds"]
-                )
-            else:
-                reward = self.rewards["valid_move"]
-
-        # Check if the new state is a terminal state and update the current state
-        done = new_state in self.terminal_states
-        self.state = new_state if not done else self.start_state
-
-        truncated = False
-        return self.state, reward, done, truncated, {}
+        self.state = next_state if not done else self.start_state
+        return self.state, reward, done, False, {}
 
     def reset(self):
         """
@@ -232,9 +439,3 @@ class GridWorld(gym.Env):
         ax.set_yticks([])
 
         plt.show()
-
-    def close(self):
-        """
-        Close the environment.
-        """
-        pass

@@ -7,11 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+
+## [3.4.0] - 2024.02.09
+
+### Changed
+
+- Remade grid_world environment to allow for probabilistic transitions, and made the MDP built into it
+
 ## [3.3.3] - 2024.02.06
 
 ### Fixed
 
 - Fixed random generator seeding in grid_world
+
 
 ## [3.3.2] - 2024.02.04
 
