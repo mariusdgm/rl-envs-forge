@@ -54,7 +54,7 @@ class GridWorld(gym.Env):
         self.rows, self.cols = rows, cols
         self.start_state = start_state
         self.terminal_states = terminal_states
-        self.walls = walls or set()
+        self.walls = walls or set()  # Initialize walls
         self.special_transitions = special_transitions or {}
         self.state = start_state
         self.seed = seed
@@ -62,6 +62,7 @@ class GridWorld(gym.Env):
         self.slip_distribution = slip_distribution or {
             action: (1.0 - p_success) / (len(Action) - 1) for action in Action
         }
+     
         self.transition_probs = self.default_transition_probs()
         self.rewards = rewards or {
             "valid_move": -0.1,
@@ -141,6 +142,14 @@ class GridWorld(gym.Env):
         # Initialize the probability matrix with zeros
         # The matrix size is (rows * cols, rows * cols, len(Action)) to accommodate all state transitions for each action
         P = np.zeros((self.rows * self.cols, self.rows * self.cols, len(Action)))
+        
+    def make_transition(self, state, action):
+        if self.np_random.rand() < self.random_move_frequency:
+            action = self.np_random.choice(list(Action))
+            
+        # Check for a special transition first
+        if (state, action) in self.special_transitions:
+            return self.special_transitions[(state, action)][0]
 
         for state in [(r, c) for r in range(self.rows) for c in range(self.cols)]:
             state_index = state[0] * self.cols + state[1]
