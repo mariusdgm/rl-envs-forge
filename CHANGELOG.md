@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.4.1] - 2024.03.16
+
+### Fixed
+
+- Bugfixed the state reset in grid_world when reaching a terminal state
 
 ## [3.4.0] - 2024.02.09
 
