@@ -375,7 +375,9 @@ class GridWorld(gym.Env):
         selected_index = self.np_random.choice(len(outcomes), p=probabilities)
         next_state, reward, done, _ = outcomes[selected_index]
 
-        self.state = next_state if not done else self.start_state
+        # Update state only if not done, else keep the terminal state until reset is called
+        if not done:
+            self.state = next_state
         return self.state, reward, done, False, {}
 
     def reset(self):
