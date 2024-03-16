@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.4.2] - 2024.03.17
+
+### Fixed
+
+- Bugfixed the terminal state when reaching that transition
+
+
 ## [3.4.1] - 2024.03.16
 
 ### Fixed
