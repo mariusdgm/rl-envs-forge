@@ -30,6 +30,7 @@ class GridWorld(gym.Env):
         seed: Optional[int] = None,
         slip_distribution: Optional[Dict[Action, float]] = None,
         p_success: float = 1.0,
+        episode_length_limit: Optional[int] = None 
     ):
         """
         Initializes a new instance of the class.
@@ -45,6 +46,7 @@ class GridWorld(gym.Env):
             seed (Optional[int], optional): The seed for random number generation. Defaults to None.
             slip_distribution (Optional[Dict[Action, float]], optional): A dictionary of slip probabilities for each action. Defaults to None.
             p_success (float, optional): The success probability for slip actions. Defaults to 1.0.
+            episode_length_limit (Optional[int], optional): The maximum length of an episode. Defaults to None.
 
         Returns:
             None
@@ -75,6 +77,9 @@ class GridWorld(gym.Env):
         self.observation_space = gym.spaces.Tuple(
             (gym.spaces.Discrete(self.rows), gym.spaces.Discrete(self.cols))
         )
+        
+        self.episode_length_limit = episode_length_limit
+        self.episode_length_counter = 0
 
         self.build_mdp()
         self.P = self.create_probability_matrix()
@@ -376,6 +381,12 @@ class GridWorld(gym.Env):
         next_state, reward, done, _ = outcomes[selected_index]
 
         self.state = next_state
+        self.episode_length_counter += 1
+        
+        # Check if the episode length limit is reached
+        if self.episode_length_limit is not None and self.episode_length_counter >= self.episode_length_limit:
+            done = True
+            
         return self.state, reward, done, False, {}
 
     def reset(self):
@@ -386,6 +397,7 @@ class GridWorld(gym.Env):
             Tuple[int, int]: An initial observation.
         """
         self.state = self.start_state
+        self.episode_length_counter = 0
         return self.state
 
     def render(self, mode="human"):

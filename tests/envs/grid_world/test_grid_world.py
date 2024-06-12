@@ -19,6 +19,12 @@ def slippery_env():
     return GridWorld(p_success=0.5, seed=42)
 
 
+@pytest.fixture
+def limited_length_env():
+    """Fixture to create a GridWorld environment with an episode length limit."""
+    return GridWorld(episode_length_limit=10)
+
+
 class TestGridWorld:
     def test_initialization(self, default_env):
         assert default_env.rows == 5
@@ -141,3 +147,13 @@ class TestGridWorld:
         assert (
             env.P[normal_from_index, normal_to_index, Action.DOWN] == 1.0
         ), "Normal action transition probability is incorrect."
+
+    def test_episode_length_limit(self, limited_length_env):
+        env = limited_length_env
+        env.reset()
+        for _ in range(env.episode_length_limit - 1):
+            _, _, done, _, _ = env.step(Action.RIGHT)
+            assert not done, "Episode ended earlier than the limit"
+
+        _, _, done, _, _ = env.step(Action.RIGHT)
+        assert done, "Episode did not end when the limit was reached"
