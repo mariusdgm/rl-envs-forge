@@ -51,6 +51,11 @@ class GridWorld(gym.Env):
         Returns:
             None
         """
+        self.validate_args(
+            rows, cols, start_state, terminal_states, walls,
+            special_transitions, rewards, seed, slip_distribution, p_success, episode_length_limit
+        )
+        
         super().__init__()
         self.np_random, _ = gym.utils.seeding.np_random(seed)
         self.rows, self.cols = rows, cols
@@ -84,6 +89,43 @@ class GridWorld(gym.Env):
         self.build_mdp()
         self.P = self.create_probability_matrix()
 
+    @staticmethod
+    def validate_args(
+        rows: int,
+        cols: int,
+        start_state: Tuple[int, int],
+        terminal_states: Dict[Tuple[int, int], float],
+        walls: Set[Tuple[int, int]],
+        special_transitions: Dict[Tuple[Tuple[int, int], Action], Tuple[Tuple[int, int], float]],
+        rewards: Dict[str, float],
+        seed: Optional[int],
+        slip_distribution: Optional[Dict[Action, float]],
+        p_success: float,
+        episode_length_limit: Optional[int]
+    ):
+        if not isinstance(rows, int) or rows <= 0:
+            raise ValueError("rows must be a positive integer")
+        if not isinstance(cols, int) or cols <= 0:
+            raise ValueError("cols must be a positive integer")
+        if not (isinstance(start_state, tuple) and len(start_state) == 2 and all(isinstance(x, int) for x in start_state)):
+            raise ValueError("start_state must be a tuple of two integers")
+        if not (isinstance(terminal_states, dict) and all(isinstance(k, tuple) and len(k) == 2 and all(isinstance(x, int) for x in k) and isinstance(v, (int, float)) for k, v in terminal_states.items())):
+            raise ValueError("terminal_states must be a dictionary with keys as tuples of two integers and values as integers or floats")
+        if walls is not None and not (isinstance(walls, set) and all(isinstance(w, tuple) and len(w) == 2 and all(isinstance(x, int) for x in w) for w in walls)):
+            raise ValueError("walls must be a set of tuples of two integers")
+        if special_transitions is not None and not (isinstance(special_transitions, dict) and all(isinstance(k, tuple) and len(k) == 2 and isinstance(k[0], tuple) and len(k[0]) == 2 and all(isinstance(x, int) for x in k[0]) and isinstance(k[1], Action) and isinstance(v, tuple) and len(v) == 2 and isinstance(v[0], tuple) and len(v[0]) == 2 and all(isinstance(x, int) for x in v[0]) and isinstance(v[1], (int, float)) for k, v in special_transitions.items())):
+            raise ValueError("special_transitions must be a dictionary with keys as tuples where the first element is a tuple of two integers and the second element is an Action, and values as tuples where the first element is a tuple of two integers and the second element is an integer or float")
+        if rewards is not None and not (isinstance(rewards, dict) and all(isinstance(k, str) and isinstance(v, (int, float)) for k, v in rewards.items())):
+            raise ValueError("rewards must be a dictionary with keys as strings and values as integers or floats")
+        if seed is not None and not isinstance(seed, int):
+            raise ValueError("seed must be an integer or None")
+        if slip_distribution is not None and not (isinstance(slip_distribution, dict) and all(isinstance(k, Action) and isinstance(v, (int, float)) for k, v in slip_distribution.items())):
+            raise ValueError("slip_distribution must be a dictionary with keys as Actions and values as integers or floats")
+        if not isinstance(p_success, (int, float)) or not (0 <= p_success <= 1):
+            raise ValueError("p_success must be a float between 0 and 1")
+        if episode_length_limit is not None and not isinstance(episode_length_limit, int):
+            raise ValueError("episode_length_limit must be an integer or None")
+        
     def add_special_transition(
         self,
         from_state: Tuple[int, int],

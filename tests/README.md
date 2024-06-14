@@ -2,6 +2,13 @@
 
 Requirements: pytest and pytest-cov
 
+## Running Tests
+
+Open the poetry shell with:
+```
+poetry shell
+```
+
 Run the tests in the root folder with:
 
 ```bash
