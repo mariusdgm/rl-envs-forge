@@ -159,21 +159,59 @@ class TestGridWorld:
         assert done, "Episode did not end when the limit was reached"
 
     @pytest.mark.parametrize(
-    "kwargs, expected_exception",
+        "kwargs, expected_exception",
         [
             ({"rows": "5"}, ValueError),  # rows must be a positive integer
             ({"cols": -1}, ValueError),  # cols must be a positive integer
-            ({"start_state": "0,0"}, ValueError),  # start_state must be a tuple of two integers
-            ({"terminal_states": {"3,4": 1.0}}, ValueError),  # terminal_states must be a dictionary with keys as tuples of two integers and values as integers or floats
-            ({"walls": ["1,1"]}, ValueError),  # walls must be a set of tuples of two integers
-            ({"special_transitions": {((0, 0), "DOWN"): ((4, 4), 0.5)}}, ValueError),  # special_transitions must be a dictionary with keys as tuples where the first element is a tuple of two integers and the second element is an Action, and values as tuples where the first element is a tuple of two integers and the second element is an integer or float
-            ({"rewards": {1: -0.1}}, ValueError),  # rewards must be a dictionary with keys as strings and values as integers or floats
+            (
+                {"start_state": "0,0"},
+                ValueError,
+            ),  # start_state must be a tuple of two integers
+            (
+                {"terminal_states": {"3,4": 1.0}},
+                ValueError,
+            ),  # terminal_states must be a dictionary with keys as tuples of two integers and values as integers or floats
+            (
+                {"walls": ["1,1"]},
+                ValueError,
+            ),  # walls must be a set of tuples of two integers
+            (
+                {"special_transitions": {((0, 0), "DOWN"): ((4, 4), 0.5)}},
+                ValueError,
+            ),  # special_transitions must be a dictionary with keys as tuples where the first element is a tuple of two integers and the second element is an Action, and values as tuples where the first element is a tuple of two integers and the second element is an integer or float
+            (
+                {"rewards": {1: -0.1}},
+                ValueError,
+            ),  # rewards must be a dictionary with keys as strings and values as integers or floats
             ({"seed": "42"}, ValueError),  # seed must be an integer or None
-            ({"slip_distribution": {Action.UP: "0.1"}}, ValueError),  # slip_distribution must be a dictionary with keys as Actions and values as integers or floats
-            ({"p_success": 2.0}, ValueError),  # p_success must be a float between 0 and 1
-            ({"episode_length_limit": "10"}, ValueError),  # episode_length_limit must be an integer or None
+            (
+                {"slip_distribution": {Action.UP: "0.1"}},
+                ValueError,
+            ),  # slip_distribution must be a dictionary with keys as Actions and values as integers or floats
+            (
+                {"p_success": 2.0},
+                ValueError,
+            ),  # p_success must be a float between 0 and 1
+            (
+                {"episode_length_limit": "10"},
+                ValueError,
+            ),  # episode_length_limit must be an integer or None
+            ({"walls": set()}, None),  # walls can be an empty set
+            (
+                {"special_transitions": {}},
+                None,
+            ),  # special_transitions can be an empty dictionary
+            ({"rewards": {}}, None),  # rewards can be an empty dictionary
+            (
+                {"slip_distribution": {}},
+                None,
+            ),  # slip_distribution can be an empty dictionary
         ],
     )
     def test_invalid_args(self, kwargs, expected_exception):
-        with pytest.raises(expected_exception):
+        if expected_exception:
+            with pytest.raises(expected_exception):
+                GridWorld(**kwargs)
+        else:
+            # Should not raise an exception
             GridWorld(**kwargs)

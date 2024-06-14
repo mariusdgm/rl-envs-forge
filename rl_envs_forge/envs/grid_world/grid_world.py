@@ -22,40 +22,49 @@ class GridWorld(gym.Env):
         cols: int = 5,
         start_state: Tuple[int, int] = (0, 0),
         terminal_states: Dict[Tuple[int, int], float] = {(3, 4): 1.0},
-        walls: Set[Tuple[int, int]] = None,
-        special_transitions: Dict[
-            Tuple[Tuple[int, int], Action], Tuple[Tuple[int, int], float]
+        walls: Optional[Set[Tuple[int, int]]] = None,
+        special_transitions: Optional[
+            Dict[Tuple[Tuple[int, int], Action], Tuple[Tuple[int, int], float]]
         ] = None,
-        rewards: Dict[str, float] = None,
+        rewards: Optional[Dict[str, float]] = None,
         seed: Optional[int] = None,
         slip_distribution: Optional[Dict[Action, float]] = None,
         p_success: float = 1.0,
-        episode_length_limit: Optional[int] = None 
+        episode_length_limit: Optional[int] = None,
     ):
         """
-        Initializes a new instance of the class.
+        Initializes a new instance of the GridWorld class.
 
         Args:
-            rows (int, optional): The number of rows in the grid. Defaults to 5.
-            cols (int, optional): The number of columns in the grid. Defaults to 5.
-            start_state (Tuple[int, int], optional): The starting state of the agent. Defaults to (0, 0).
-            terminal_states (Dict[Tuple[int, int], float], optional): A dictionary of terminal states and their corresponding probabilities. Defaults to {(3, 4): 1.0}.
-            walls (Set[Tuple[int, int]], optional): A set of walls in the grid. Defaults to None.
-            special_transitions (Dict[Tuple[Tuple[int, int], Action], Tuple[Tuple[int, int], float]], optional): A dictionary of special transitions and their corresponding probabilities. Defaults to None.
-            rewards (Dict[str, float], optional): A dictionary of rewards and their corresponding values. Defaults to None.
+            rows (int, optional): The number of rows in the grid world. Defaults to 5.
+            cols (int, optional): The number of columns in the grid world. Defaults to 5.
+            start_state (Tuple[int, int], optional): The starting state of the agent in the grid world. Defaults to (0, 0).
+            terminal_states (Dict[Tuple[int, int], float], optional): A dictionary mapping terminal states to their corresponding rewards. Defaults to {(3, 4): 1.0}.
+            walls (Optional[Set[Tuple[int, int]]], optional): A set of walls in the grid world. Defaults to None.
+            special_transitions (Optional[Dict[Tuple[Tuple[int, int], Action], Tuple[Tuple[int, int], float]]], optional): A dictionary mapping special transitions to their corresponding destinations and probabilities. Defaults to None.
+            rewards (Optional[Dict[str, float]], optional): A dictionary mapping reward names to their corresponding values. Defaults to None.
             seed (Optional[int], optional): The seed for random number generation. Defaults to None.
-            slip_distribution (Optional[Dict[Action, float]], optional): A dictionary of slip probabilities for each action. Defaults to None.
-            p_success (float, optional): The success probability for slip actions. Defaults to 1.0.
+            slip_distribution (Optional[Dict[Action, float]], optional): A dictionary mapping actions to their corresponding slip probabilities. Defaults to None.
+            p_success (float, optional): The success probability for actions. Defaults to 1.0.
             episode_length_limit (Optional[int], optional): The maximum length of an episode. Defaults to None.
 
         Returns:
             None
         """
         self.validate_args(
-            rows, cols, start_state, terminal_states, walls,
-            special_transitions, rewards, seed, slip_distribution, p_success, episode_length_limit
+            rows,
+            cols,
+            start_state,
+            terminal_states,
+            walls,
+            special_transitions,
+            rewards,
+            seed,
+            slip_distribution,
+            p_success,
+            episode_length_limit,
         )
-        
+
         super().__init__()
         self.np_random, _ = gym.utils.seeding.np_random(seed)
         self.rows, self.cols = rows, cols
@@ -82,7 +91,7 @@ class GridWorld(gym.Env):
         self.observation_space = gym.spaces.Tuple(
             (gym.spaces.Discrete(self.rows), gym.spaces.Discrete(self.cols))
         )
-        
+
         self.episode_length_limit = episode_length_limit
         self.episode_length_counter = 0
 
@@ -95,37 +104,113 @@ class GridWorld(gym.Env):
         cols: int,
         start_state: Tuple[int, int],
         terminal_states: Dict[Tuple[int, int], float],
-        walls: Set[Tuple[int, int]],
-        special_transitions: Dict[Tuple[Tuple[int, int], Action], Tuple[Tuple[int, int], float]],
-        rewards: Dict[str, float],
+        walls: Optional[Set[Tuple[int, int]]],
+        special_transitions: Optional[
+            Dict[Tuple[Tuple[int, int], Action], Tuple[Tuple[int, int], float]]
+        ],
+        rewards: Optional[Dict[str, float]],
         seed: Optional[int],
         slip_distribution: Optional[Dict[Action, float]],
         p_success: float,
-        episode_length_limit: Optional[int]
+        episode_length_limit: Optional[int],
     ):
         if not isinstance(rows, int) or rows <= 0:
             raise ValueError("rows must be a positive integer")
         if not isinstance(cols, int) or cols <= 0:
             raise ValueError("cols must be a positive integer")
-        if not (isinstance(start_state, tuple) and len(start_state) == 2 and all(isinstance(x, int) for x in start_state)):
+        if not (
+            isinstance(start_state, tuple)
+            and len(start_state) == 2
+            and all(isinstance(x, int) for x in start_state)
+        ):
             raise ValueError("start_state must be a tuple of two integers")
-        if not (isinstance(terminal_states, dict) and all(isinstance(k, tuple) and len(k) == 2 and all(isinstance(x, int) for x in k) and isinstance(v, (int, float)) for k, v in terminal_states.items())):
-            raise ValueError("terminal_states must be a dictionary with keys as tuples of two integers and values as integers or floats")
-        if walls is not None and not (isinstance(walls, set) and all(isinstance(w, tuple) and len(w) == 2 and all(isinstance(x, int) for x in w) for w in walls)):
-            raise ValueError("walls must be a set of tuples of two integers")
-        if special_transitions is not None and not (isinstance(special_transitions, dict) and all(isinstance(k, tuple) and len(k) == 2 and isinstance(k[0], tuple) and len(k[0]) == 2 and all(isinstance(x, int) for x in k[0]) and isinstance(k[1], Action) and isinstance(v, tuple) and len(v) == 2 and isinstance(v[0], tuple) and len(v[0]) == 2 and all(isinstance(x, int) for x in v[0]) and isinstance(v[1], (int, float)) for k, v in special_transitions.items())):
-            raise ValueError("special_transitions must be a dictionary with keys as tuples where the first element is a tuple of two integers and the second element is an Action, and values as tuples where the first element is a tuple of two integers and the second element is an integer or float")
-        if rewards is not None and not (isinstance(rewards, dict) and all(isinstance(k, str) and isinstance(v, (int, float)) for k, v in rewards.items())):
-            raise ValueError("rewards must be a dictionary with keys as strings and values as integers or floats")
+        if not (
+            isinstance(terminal_states, dict)
+            and all(
+                isinstance(k, tuple)
+                and len(k) == 2
+                and all(isinstance(x, int) for x in k)
+                and isinstance(v, (int, float))
+                for k, v in terminal_states.items()
+            )
+        ):
+            raise ValueError(
+                "terminal_states must be a dictionary with keys as tuples of two integers and values as integers or floats"
+            )
+        if walls is not None and not (
+            isinstance(walls, set)
+            and (
+                len(walls) == 0
+                or all(
+                    isinstance(w, tuple)
+                    and len(w) == 2
+                    and all(isinstance(x, int) for x in w)
+                    for w in walls
+                )
+            )
+        ):
+            raise ValueError(
+                "walls must be a set of tuples of two integers or an empty set"
+            )
+        if special_transitions is not None and not (
+            isinstance(special_transitions, dict)
+            and (
+                len(special_transitions) == 0
+                or all(
+                    isinstance(k, tuple)
+                    and len(k) == 2
+                    and isinstance(k[0], tuple)
+                    and len(k[0]) == 2
+                    and all(isinstance(x, int) for x in k[0])
+                    and isinstance(k[1], Action)
+                    and isinstance(v, tuple)
+                    and len(v) == 2
+                    and isinstance(v[0], tuple)
+                    and len(v[0]) == 2
+                    and all(isinstance(x, int) for x in v[0])
+                    and isinstance(v[1], (int, float))
+                    for k, v in special_transitions.items()
+                )
+            )
+        ):
+            raise ValueError(
+                "special_transitions must be a dictionary with keys as tuples where the first element is a tuple of two integers and the second element is an Action, and values as tuples where the first element is a tuple of two integers and the second element is an integer or float, or an empty dictionary"
+            )
+        if rewards is not None and not (
+            isinstance(rewards, dict)
+            and (
+                len(rewards) == 0
+                or all(
+                    isinstance(k, str) and isinstance(v, (int, float))
+                    for k, v in rewards.items()
+                )
+            )
+        ):
+            raise ValueError(
+                "rewards must be a dictionary with keys as strings and values as integers or floats, or an empty dictionary"
+            )
         if seed is not None and not isinstance(seed, int):
             raise ValueError("seed must be an integer or None")
-        if slip_distribution is not None and not (isinstance(slip_distribution, dict) and all(isinstance(k, Action) and isinstance(v, (int, float)) for k, v in slip_distribution.items())):
-            raise ValueError("slip_distribution must be a dictionary with keys as Actions and values as integers or floats")
+        if slip_distribution is not None and not (
+            isinstance(slip_distribution, dict)
+            and (
+                len(slip_distribution) == 0
+                or all(
+                    isinstance(k, Action) and isinstance(v, (int, float))
+                    for k, v in slip_distribution.items()
+                )
+            )
+        ):
+            raise ValueError(
+                "slip_distribution must be a dictionary with keys as Actions and values as integers or floats, or an empty dictionary"
+            )
         if not isinstance(p_success, (int, float)) or not (0 <= p_success <= 1):
             raise ValueError("p_success must be a float between 0 and 1")
-        if episode_length_limit is not None and not isinstance(episode_length_limit, int):
+        if episode_length_limit is not None and not isinstance(
+            episode_length_limit, int
+        ):
             raise ValueError("episode_length_limit must be an integer or None")
-        
+
     def add_special_transition(
         self,
         from_state: Tuple[int, int],
@@ -424,11 +509,14 @@ class GridWorld(gym.Env):
 
         self.state = next_state
         self.episode_length_counter += 1
-        
+
         # Check if the episode length limit is reached
-        if self.episode_length_limit is not None and self.episode_length_counter >= self.episode_length_limit:
+        if (
+            self.episode_length_limit is not None
+            and self.episode_length_counter >= self.episode_length_limit
+        ):
             done = True
-            
+
         return self.state, reward, done, False, {}
 
     def reset(self):
