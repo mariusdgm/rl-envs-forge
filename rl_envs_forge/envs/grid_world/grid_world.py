@@ -497,6 +497,7 @@ class GridWorld(gym.Env):
         """
         action_enum = Action(action)
         outcomes = self.mdp.get((self.state, action_enum), [])
+        truncated = False
         if not outcomes:
             raise ValueError(
                 f"No outcomes defined for state {self.state} and action {action_enum}"
@@ -516,8 +517,9 @@ class GridWorld(gym.Env):
             and self.episode_length_counter >= self.episode_length_limit
         ):
             done = True
+            truncated = True
 
-        return self.state, reward, done, False, {}
+        return self.state, reward, done, truncated, {}
 
     def reset(self, new_start_state: Optional[Tuple[int, int]] = None):
         """
