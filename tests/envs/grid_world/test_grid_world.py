@@ -152,11 +152,13 @@ class TestGridWorld:
         env = limited_length_env
         env.reset()
         for _ in range(env.episode_length_limit - 1):
-            _, _, done, _, _ = env.step(Action.RIGHT)
+            _, _, done, truncated, _ = env.step(Action.RIGHT)
             assert not done, "Episode ended earlier than the limit"
+            assert not truncated, "Episode was truncated earlier than the limit"
 
-        _, _, done, _, _ = env.step(Action.RIGHT)
+        _, _, done, truncated, _ = env.step(Action.RIGHT)
         assert done, "Episode did not end when the limit was reached"
+        assert truncated, "Episode was not marked as truncated when the limit was reached"
 
     @pytest.mark.parametrize(
         "kwargs, expected_exception",
