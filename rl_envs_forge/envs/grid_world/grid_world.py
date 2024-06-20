@@ -519,13 +519,25 @@ class GridWorld(gym.Env):
 
         return self.state, reward, done, False, {}
 
-    def reset(self):
+    def reset(self, new_start_state: Optional[Tuple[int, int]] = None):
         """
-        Reset the environment to the starting state.
+        Reset the environment to the starting state or a new starting state if provided.
+
+        Args:
+            new_start_state (Optional[Tuple[int, int]], optional): A new starting state for the agent. Defaults to None.
 
         Returns:
-            Tuple[int, int]: An initial observation.
+            Tuple[int, int]: The initial observation.
         """
+        if new_start_state is not None:
+            if (
+                not isinstance(new_start_state, tuple)
+                or len(new_start_state) != 2
+                or not all(isinstance(x, int) for x in new_start_state)
+            ):
+                raise ValueError("new_start_state must be a tuple of two integers")
+            self.start_state = new_start_state
+
         self.state = self.start_state
         self.episode_length_counter = 0
         return self.state
