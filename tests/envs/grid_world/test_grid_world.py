@@ -157,7 +157,7 @@ class TestGridWorld:
             assert not truncated, "Episode was truncated earlier than the limit"
 
         _, _, done, truncated, _ = env.step(Action.RIGHT)
-        assert done, "Episode did not end when the limit was reached"
+        assert not done, "Episode did not end when the limit was reached"
         assert truncated, "Episode was not marked as truncated when the limit was reached"
 
     @pytest.mark.parametrize(

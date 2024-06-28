@@ -516,7 +516,6 @@ class GridWorld(gym.Env):
             self.episode_length_limit is not None
             and self.episode_length_counter >= self.episode_length_limit
         ):
-            done = True
             truncated = True
 
         return self.state, reward, done, truncated, {}

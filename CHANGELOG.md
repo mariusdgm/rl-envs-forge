@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.6.2] - 2024.06.28
+
+### Fixed
+
+- Decopled truncated from done signal in GridWorld
+
 ## [3.6.1] - 2024.06.20
 
 ### Changed
