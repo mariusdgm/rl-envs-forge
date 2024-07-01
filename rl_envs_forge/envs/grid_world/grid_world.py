@@ -548,49 +548,101 @@ class GridWorld(gym.Env):
         Render the environment with matplotlib, with red for the terminal state,
         black gridlines, and an 'A' where the agent is located.
         """
-        fig, ax = plt.subplots()
-        ax.set_xlim(0, self.cols)
-        ax.set_ylim(0, self.rows)
+        if mode == "rgb_array":
+            fig, ax = plt.subplots()
+            ax.set_xlim(0, self.cols)
+            ax.set_ylim(0, self.rows)
 
-        # Draw the black gridlines
-        for y in range(self.rows + 1):
-            ax.axhline(y, color="black", lw=1)
-        for x in range(self.cols + 1):
-            ax.axvline(x, color="black", lw=1)
+            # Draw the black gridlines
+            for y in range(self.rows + 1):
+                ax.axhline(y, color="black", lw=1)
+            for x in range(self.cols + 1):
+                ax.axvline(x, color="black", lw=1)
 
-        # Draw the terminal state cell(s) in red
-        for terminal_state, _ in self.terminal_states.items():
-            ax.add_patch(
-                plt.Rectangle(
-                    (terminal_state[1], self.rows - terminal_state[0] - 1),
-                    1,
-                    1,
-                    facecolor="red",
+            # Draw the terminal state cell(s) in red
+            for terminal_state, _ in self.terminal_states.items():
+                ax.add_patch(
+                    plt.Rectangle(
+                        (terminal_state[1], self.rows - terminal_state[0] - 1),
+                        1,
+                        1,
+                        facecolor="red",
+                    )
                 )
+
+            # Draw the walls in dark gray
+            for wall in self.walls:
+                ax.add_patch(
+                    plt.Rectangle(
+                        (wall[1], self.rows - wall[0] - 1), 1, 1, facecolor="darkgray"
+                    )
+                )
+
+            # Indicate agent's position with an 'A'
+            agent_pos = self.state
+            ax.text(
+                agent_pos[1] + 0.5,
+                self.rows - agent_pos[0] - 0.5,
+                "A",
+                color="black",
+                ha="center",
+                va="center",
+                fontsize=12,
             )
 
-        # Draw the walls in dark gray
-        for wall in self.walls:
-            ax.add_patch(
-                plt.Rectangle(
-                    (wall[1], self.rows - wall[0] - 1), 1, 1, facecolor="darkgray"
+            # Remove the axis ticks and labels
+            ax.set_xticks([])
+            ax.set_yticks([])
+
+            fig.canvas.draw()
+            image = np.frombuffer(fig.canvas.tostring_rgb(), dtype='uint8')
+            image = image.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+            plt.close(fig)
+            return image
+        else:
+            fig, ax = plt.subplots()
+            ax.set_xlim(0, self.cols)
+            ax.set_ylim(0, self.rows)
+
+            # Draw the black gridlines
+            for y in range(self.rows + 1):
+                ax.axhline(y, color="black", lw=1)
+            for x in range(self.cols + 1):
+                ax.axvline(x, color="black", lw=1)
+
+            # Draw the terminal state cell(s) in red
+            for terminal_state, _ in self.terminal_states.items():
+                ax.add_patch(
+                    plt.Rectangle(
+                        (terminal_state[1], self.rows - terminal_state[0] - 1),
+                        1,
+                        1,
+                        facecolor="red",
+                    )
                 )
+
+            # Draw the walls in dark gray
+            for wall in self.walls:
+                ax.add_patch(
+                    plt.Rectangle(
+                        (wall[1], self.rows - wall[0] - 1), 1, 1, facecolor="darkgray"
+                    )
+                )
+
+            # Indicate agent's position with an 'A'
+            agent_pos = self.state
+            ax.text(
+                agent_pos[1] + 0.5,
+                self.rows - agent_pos[0] - 0.5,
+                "A",
+                color="black",
+                ha="center",
+                va="center",
+                fontsize=12,
             )
 
-        # Indicate agent's position with an 'A'
-        agent_pos = self.state
-        ax.text(
-            agent_pos[1] + 0.5,
-            self.rows - agent_pos[0] - 0.5,
-            "A",
-            color="black",
-            ha="center",
-            va="center",
-            fontsize=12,
-        )
+            # Remove the axis ticks and labels
+            ax.set_xticks([])
+            ax.set_yticks([])
 
-        # Remove the axis ticks and labels
-        ax.set_xticks([])
-        ax.set_yticks([])
-
-        plt.show()
+            plt.show()

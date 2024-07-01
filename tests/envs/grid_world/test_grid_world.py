@@ -1,5 +1,7 @@
 import pytest
 import matplotlib.pyplot as plt
+import matplotlib as mpl
+mpl.use('Agg')
 import numpy as np
 from rl_envs_forge.envs.grid_world.grid_world import (
     GridWorld,
@@ -231,3 +233,11 @@ class TestGridWorld:
         new_start_state = (5, 5)
         initial_state = default_env.reset(new_start_state=new_start_state)
         assert initial_state == new_start_state, f"Expected initial state to be {new_start_state}, but got {initial_state}"
+
+    def test_render_rgb_array(self, default_env):
+        """
+        Test if the rgb_array mode of the render function returns an image array.
+        """
+        img = default_env.render(mode="rgb_array")
+        assert isinstance(img, np.ndarray)
+        assert img.shape[-1] == 3  # Check if the image has 3 color channels (RGB)

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.7.0] - 2024.07.01
+
+### Added
+
+- New render mode for returning the render frames
+
 ## [3.6.2] - 2024.06.28
 
 ### Fixed
