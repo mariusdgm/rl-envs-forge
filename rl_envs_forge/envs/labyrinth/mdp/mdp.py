@@ -1,6 +1,7 @@
 """
 Functions to generate a Markov Decision Process view of the Labyrinth environment.
 """
+
 from typing import Tuple
 import numpy as np
 import copy
@@ -30,13 +31,20 @@ class LabyrinthMDP:
         num_actions = env.action_space.n
         transition_reward_dict = {}
         explored_positions = set()
+        terminal_position = self.position_to_key(env.maze.target_position)
 
         # Iterate through each position in the grid where the value is PATH
         for position in np.argwhere(env.maze.grid == PATH):
             position_key = self.position_to_key(tuple(position))
 
-            # If the position is terminal, skip it
-            if env.maze.target_position == position_key:
+            if np.array_equal(position_key, terminal_position):
+                explored_positions.add(position_key)
+                for action in range(num_actions):
+                    transition_reward_dict[(position_key, action)] = (
+                        position_key,
+                        0,
+                        True
+                    )
                 continue
 
             explored_positions.add(position_key)
@@ -72,6 +80,7 @@ class LabyrinthMDP:
 
         # Dictionary to store transition and reward information
         transition_reward_dict = {}
+        terminal_position = self.position_to_key(env.maze.target_position)
 
         # Stack to keep track of state-action pairs to explore
         to_explore = []
@@ -103,6 +112,16 @@ class LabyrinthMDP:
                 reward,
                 done,
             )
+
+            if np.array_equal(next_position_key, terminal_position):
+                explored_positions.add(next_position_key)
+                for next_action in range(num_actions):
+                    transition_reward_dict[(next_position_key, next_action)] = (
+                        next_position_key,
+                        0,
+                        True
+                    )
+                continue
 
             # Check if the position has been explored already
             if next_position_key not in explored_positions:

@@ -1,7 +1,8 @@
 import pytest
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-mpl.use('Agg')
+
+mpl.use("Agg")
 import numpy as np
 from rl_envs_forge.envs.grid_world.grid_world import (
     GridWorld,
@@ -160,7 +161,9 @@ class TestGridWorld:
 
         _, _, done, truncated, _ = env.step(Action.RIGHT)
         assert not done, "Episode did not end when the limit was reached"
-        assert truncated, "Episode was not marked as truncated when the limit was reached"
+        assert (
+            truncated
+        ), "Episode was not marked as truncated when the limit was reached"
 
     @pytest.mark.parametrize(
         "kwargs, expected_exception",
@@ -226,13 +229,17 @@ class TestGridWorld:
         default_env.reset(new_start_state=new_start_state)
         new_state, _, _, _, _ = default_env.step(Action.RIGHT)
         expected_state = (2, 4)
-        assert new_state == expected_state, f"Expected new state to be {expected_state}, but got {new_state}"
+        assert (
+            new_state == expected_state
+        ), f"Expected new state to be {expected_state}, but got {new_state}"
 
     def test_reset_to_new_starting_state(self, default_env):
         # Reset to a new starting state and ensure it's correctly set
         new_start_state = (5, 5)
         initial_state = default_env.reset(new_start_state=new_start_state)
-        assert initial_state == new_start_state, f"Expected initial state to be {new_start_state}, but got {initial_state}"
+        assert (
+            initial_state == new_start_state
+        ), f"Expected initial state to be {new_start_state}, but got {initial_state}"
 
     def test_render_rgb_array(self, default_env):
         """
@@ -241,3 +248,20 @@ class TestGridWorld:
         img = default_env.render(mode="rgb_array")
         assert isinstance(img, np.ndarray)
         assert img.shape[-1] == 3  # Check if the image has 3 color channels (RGB)
+
+    def test_mdp_size(self, default_env):
+        """
+        Test if the size of the MDP is correct. It should account for all viable cells
+        (total cells minus walls) and ensure each viable cell has transitions for each action.
+        """
+        viable_cells = [
+            (r, c)
+            for r in range(default_env.rows)
+            for c in range(default_env.cols)
+            if (r, c) not in default_env.walls
+        ]
+        expected_size = len(viable_cells) * len(Action)
+        actual_size = len(default_env.mdp)
+        assert (
+            actual_size == expected_size
+        ), f"Expected MDP size {expected_size}, but got {actual_size}"

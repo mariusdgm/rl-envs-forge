@@ -21,8 +21,11 @@ class TestLabirinthMDP:
         t_r_dict, explored_states = mdp.build_mdp_dfs(env)
 
         nr_path_cells = np.sum(env.maze.grid == PATH)
-        assert len(explored_states) == (nr_path_cells - 1)
-        assert len(t_r_dict) == ((nr_path_cells - 1) * env.action_space.n)
+        nr_explored_states = nr_path_cells  # Including terminal state
+        expected_transitions = nr_path_cells * env.action_space.n 
+
+        assert len(explored_states) == nr_explored_states, f"Expected {nr_explored_states} explored states, but got {len(explored_states)}"
+        assert len(t_r_dict) == expected_transitions, f"Expected {expected_transitions} transitions, but got {len(t_r_dict)}"
 
     def test_build_mdp(self):
         """
@@ -38,5 +41,8 @@ class TestLabirinthMDP:
             t_r_dict, explored_states = mdp.build_mdp(env)
 
             nr_path_cells = np.sum(env.maze.grid == PATH)
-            assert len(explored_states) == (nr_path_cells - 1)
-            assert len(t_r_dict) == ((nr_path_cells - 1) * env.action_space.n)
+            nr_explored_states = nr_path_cells  # Including terminal state
+            expected_transitions = (nr_path_cells - 1) * env.action_space.n + env.action_space.n
+
+            assert len(explored_states) == nr_explored_states, f"Expected {nr_explored_states} explored states, but got {len(explored_states)}"
+            assert len(t_r_dict) == expected_transitions, f"Expected {expected_transitions} transitions, but got {len(t_r_dict)}"
