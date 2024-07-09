@@ -248,6 +248,8 @@ class GridWorld(gym.Env):
         Integrates special transitions directly into the MDP.
         """
         self.mdp = {}
+
+        # Add regular states and their transitions
         for state in [
             (r, c)
             for r in range(self.rows)
@@ -256,6 +258,11 @@ class GridWorld(gym.Env):
         ]:
             for action in Action:
                 self.mdp[(state, action)] = self.calculate_outcomes(state, action)
+
+        # Add terminal states with self-loops and reward 0 for subsequent actions
+        for terminal_state in self.terminal_states.keys():
+            for action in Action:
+                self.mdp[(terminal_state, action)] = [(terminal_state, 0, True, 1.0)]
 
         # Now integrate special transitions directly into the MDP
         for (from_state, action), (
@@ -595,7 +602,7 @@ class GridWorld(gym.Env):
             ax.set_yticks([])
 
             fig.canvas.draw()
-            image = np.frombuffer(fig.canvas.tostring_rgb(), dtype='uint8')
+            image = np.frombuffer(fig.canvas.tostring_rgb(), dtype="uint8")
             image = image.reshape(fig.canvas.get_width_height()[::-1] + (3,))
             plt.close(fig)
             return image

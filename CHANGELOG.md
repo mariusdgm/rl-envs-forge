@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.8.0] - 2024.07.09
+
+### Changed
+
+- Added terminal states (and transitions) in the GridWorld and Labyrinth MDPs
+
 ## [3.7.0] - 2024.07.01
 
 ### Added
