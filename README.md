@@ -21,6 +21,7 @@ Lightweight environments for reinforcement learning applications.
     - [GridWorld](#gridworld)
       - [GridWorld rendered example](#gridworld-rendered-example)
     - [ACML](#acml)
+    - [InvertedPendulum](#invertedpendulum)
   - [Usage](#usage)
   - [Tests](#tests)
   - [License](#license)
@@ -71,6 +72,31 @@ GridWorld is a customizable grid-based environment for reinforcement learning, f
 The Adaptive Computation and Machine Learning (ACML) environments are toy environments proposed in Reinforcement Learning: An Introduction* (2nd ed.).
 
 📖 **Detailed Documentation**: [Click here to read more about the ACML environments](https://github.com/mariusdgm/rl-envs-forge/blob/main/rl_envs_forge/envs/acml/README.md)
+
+#### Inverted pendulum environments
+
+Inverted pendulum environments where the objective is to apply forces to maintain the pendulum upright despite disturbances and the natural tendency to fall.
+
+📖 **Detailed Documentation**: [Click here to read more about the inverted pendulum envs](https://github.com/mariusdgm/rl-envs-forge/blob/main/rl_envs_forge/envs/inverted_pendulum/README.md)
+
+#### Inverted pendulums rendered examples
+
+<table>
+
+<tr>
+    <th colspan="1">CartPole</th>
+    <th colspan="1">PendulumDisk</th>
+</tr>
+<tr>
+<td>
+<img src="docs/figures/inverted_pendulum/cart_pole/render.png" alt="Comp Screenshot 1" width="300">
+</td>
+<td>
+<img src="docs/figures/inverted_pendulum/pendulum_disk/render.png" alt="Comp Screenshot 2" width="300">
+</td>
+</tr>
+
+</table>
 
 ## Usage
 

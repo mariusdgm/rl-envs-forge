@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.0] - 2024.07.26
+
+### Added
+
+- New environment: Inverted Pendulum - CartPole
+
 ## [3.8.0] - 2024.07.09
 
 ### Changed

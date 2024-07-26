@@ -8,14 +8,21 @@ import pygame
 class CartPole(gym.Env):
     metadata = {"render.modes": ["human"]}
 
-    def __init__(self, tau=0.02, continuous_reward=False, episode_length_limit=1000, angle_termination=None, initial_state=None):
+    def __init__(
+        self,
+        tau=0.02,
+        continuous_reward=False,
+        episode_length_limit=1000,
+        angle_termination=None,
+        initial_state=None,
+    ):
         """
-        Initializes a new instance of the CartPole class.
+        Initialize the CartPole environment.
 
         Args:
-            tau (float, optional): The time interval between state updates. Defaults to 0.02.
-            continuous_reward (bool, optional): Whether to use a continuous reward function. Defaults to False.
-            episode_length_limit (int, optional): The maximum number of steps per episode. Defaults to 1000.
+            tau (float, optional): The time step between state updates. Defaults to 0.02.
+            continuous_reward (bool, optional): Whether to use a continuous reward. Defaults to False.
+            episode_length_limit (int, optional): The maximum length of an episode. Defaults to 1000.
             angle_termination (float, optional): The angle at which the episode terminates. Defaults to None.
             initial_state (numpy.ndarray, optional): The initial state of the environment. Defaults to None.
 
@@ -48,27 +55,39 @@ class CartPole(gym.Env):
         self.x_threshold = 2.4
 
         # Initialize state
-        self.state = None
+        self.state = self._initialize_state()
         self.steps_beyond_done = None
         self.current_step = 0
 
         # Initialize viewer
         self.viewer = None
 
+    def _initialize_state(self):
+        if self.initial_state is not None:
+            return np.array(self.initial_state, dtype=np.float64)
+        else:
+            return np.random.uniform(low=-0.01, high=0.01, size=(4,))
+
+    def normalize_angle(self, angle):
+        """Normalize the angle to be within the range [-pi, pi]."""
+        angle = (angle + np.pi) % (2 * np.pi) - np.pi
+        if angle == -np.pi:
+            angle = np.pi
+        return angle
+
     def reset(self, initial_state=None):
         # Start state
         if initial_state is not None:
             self.state = np.array(initial_state, dtype=np.float64)
-        elif self.initial_state is not None:
-            self.state = np.array(self.initial_state, dtype=np.float64)
         else:
-            self.state = np.random.uniform(low=-0.01, high=0.01, size=(4,))
+            self.state = self._initialize_state()
         self.steps_beyond_done = None
         self.current_step = 0
         return np.array(self.state, dtype=np.float64)
 
     def step(self, action):
         assert self.action_space.contains(action), f"{action} ({type(action)}) invalid"
+        
         state = self.state
         x, x_dot, theta, theta_dot = state
         force = action[0]
@@ -90,8 +109,8 @@ class CartPole(gym.Env):
         theta_dot = theta_dot + self.tau * theta_acc
 
         self.state = (x, x_dot, theta, theta_dot)
-        self.current_step += 1
 
+        # Check for termination conditions
         done = bool(
             x < -self.x_threshold
             or x > self.x_threshold
@@ -99,32 +118,35 @@ class CartPole(gym.Env):
             or theta > self.theta_threshold_radians
         )
 
+        if self.angle_termination is not None:
+            done = done or (abs(theta) > self.angle_termination)
+
+        if self.continuous_reward:
+            reward = 1.0 - abs(theta) / self.theta_threshold_radians
+        else:
+            reward = 1.0 if not done else 0.0
+
+        self.current_step += 1
         truncated = self.current_step >= self.episode_length_limit
 
-        if self.angle_termination is not None:
-            if abs(theta) < self.angle_termination:
-                done = True
-                truncated = False
+        if truncated:
+            done = False
 
-        if not done and not truncated:
-            if self.continuous_reward:
-                reward = max(0.0, (1.0 - abs(theta) / self.theta_threshold_radians))
-            else:
-                reward = 1.0
-        elif self.steps_beyond_done is None:
-            # Pole just fell!
-            self.steps_beyond_done = 0
-            reward = 1.0 if not self.continuous_reward else 0.0
-        else:
-            if self.steps_beyond_done == 0:
-                warnings.warn(
-                    "You are calling 'step()' even though this environment has already returned done = True. You should always call 'reset()' once you receive 'done = True' -- any further steps are undefined behavior.",
-                    category=RuntimeWarning,
-                )
-            self.steps_beyond_done += 1
-            reward = 0.0
+        info = {
+            "truncated": truncated,
+            "x_acc": x_acc,
+            "theta_acc": theta_acc,
+            "force": force,
+            "steps": self.current_step,
+        }
 
-        return np.array(self.state, dtype=np.float64), reward, done, {"truncated": truncated}
+        return (
+            np.array(self.state, dtype=np.float64),
+            reward,
+            done,
+            truncated,
+            info,
+        )
 
     def render(self, mode="human"):
         screen_width = 600
