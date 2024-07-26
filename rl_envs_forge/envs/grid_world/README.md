@@ -46,7 +46,7 @@ env.render()
 
 ### Packages
 
-<img src="../../../docs/diagrams/grid_world/packages_grid_world.png" alt="Pakages UML" width="300">
+<img src="../../../docs/diagrams/grid_world/packages_grid_world.png" alt="Packages UML" width="300">
 
 ### Classes
 

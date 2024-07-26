@@ -1,10 +1,14 @@
-# KArmedBandit environment 
+# Inverted pendulum environments 
 
-The k-armed bandit problem is a classic dilemma in probability theory and statistics which models the decision-making process of choosing between multiple strategies (or actions) with uncertain outcomes. Imagine standing in front of a slot machine with k levers (or "arms"). Each lever provides a reward drawn from an unknown probability distribution specific to that lever. The challenge is to determine a strategy to maximize your total reward over a series of trials, without knowledge of the underlying distributions.
+The inverted pendulum problem is a classic challenge in control theory and reinforcement learning, modeling the task of balancing a pendulum in an unstable equilibrium. Imagine a pendulum attached to a pivot point that can move horizontally.
 
-The Arms can be customized as presented in section [Usage](#usage).
+The objective is to apply forces to maintain the pendulum upright despite disturbances and the natural tendency to fall. This problem exemplifies the need for precise control and is fundamental in illustrating various control strategies.
+
+The integration step of the environments is adjustable as presented in [Usage](#usage).
 
 ## Usage
+
+# TODO
 
 Code example for getting started with the environment:
 
@@ -112,21 +116,6 @@ custom_bandit.render()
 
 </table>
 
-## Different distributions
-Several distribution types can be used for the arm distribution:
-
-```python
-arm_params = {
-    0: {"distribution": "normal", "mean": 5, "std": 1},
-    1: {"distribution": "uniform", "low": 4, "high": 6},
-    2: {"distribution": "exponential", "scale": 1.5},  # Adjusted scale for a mean closer to 5.
-    3: {"distribution": "gamma", "shape": 9, "scale": 0.55},  # Adjusted to have a mean around 5.
-    4: {"distribution": "logistic", "loc": 5, "scale": 0.3},
-    5: {"distribution": "lognormal", "mean": 1.6, "sigma": 0.3},  # Adjusted for a mean close to 5.
-}
-
-custom_bandit = KArmedBandit(k=6, arm_params=arm_params)
-custom_bandit.render(mode="violin_plot")
 ```
 
 ![KArmedBandit render different_distributions](../../../docs/figures/k_armed_bandit/different_distributions.png)

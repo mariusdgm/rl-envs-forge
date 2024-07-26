@@ -4,6 +4,7 @@ The Adaptive Computation and Machine Learning (ACML) environments are toy enviro
 
 ## Implemented Environments
 - JacksCarRentalEnv: Jack's Car Rental problem
+- GamblersProblem: Gambler's problem
 
 ## Usage
 
@@ -68,7 +69,7 @@ Usage with policy iteration: [Algorithm Repository](https://github.com/mariusdgm
 
 ### Packages
 
-<img src="../../../docs/diagrams/acml/packages_acml.png" alt="Pakages UML" width="300">
+<img src="../../../docs/diagrams/acml/packages_acml.png" alt="Packages UML" width="300">
 
 ### Classes
 
