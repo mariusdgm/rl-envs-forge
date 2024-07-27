@@ -1,6 +1,7 @@
 # PendulumDisk
 
-CarPole is a classic 2D environment where the agent must learn to balance a pole on a cart.  
+PendulumDisk is an environment where the agent must learn to control an inverted pendulum in the form of a weight attached at the edge of a disk.
+  
 
 Different environment setups are presented in [Usage](#usage).
 
@@ -9,9 +10,9 @@ Different environment setups are presented in [Usage](#usage).
 ### Basic Initialization
 
 ```python
-from rl_envs_forge.envs.inverted_pendulum.cart_pole import CartPole
+from rl_envs_forge.envs.inverted_pendulum.pendulum_disk.pendulum_disk import PendulumDisk
 
-env = CartPole(tau=0.02)  # Set the integration time step to 0.02 seconds
+env = PendulumDisk(tau=0.005)  # Set the integration time step to 0.005 seconds
 state = env.reset()
 
 action = env.action_space.sample()  # Sample a random action
@@ -20,12 +21,12 @@ print(next_state, reward, done, truncated, info)
 ```
 
 ```
-[-0.00880992  0.05337294 -0.00476914 -0.09155615] 1.0 False False {'truncated': False, 'x_acc': 2.744742412611468, 'theta_acc': -4.184865386909861, 'force': 2.8099756, 'steps': 1}
+[-0.0055789  -0.32154114] 1.0 False False {'truncated': False, 'alpha_dot_dot': -63.054773984993176, 'force': -2.1126268, 'steps': 1}
 ```
 
 ### Custom Initialization with Continuous Reward
 ```python
-env = CartPole(tau=0.02, continuous_reward=True)
+env = PendulumDisk(tau=0.005, continuous_reward=True)
 state = env.reset()
 
 action = env.action_space.sample()  # Sample a random action
@@ -34,13 +35,13 @@ print(next_state, reward, done, truncated, info)
 ```
 
 ```
-[ 0.00909999  0.04140016 -0.00273255 -0.06122324] 0.9863372562695047 False False {'truncated': False, 'x_acc': 2.312239802874169, 'theta_acc': -3.5111593829089087, 'force': 2.3679066, 'steps': 1}
+[ 0.00216049 -0.05723835] 0.9993122951478205 False False {'truncated': False, 'alpha_dot_dot': -13.35588768389303, 'force': -0.46010104, 'steps': 1}
 ```
 
 ### Rendering the Environment
 
 ```
-env = CartPole(tau=0.02)
+env = PendulumDisk(tau=0.005)
 state = env.reset()
 
 for _ in range(1000):

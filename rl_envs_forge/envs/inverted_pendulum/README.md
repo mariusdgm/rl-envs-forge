@@ -6,7 +6,8 @@ The objective is to apply forces to maintain the pendulum upright despite distur
 
 ## Environments
 
-- CartPole - [CartPole](cart_pole.md)
+- CartPole - [Readme](cart_pole/README.md)
+- PendulumDisk - [Readme](pendulum_disk/README.md)
 
 ## UML diagrams
 

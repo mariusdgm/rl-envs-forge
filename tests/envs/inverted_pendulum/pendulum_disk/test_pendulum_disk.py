@@ -2,7 +2,9 @@ import pytest
 import numpy as np
 from unittest.mock import MagicMock, patch
 
-from rl_envs_forge.envs.inverted_pendulum.pendulum_disk.pendulum_disk import PendulumDisk
+from rl_envs_forge.envs.inverted_pendulum.pendulum_disk.pendulum_disk import (
+    PendulumDisk,
+)
 
 
 @pytest.fixture
@@ -32,7 +34,9 @@ def angle_termination_env():
 @pytest.fixture
 def nonlinear_reward_env():
     """Fixture to create a PendulumDisk environment with nonlinear reward."""
-    return PendulumDisk(continuous_reward=True, nonlinear_reward=True, reward_decay_rate=30.0)
+    return PendulumDisk(
+        continuous_reward=True, nonlinear_reward=True, reward_decay_rate=30.0
+    )
 
 
 @pytest.fixture
@@ -74,7 +78,7 @@ class TestPendulumDisk:
     def test_continuous_reward(self, continuous_reward_env):
         continuous_reward_env.reset()
         action = np.array([1.0], dtype=np.float32)  # Ensure action is of correct dtype
-        continuous_reward_env.state = [0.0, 0.1]  # Set state for testing
+        continuous_reward_env.state = [0.1, 0.0]  # Set state for testing
         state, reward, done, truncated, info = continuous_reward_env.step(action)
         expected_reward = 1.0 - abs(0.1) / np.pi
         print(f"Expected reward: {expected_reward}, Actual reward: {reward}")
@@ -128,7 +132,9 @@ class TestPendulumDisk:
         assert done
         assert not truncated
 
-    @patch("rl_envs_forge.envs.inverted_pendulum.pendulum_disk.pendulum_disk.pygame.quit")
+    @patch(
+        "rl_envs_forge.envs.inverted_pendulum.pendulum_disk.pendulum_disk.pygame.quit"
+    )
     def test_close(self, mock_quit, default_env):
         """
         Test if the close function terminates the viewer.
@@ -138,17 +144,17 @@ class TestPendulumDisk:
         assert default_env.viewer is None
 
     def test_normalize_angle(self, default_env):
-        angles = [0, np.pi, -np.pi, 2*np.pi, -2*np.pi, 3*np.pi, -3*np.pi]
+        angles = [0, np.pi, -np.pi, 2 * np.pi, -2 * np.pi, 3 * np.pi, -3 * np.pi]
         normalized_angles = [default_env.normalize_angle(angle) for angle in angles]
         expected_angles = [0, np.pi, np.pi, 0, 0, np.pi, np.pi]
         for angle, expected in zip(normalized_angles, expected_angles):
             assert angle == pytest.approx(expected, rel=1e-5)
-            
+
     def test_state_initialization(self, default_env):
         initial_state = default_env._initialize_state()
         assert len(initial_state) == 2
         assert np.all(initial_state >= -0.01) and np.all(initial_state <= 0.01)
-        
+
     def test_step_with_invalid_action(self, default_env):
         default_env.reset()
         invalid_action = np.array([5.0], dtype=np.float32)  # Out of action space bounds

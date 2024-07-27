@@ -28,7 +28,7 @@ class PendulumDisk(gym.Env):
             initial_state (numpy.ndarray, optional): The initial state of the environment. Defaults to None.
             nonlinear_reward (bool, optional): Whether to use a nonlinear reward. Defaults to False.
             reward_decay_rate (float, optional): The curve parameter for the nonlinear reward. Defaults to 30.0.
-            reward_angle_range (tuple, optional): The angle range for discrete reward. Defaults to (-0.1, 0.1).
+            reward_angle_range (tuple, optional): The angle range for discrete reward. Defaults to (-0.2, 0.2).
 
         Returns:
             None

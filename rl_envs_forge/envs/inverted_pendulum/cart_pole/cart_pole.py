@@ -15,7 +15,7 @@ class CartPole(gym.Env):
         initial_state=None,
         nonlinear_reward=False,
         reward_decay_rate=30.0,
-        reward_angle_range=(-0.1, 0.1),  # New parameter for angle range
+        reward_angle_range=(-0.1, 0.1),  
     ):
         """
         Initialize the CartPole environment.

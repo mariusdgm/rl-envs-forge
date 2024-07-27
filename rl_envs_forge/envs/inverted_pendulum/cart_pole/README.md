@@ -9,7 +9,7 @@ Different environment setups are presented in [Usage](#usage).
 ### Basic Initialization
 
 ```python
-from rl_envs_forge.envs.inverted_pendulum.cart_pole import CartPole
+from rl_envs_forge.envs.inverted_pendulum.cart_pole.cart_pole import CartPole
 
 env = CartPole(tau=0.02)  # Set the integration time step to 0.02 seconds
 state = env.reset()

@@ -73,7 +73,7 @@ The Adaptive Computation and Machine Learning (ACML) environments are toy enviro
 
 📖 **Detailed Documentation**: [Click here to read more about the ACML environments](https://github.com/mariusdgm/rl-envs-forge/blob/main/rl_envs_forge/envs/acml/README.md)
 
-#### Inverted pendulum environments
+### Inverted pendulum environments
 
 Inverted pendulum environments where the objective is to apply forces to maintain the pendulum upright despite disturbances and the natural tendency to fall.
 
@@ -89,10 +89,10 @@ Inverted pendulum environments where the objective is to apply forces to maintai
 </tr>
 <tr>
 <td>
-<img src="docs/figures/inverted_pendulum/cart_pole/render.png" alt="Comp Screenshot 1" width="300">
+<img src="docs/figures/inverted_pendulum/cart_pole/render.png" alt="CartPole" width="300">
 </td>
 <td>
-<img src="docs/figures/inverted_pendulum/pendulum_disk/render.png" alt="Comp Screenshot 2" width="300">
+<img src="docs/figures/inverted_pendulum/pendulum_disk/render.png" alt="PendulumDisk" width="300">
 </td>
 </tr>
 
