@@ -29,6 +29,11 @@ def angle_termination_env():
     return CartPole(angle_termination=0.1)
 
 
+@pytest.fixture
+def nonlinear_reward_env():
+    """Fixture to create a CartPole environment with nonlinear reward."""
+    return CartPole(nonlinear_reward=True, reward_decay_rate=30.0)
+
 class TestCartPole:
     def test_initialization(self, default_env):
         assert default_env.tau == 0.02
@@ -66,6 +71,15 @@ class TestCartPole:
         print(f"Expected reward: {expected_reward}, Actual reward: {reward}")
         assert reward == pytest.approx(expected_reward, rel=1e-5)
 
+    def test_nonlinear_reward(self, nonlinear_reward_env):
+        nonlinear_reward_env.reset()
+        action = np.array([1.0], dtype=np.float32)  # Ensure action is of correct dtype
+        nonlinear_reward_env.state = [0.0, 0.0, 0.1, 0.0]  # Set state for testing
+        state, reward, done, truncated, info = nonlinear_reward_env.step(action)
+        expected_reward = 1.0 - (1.0 - np.exp(-nonlinear_reward_env.curve_param * abs(0.1))) / (1.0 - np.exp(-nonlinear_reward_env.curve_param * nonlinear_reward_env.theta_threshold_radians))
+        print(f"Expected reward: {expected_reward}, Actual reward: {reward}")
+        assert reward == pytest.approx(expected_reward, rel=1e-5)
+        
     def test_episode_length_limit(self, limited_length_env):
         limited_length_env.reset()
         action = np.array([1.0], dtype=np.float32)  # Ensure action is of correct dtype

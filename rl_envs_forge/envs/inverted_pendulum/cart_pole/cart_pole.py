@@ -4,7 +4,6 @@ import gymnasium as gym
 from gymnasium import spaces
 import pygame
 
-
 class CartPole(gym.Env):
     metadata = {"render.modes": ["human"]}
 
@@ -15,6 +14,8 @@ class CartPole(gym.Env):
         episode_length_limit=1000,
         angle_termination=None,
         initial_state=None,
+        nonlinear_reward=False,
+        reward_decay_rate=30.0,
     ):
         """
         Initialize the CartPole environment.
@@ -25,6 +26,8 @@ class CartPole(gym.Env):
             episode_length_limit (int, optional): The maximum length of an episode. Defaults to 1000.
             angle_termination (float, optional): The angle at which the episode terminates. Defaults to None.
             initial_state (numpy.ndarray, optional): The initial state of the environment. Defaults to None.
+            nonlinear_reward (bool, optional): Whether to use a nonlinear reward. Defaults to False.
+            reward_decay_rate (float, optional): The curve parameter for the nonlinear reward. Defaults to 1.0.
 
         Returns:
             None
@@ -36,6 +39,8 @@ class CartPole(gym.Env):
         self.episode_length_limit = episode_length_limit
         self.angle_termination = angle_termination
         self.initial_state = initial_state
+        self.nonlinear_reward = nonlinear_reward
+        self.curve_param = reward_decay_rate
 
         # Define action and observation space
         self.action_space = spaces.Box(low=-3.0, high=3.0, shape=(1,), dtype=np.float32)
@@ -121,7 +126,9 @@ class CartPole(gym.Env):
         if self.angle_termination is not None:
             done = done or (abs(theta) > self.angle_termination)
 
-        if self.continuous_reward:
+        if self.nonlinear_reward:
+            reward = 1.0 - (1.0 - np.exp(-self.curve_param * abs(theta))) / (1.0 - np.exp(-self.curve_param * self.theta_threshold_radians))
+        elif self.continuous_reward:
             reward = 1.0 - abs(theta) / self.theta_threshold_radians
         else:
             reward = 1.0 if not done else 0.0
