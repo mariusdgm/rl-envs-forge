@@ -148,7 +148,7 @@ env.human_play(print_info=True, animate=True)
 
 ### Packages
 
-<img src="../../../docs/diagrams/labyrinth/packages_labyrinth.png" alt="Pakages UML" width="300">
+<img src="../../../docs/diagrams/labyrinth/packages_labyrinth.png" alt="Packages UML" width="300">
 
 ### Classes
 

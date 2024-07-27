@@ -135,7 +135,7 @@ custom_bandit.render(mode="violin_plot")
 
 ### Packages
 
-<img src="../../../docs/diagrams/k_armed_bandit/packages_k_armed_bandit.png" alt="Pakages UML" width="300">
+<img src="../../../docs/diagrams/k_armed_bandit/packages_k_armed_bandit.png" alt="Packages UML" width="300">
 
 ### Classes
 
