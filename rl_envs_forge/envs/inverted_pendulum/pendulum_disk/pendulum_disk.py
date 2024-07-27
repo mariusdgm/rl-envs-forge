@@ -3,25 +3,25 @@ import gymnasium as gym
 from gymnasium import spaces
 import pygame
 
-class CartPole(gym.Env):
+class PendulumDisk(gym.Env):
     metadata = {"render.modes": ["human"]}
 
     def __init__(
         self,
-        tau=0.02,
+        tau=0.005,
         continuous_reward=False,
         episode_length_limit=1000,
         angle_termination=None,
         initial_state=None,
         nonlinear_reward=False,
         reward_decay_rate=30.0,
-        reward_angle_range=(-0.1, 0.1),  # New parameter for angle range
+        reward_angle_range=(-0.2, 0.2),  # New parameter for angle range
     ):
         """
-        Initialize the CartPole environment.
+        Initialize the Inverted Pendulum environment.
 
         Args:
-            tau (float, optional): The time step between state updates. Defaults to 0.02.
+            tau (float, optional): The time step between state updates. Defaults to 0.005.
             continuous_reward (bool, optional): Whether to use a continuous reward. Defaults to False.
             episode_length_limit (int, optional): The maximum length of an episode. Defaults to 1000.
             angle_termination (float, optional): The angle at which the episode terminates. Defaults to None.
@@ -47,19 +47,25 @@ class CartPole(gym.Env):
         # Define action and observation space
         self.action_space = spaces.Box(low=-3.0, high=3.0, shape=(1,), dtype=np.float32)
         self.observation_space = spaces.Box(
-            low=-np.inf, high=np.inf, shape=(4,), dtype=np.float64
+            low=np.array([-np.pi, -15 * np.pi]),
+            high=np.array([np.pi, 15 * np.pi]),
+            shape=(2,),
+            dtype=np.float64,
         )
 
         # Environment parameters
-        self.gravity = 9.8
-        self.mass_cart = 1.0
-        self.mass_pole = 0.1
-        self.total_mass = self.mass_cart + self.mass_pole
-        self.length = 0.5  # actually half the pole's length
-        self.pole_mass_length = self.mass_pole * self.length
-        self.force_mag = 10.0
-        self.theta_threshold_radians = 0.2
-        self.x_threshold = 2.4
+        self.J = 1.91e-4  # kg.m^2
+        self.m = 0.055  # kg
+        self.g = 9.81  # m/s^2
+        self.l = 0.042  # m
+        self.b = 3e-6  # kg/s
+        self.K = 0.0536  # Nm/A
+        self.R = 9.5  # ohm
+
+        # Reward parameters
+        self.Qrew = np.array([[5, 0], [0, 0.1]])
+        self.Rrew = 1.0
+        self.gamma = 0.98
 
         # Initialize state
         self.state = self._initialize_state()
@@ -75,7 +81,7 @@ class CartPole(gym.Env):
         if self.initial_state is not None:
             return np.array(self.initial_state, dtype=np.float64)
         else:
-            return np.random.uniform(low=-0.01, high=0.01, size=(4,))
+            return np.random.uniform(low=-0.01, high=0.01, size=(2,))
 
     def normalize_angle(self, angle):
         """Normalize the angle to be within the range [-pi, pi]."""
@@ -98,49 +104,43 @@ class CartPole(gym.Env):
 
     def step(self, action):
         assert self.action_space.contains(action), f"{action} ({type(action)}) invalid"
-        
+
         state = self.state
-        x, x_dot, theta, theta_dot = state
-        force = action[0]
+        alpha, alpha_dot = state
+        u = action[0]
 
-        cos_theta = np.cos(theta)
-        sin_theta = np.sin(theta)
+        alpha_dot_dot = (
+            self.m * self.g * self.l * np.sin(alpha)
+            - self.b * alpha_dot
+            - (self.K**2 / self.R) * alpha_dot
+            + self.K / self.R * u
+        ) / self.J
 
-        temp = (
-            force + self.pole_mass_length * theta_dot**2 * sin_theta
-        ) / self.total_mass
-        theta_acc = (self.gravity * sin_theta - cos_theta * temp) / (
-            self.length * (4.0 / 3.0 - self.mass_pole * cos_theta**2 / self.total_mass)
-        )
-        x_acc = temp - self.pole_mass_length * theta_acc * cos_theta / self.total_mass
+        alpha = self.normalize_angle(alpha + self.tau * alpha_dot)
+        alpha_dot = alpha_dot + self.tau * alpha_dot_dot
 
-        x = x + self.tau * x_dot
-        x_dot = x_dot + self.tau * x_acc
-        theta = self.normalize_angle(theta + self.tau * theta_dot)  # Normalize the angle
-        theta_dot = theta_dot + self.tau * theta_acc
-
-        self.state = (x, x_dot, theta, theta_dot)
+        self.state = (alpha, alpha_dot)
 
         # Check for termination conditions
         done = bool(
-            x < -self.x_threshold
-            or x > self.x_threshold
-            or theta < -self.theta_threshold_radians
-            or theta > self.theta_threshold_radians
+            alpha < -np.pi
+            or alpha > np.pi
+            or alpha_dot < -15 * np.pi
+            or alpha_dot > 15 * np.pi
         )
 
         if self.angle_termination is not None:
-            done = done or (abs(theta) > self.angle_termination)
+            done = done or (abs(alpha) > self.angle_termination)
 
         if self.continuous_reward:
             if self.nonlinear_reward:
-                self.current_reward = 1.0 - (1.0 - np.exp(-self.curve_param * abs(theta))) / (
-                    1.0 - np.exp(-self.curve_param * self.theta_threshold_radians)
+                self.current_reward = 1.0 - (1.0 - np.exp(-self.curve_param * abs(alpha))) / (
+                    1.0 - np.exp(-self.curve_param * np.pi)
                 )
             else:
-                self.current_reward = 1.0 - abs(theta) / self.theta_threshold_radians
+                self.current_reward = 1.0 - abs(alpha) / np.pi
         else:
-            if self.reward_angle_range[0] <= theta <= self.reward_angle_range[1]:
+            if self.reward_angle_range[0] <= alpha <= self.reward_angle_range[1]:
                 self.current_reward = 1.0
             else:
                 self.current_reward = 0.0
@@ -155,9 +155,8 @@ class CartPole(gym.Env):
 
         info = {
             "truncated": truncated,
-            "x_acc": x_acc,
-            "theta_acc": theta_acc,
-            "force": force,
+            "alpha_dot_dot": alpha_dot_dot,
+            "force": u,
             "steps": self.current_step,
         }
 
@@ -173,18 +172,17 @@ class CartPole(gym.Env):
         screen_width = 800
         screen_height = 800
 
-        world_width = self.x_threshold * 2
+        world_width = np.pi * 2
         scale = screen_width / world_width
-        carty = screen_height / 2  # MIDDLE OF SCREEN HEIGHT
-        polewidth = 10.0
-        polelen = scale * (2 * self.length)
-        cartwidth = 50.0
-        cartheight = 30.0
+        pivot_x = screen_width / 2  # MIDDLE OF SCREEN WIDTH
+        pivot_y = screen_height / 2  # MIDDLE OF SCREEN HEIGHT
+        disk_radius = scale * 1.8  # Hardcoded size for the disk
+        weight_radius = 10.0  # Radius of the weight
 
         if self.viewer is None:
             pygame.init()
             self.viewer = pygame.display.set_mode((screen_width, screen_height))
-            pygame.display.set_caption("CartPole")
+            pygame.display.set_caption("Inverted Pendulum")
             self.font = pygame.font.Font(None, 36)
 
         for event in pygame.event.get():
@@ -198,46 +196,21 @@ class CartPole(gym.Env):
 
         self.viewer.fill((255, 255, 255))
 
-        # Draw x-axis
-        pygame.draw.line(
-            self.viewer,
-            (0, 0, 0),
-            (0, carty),
-            (screen_width, carty),
-            1
-        )
+        # Draw disk
+        pygame.draw.circle(self.viewer, (0, 0, 0), (int(pivot_x), int(pivot_y)), int(disk_radius), 2)
 
-        # Draw cart
-        x = self.state
-        cartx = x[0] * scale + screen_width / 2.0  # CENTER OF CART ON SCREEN WIDTH
-        cart_y = carty
-        cart_rect = pygame.Rect(
-            cartx - cartwidth / 2, cart_y - cartheight / 2, cartwidth, cartheight
-        )
-        pygame.draw.rect(self.viewer, (0, 0, 0), cart_rect)
+        # Draw weight
+        alpha = self.state[0]
+        weight_x = pivot_x + disk_radius * np.sin(alpha)
+        weight_y = pivot_y - disk_radius * np.cos(alpha)
+        pygame.draw.circle(self.viewer, (255, 0, 0), (int(weight_x), int(weight_y)), int(weight_radius))
 
-        # Draw pole
-        pole_x = cartx
-        pole_y = cart_y
-        pole_end_x = pole_x + polelen * np.sin(x[2])
-        pole_end_y = pole_y - polelen * np.cos(x[2])
-        pygame.draw.line(
-            self.viewer,
-            (255, 0, 0),
-            (pole_x, pole_y),
-            (pole_end_x, pole_end_y),
-            int(polewidth),
-        )
-
-        # Draw axle
-        pygame.draw.circle(
-            self.viewer, (0, 0, 255), (int(pole_x), int(pole_y)), int(polewidth / 2)
-        )
+        # Draw line from center of the disk to the weight
+        pygame.draw.line(self.viewer, (0, 0, 0), (pivot_x, pivot_y), (weight_x, weight_y), 2)
 
         # Draw state information
         state_info = [
-            f"x: {x[0]:.2f}, theta: {x[2]:.2f}",
-            f"x_dot: {x[1]:.2f}, theta_dot: {x[3]:.2f}",
+            f"alpha: {alpha:.2f}, alpha_dot: {self.state[1]:.2f}",
             f"reward: {self.current_reward:.2f}",
             f"total_reward: {self.total_reward:.2f}"
         ]
