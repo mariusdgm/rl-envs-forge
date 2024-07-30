@@ -90,8 +90,10 @@ class PendulumDisk(gym.Env):
             angle = np.pi
         return angle
 
-    def reset(self, initial_state=None):
-        # Start state
+    def reset(self, seed=None, options=None, initial_state=None):
+        if seed is not None:
+            self.np_random, seed = gym.utils.seeding.np_random(seed)
+        
         if initial_state is not None:
             self.state = np.array(initial_state, dtype=np.float64)
         else:

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.1] - 2024.07.30
+
+### Fixed
+
+- Added needed seed and options to the reset methods in InvertedPendulum envs
+
 ## [4.0.0] - 2024.07.28
 
 ### Added
