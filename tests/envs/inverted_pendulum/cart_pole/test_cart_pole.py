@@ -165,3 +165,11 @@ class TestCartPole:
         invalid_action = np.array([5.0], dtype=np.float32)  # Out of action space bounds
         with pytest.raises(AssertionError):
             default_env.step(invalid_action)
+
+    @patch("matplotlib.pyplot.figure")
+    def test_matplotlib_render(self, mock_figure, default_env):
+        default_env.reset()
+        default_env.render(mode="matplotlib")
+        assert (
+            mock_figure.called
+        ), "matplotlib.figure should be called when rendering in 'matplotlib' mode"

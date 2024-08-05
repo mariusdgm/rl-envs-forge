@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Matplotlib render mode for inverted pendulum envs
+
 ## [4.0.1] - 2024.07.30
 
 ### Fixed

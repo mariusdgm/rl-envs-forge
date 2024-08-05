@@ -2,6 +2,7 @@ import numpy as np
 import gymnasium as gym
 from gymnasium import spaces
 import pygame
+import matplotlib.pyplot as plt
 
 class PendulumDisk(gym.Env):
     metadata = {"render.modes": ["human"]}
@@ -171,6 +172,14 @@ class PendulumDisk(gym.Env):
         )
 
     def render(self, mode="human"):
+        if mode == "human":
+            self._render_pygame()
+        elif mode == "matplotlib":
+            self._render_matplotlib()
+        else:
+            raise ValueError(f"Unsupported render mode: {mode}")
+
+    def _render_pygame(self):
         screen_width = 800
         screen_height = 800
 
@@ -222,6 +231,37 @@ class PendulumDisk(gym.Env):
             self.viewer.blit(text_surface, text_rect)
 
         pygame.display.flip()
+
+    def _render_matplotlib(self):
+        alpha = self.state[0]
+
+        fig, ax = plt.subplots(figsize=(8, 8))
+        ax.set_xlim(-np.pi, np.pi)
+        ax.set_ylim(-np.pi, np.pi)
+
+        # Plot the disk
+        disk = plt.Circle((0, 0), 1.8, color='black', fill=False)
+        ax.add_patch(disk)
+
+        # Plot the weight
+        weight_x = 1.8 * np.sin(alpha)
+        weight_y = -1.8 * np.cos(alpha)
+        ax.plot(weight_x, weight_y, 'ro')
+
+        # Plot the line from center of the disk to the weight
+        ax.plot([0, weight_x], [0, weight_y], 'k-')
+
+        # Add state information as text
+        ax.text(-np.pi, -3, f"alpha: {alpha:.2f}", fontsize=12, verticalalignment='top')
+        ax.text(-np.pi, -3.5, f"alpha_dot: {self.state[1]:.2f}", fontsize=12, verticalalignment='top')
+        ax.text(-np.pi, -4, f"reward: {self.current_reward:.2f}", fontsize=12, verticalalignment='top')
+        ax.text(-np.pi, -4.5, f"total_reward: {self.total_reward:.2f}", fontsize=12, verticalalignment='top')
+
+        plt.title("Pendulum Disk")
+        plt.xlabel("x")
+        plt.ylabel("y")
+        plt.grid(True)
+        plt.show()
 
     def close(self):
         if self.viewer:
