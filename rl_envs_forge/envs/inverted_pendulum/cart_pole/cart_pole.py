@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 
 class CartPole(gym.Env):
-    metadata = {"render.modes": ["human"]}
+    metadata = {"render.modes": ["human", "matplotlib"]}
 
     def __init__(
         self,
@@ -16,7 +16,7 @@ class CartPole(gym.Env):
         angle_termination=None,
         initial_state=None,
         nonlinear_reward=False,
-        reward_decay_rate=30.0,
+        reward_decay_rate=3.0,
         reward_angle_range=(-0.1, 0.1),
     ):
         """

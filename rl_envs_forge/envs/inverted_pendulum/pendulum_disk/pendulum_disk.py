@@ -5,7 +5,7 @@ import pygame
 import matplotlib.pyplot as plt
 
 class PendulumDisk(gym.Env):
-    metadata = {"render.modes": ["human"]}
+    metadata = {"render.modes": ["human", "matplotlib"]}
 
     def __init__(
         self,
@@ -15,7 +15,7 @@ class PendulumDisk(gym.Env):
         angle_termination=None,
         initial_state=None,
         nonlinear_reward=False,
-        reward_decay_rate=30.0,
+        reward_decay_rate=3.0,
         reward_angle_range=(-0.2, 0.2),  # New parameter for angle range
     ):
         """
