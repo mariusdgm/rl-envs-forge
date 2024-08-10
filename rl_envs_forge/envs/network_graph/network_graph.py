@@ -3,7 +3,8 @@ from gymnasium import spaces
 import numpy as np
 import networkx as nx
 
-
+from .visualize import draw_network_graph
+from .aux_functions import compute_centrality
 
 
 class NetworkGraph(gym.Env):
@@ -148,9 +149,9 @@ class NetworkGraph(gym.Env):
         return self.opinions, reward, done, truncated, info
 
     def render(self, mode="human"):
-        """
-        Render the environment.
-        """
+        # Compute centralities based on the Laplacian matrix
+        centralities = compute_centrality(self.L)
+        draw_network_graph(self.adjacency_matrix, centralities)
         print(
             f"Step: {self.current_step}, Opinions: {self.opinions}, Total Spent: {self.total_spent}"
         )

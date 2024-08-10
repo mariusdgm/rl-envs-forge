@@ -2,7 +2,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import numpy as np
 
-def draw_network_graph(adjacency_matrix, centralities, spread_factor=1.0):
+def draw_network_graph(adjacency_matrix, centralities):
     G = nx.DiGraph(adjacency_matrix)
     node_sizes = [5000 * centrality for centrality in centralities]
     
