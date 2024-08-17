@@ -33,7 +33,7 @@ def centrality_connectivity_env():
 
 class TestNetworkGraph:
     def test_initialization(self, default_env):
-        assert default_env.num_agents == 100
+        assert default_env.num_agents == 5
         assert default_env.budget == 10.0
         assert default_env.tau == 1.0
         assert default_env.max_steps == 100
@@ -90,16 +90,16 @@ class TestNetworkGraph:
         assert not done
         assert truncated
 
-    def test_render(self, default_env):
-        with patch('your_module.draw_network_graph') as mock_draw_network_graph:
-            default_env.reset()
-            default_env.render()
-            mock_draw_network_graph.assert_called_once()
+    @patch("rl_envs_forge.envs.network_graph.visualize.plt.show")  # Patch plt.show
+    def test_render(self, mock_show, default_env):
+        default_env.reset()
+        default_env.render(mode="matplotlib")
+        assert mock_show.called, "plt.show should be called when rendering in 'matplotlib' mode"
 
     def test_render_output(self, default_env):
         default_env.reset()
         with patch('builtins.print') as mock_print:
-            default_env.render()
+            default_env.render(mode="human")
             mock_print.assert_called()
 
     def test_invalid_initialization(self):

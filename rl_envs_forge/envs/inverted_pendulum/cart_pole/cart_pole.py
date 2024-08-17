@@ -40,7 +40,7 @@ class CartPole(gym.Env):
         self.tau = tau  # seconds between state updates
         self.continuous_reward = continuous_reward
         self.nonlinear_reward = nonlinear_reward
-        self.curve_param = reward_decay_rate
+        self.reward_decay_rate = reward_decay_rate
         self.episode_length_limit = episode_length_limit
         self.angle_termination = angle_termination
         self.initial_state = initial_state
@@ -145,8 +145,8 @@ class CartPole(gym.Env):
         if self.continuous_reward:
             if self.nonlinear_reward:
                 self.current_reward = 1.0 - (
-                    1.0 - np.exp(-self.curve_param * abs(theta))
-                ) / (1.0 - np.exp(-self.curve_param * self.theta_threshold_radians))
+                    1.0 - np.exp(-self.reward_decay_rate * abs(theta))
+                ) / (1.0 - np.exp(-self.reward_decay_rate * self.theta_threshold_radians))
             else:
                 self.current_reward = 1.0 - abs(theta) / self.theta_threshold_radians
         else:

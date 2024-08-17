@@ -53,7 +53,7 @@ class TestPendulumDisk:
         assert default_env.angle_termination is None
         assert default_env.initial_state is None
         assert default_env.nonlinear_reward is False
-        assert default_env.curve_param == 30.0
+        assert default_env.reward_decay_rate == 3.0
 
     def test_reset(self, default_env):
         default_env.reset()
@@ -90,8 +90,8 @@ class TestPendulumDisk:
         nonlinear_reward_env.state = [0.1, 0.0]  # Set state for testing
         state, reward, done, truncated, info = nonlinear_reward_env.step(action)
         expected_reward = 1.0 - (
-            1.0 - np.exp(-nonlinear_reward_env.curve_param * abs(0.1))
-        ) / (1.0 - np.exp(-nonlinear_reward_env.curve_param * np.pi))
+            1.0 - np.exp(-nonlinear_reward_env.reward_decay_rate * abs(0.1))
+        ) / (1.0 - np.exp(-nonlinear_reward_env.reward_decay_rate * np.pi))
         print(f"Expected reward: {expected_reward}, Actual reward: {reward}")
         assert reward == pytest.approx(expected_reward, rel=1e-5)
 

@@ -6,8 +6,8 @@ def draw_network_graph(adjacency_matrix, centralities):
     G = nx.DiGraph(adjacency_matrix)
     node_sizes = [5000 * centrality for centrality in centralities]
     
-    # Try Kamada-Kawai layout for potentially better spacing
-    pos = nx.kamada_kawai_layout(G)
+    # Use Spring layout with adjusted k parameter to prevent node overlap
+    pos = nx.spring_layout(G, k=0.3, iterations=50)
     
     nx.draw_networkx_nodes(G, pos, node_size=node_sizes, node_color='skyblue', alpha=0.8)
     nx.draw_networkx_labels(G, pos, font_size=12, font_weight='bold')

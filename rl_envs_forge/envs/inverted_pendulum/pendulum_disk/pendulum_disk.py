@@ -39,7 +39,7 @@ class PendulumDisk(gym.Env):
         self.tau = tau  # seconds between state updates
         self.continuous_reward = continuous_reward
         self.nonlinear_reward = nonlinear_reward
-        self.curve_param = reward_decay_rate
+        self.reward_decay_rate = reward_decay_rate
         self.episode_length_limit = episode_length_limit
         self.angle_termination = angle_termination
         self.initial_state = initial_state
@@ -137,8 +137,8 @@ class PendulumDisk(gym.Env):
 
         if self.continuous_reward:
             if self.nonlinear_reward:
-                self.current_reward = 1.0 - (1.0 - np.exp(-self.curve_param * abs(alpha))) / (
-                    1.0 - np.exp(-self.curve_param * np.pi)
+                self.current_reward = 1.0 - (1.0 - np.exp(-self.reward_decay_rate * abs(alpha))) / (
+                    1.0 - np.exp(-self.reward_decay_rate * np.pi)
                 )
             else:
                 self.current_reward = 1.0 - abs(alpha) / np.pi

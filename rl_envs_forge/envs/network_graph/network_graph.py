@@ -1,19 +1,10 @@
-import gymnasium as gym
-from gymnasium import spaces
-import numpy as np
-import networkx as nx
-
-from .visualize import draw_network_graph
-from .graph_utils import compute_centrality, inverse_centrality
-
-
 class NetworkGraph(gym.Env):
-    metadata = {"render.modes": ["human"]}
+    metadata = {"render.modes": ["human", "matplotlib"]}
 
     def __init__(
         self,
-        num_agents=100,
-        connection_prob_range=(0.05, 0.15),
+        num_agents=10,
+        connection_prob_range=(0.1, 0.3),
         max_u=0.1,
         budget=10.0,
         desired_opinion=1.0,
@@ -26,63 +17,64 @@ class NetworkGraph(gym.Env):
         connectivity_matrix=None,
         desired_centrality=None,
     ):
-        """
-        Initialize the Network Graph environment.
-
-        Args:
-            num_agents (int): Number of agents in the network.
-            connection_prob_range (tuple): Range of probabilities for connections between any two agents.
-            max_u (float): Maximum control input for influencing agents.
-            budget (float): Total budget for the marketing campaigns.
-            desired_opinion (float): Desired opinion value that the external entity wants the agents to adopt.
-            tau (float): Time step for the evolution dynamics.
-            initial_opinion_range (tuple): Range of initial opinions for agents.
-            max_steps (int): Maximum number of steps per episode.
-            custom_adjacency_matrix (np.array, optional): Custom adjacency matrix to define connections.
-            initial_opinions (np.array, optional): Custom initial opinions for the agents.
-            impulse_resistance (np.array, optional): Array representing resistance to impulse for each agent.
-            connectivity_matrix (np.array, optional): Binary connection matrix for the network.
-            desired_centrality (np.array, optional): Desired centrality vector.
-        """
         super(NetworkGraph, self).__init__()
 
-        # Check if conflicting initialization methods are used
-        if (connectivity_matrix is not None or desired_centrality is not None) and custom_adjacency_matrix is not None:
-            raise ValueError(
-                "Cannot provide both a custom_adjacency_matrix and a connectivity_matrix with desired_centrality. "
-                "Please choose one method of initialization."
-            )
-
+        # Store the initialization parameters
         self.num_agents = num_agents
         self.connection_prob_range = connection_prob_range
         self.max_u = max_u
         self.budget = budget
         self.desired_opinion = desired_opinion
         self.tau = tau
-        self.initial_opinions = initial_opinions
         self.initial_opinion_range = initial_opinion_range
         self.max_steps = max_steps
+        self.initial_opinions = initial_opinions
+        self.impulse_resistance = impulse_resistance
+
+        # Check if conflicting initialization methods are used
+        if (
+            connectivity_matrix is not None or desired_centrality is not None
+        ) and custom_adjacency_matrix is not None:
+            raise ValueError(
+                "Cannot provide both a custom_adjacency_matrix and a connectivity_matrix with desired_centrality. "
+                "Please choose one method of initialization."
+            )
 
         # Check if connectivity_matrix and desired_centrality are provided
         if connectivity_matrix is not None and desired_centrality is not None:
             self.adjacency_matrix, _ = inverse_centrality(
                 connectivity_matrix, desired_centrality
             )
-            self.num_agents = len(connectivity_matrix)
+            self.num_agents = connectivity_matrix.shape[0]
         elif custom_adjacency_matrix is not None:
             # Use the provided custom adjacency matrix
             self.adjacency_matrix = custom_adjacency_matrix
+            self.num_agents = custom_adjacency_matrix.shape[0]
         else:
-            # Generate a random adjacency matrix
+            # Generate a random adjacency matrix using Erdos-Renyi graph
             self.graph = nx.erdos_renyi_graph(
                 num_agents, np.random.uniform(*connection_prob_range)
             )
             self.adjacency_matrix = nx.to_numpy_array(self.graph)
 
-        # Compute the Laplacian matrix
-        self.L = (
-            np.diag(np.sum(self.adjacency_matrix, axis=1)) - self.adjacency_matrix
-        )  # Laplacian matrix
+        # Check if the graph is fully connected
+        G = nx.from_numpy_array(self.adjacency_matrix)
+        if not nx.is_connected(G):
+            print("Warning: The generated graph is not fully connected.")
+
+        # Only proceed if there are actual edges in the graph
+        if np.sum(self.adjacency_matrix) > 0:
+            # Compute the Laplacian matrix using the shared utility function
+            self.L = compute_laplacian(
+                np.ones(int(np.sum(self.adjacency_matrix[self.adjacency_matrix == 1]))), self.adjacency_matrix
+            )
+
+            # Compute centralities based on the Laplacian matrix
+            self.centralities = compute_centrality_with_isolated(self.L)
+        else:
+            # Handle the case of a completely disconnected graph
+            self.L = np.zeros((self.num_agents, self.num_agents))
+            self.centralities = np.zeros(self.num_agents)
 
         # Define or generate initial opinions
         if initial_opinions is not None:
@@ -141,9 +133,7 @@ class NetworkGraph(gym.Env):
         """
         # Apply control action (impulsive dynamics at tk)
         self.opinions = action * self.desired_opinion + (1 - action) * self.opinions
-        self.total_spent += np.sum(
-            action * self.impulse_resistance
-        )  # Apply resistance cost
+        self.total_spent += np.sum(action)
 
         # Update opinions based on network influence (evolution dynamics between tk and tk+1)
         self.opinions += self.tau * (-self.L @ self.opinions)
@@ -167,13 +157,33 @@ class NetworkGraph(gym.Env):
 
         return self.opinions, reward, done, truncated, info
 
-    def render(self, mode="human"):
-        # Compute centralities based on the Laplacian matrix
-        centralities = compute_centrality(self.L)
-        draw_network_graph(self.adjacency_matrix, centralities)
+    def render(self, mode="matplotlib"):
+        """
+        Render the environment.
+
+        Args:
+            mode (str): The mode to render with. Supported modes: "human", "matplotlib".
+        """
+        if mode == "matplotlib":
+            self.render_matplotlib()
+        elif mode == "human":
+            self.render_human()
+        else:
+            raise NotImplementedError(f"Render mode '{mode}' is not supported.")
+
+    def render_human(self):
+        """
+        Render the environment using print statements.
+        """
         print(
             f"Step: {self.current_step}, Opinions: {self.opinions}, Total Spent: {self.total_spent}"
         )
+
+    def render_matplotlib(self):
+        """
+        Render the environment using matplotlib.
+        """
+        draw_network_graph(self.adjacency_matrix, self.centralities)
 
     def close(self):
         """
