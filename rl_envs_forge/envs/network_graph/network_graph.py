@@ -4,7 +4,7 @@ import numpy as np
 import networkx as nx
 
 from .visualize import draw_network_graph
-from .aux_functions import compute_centrality
+from .graph_utils import compute_centrality, inverse_centrality
 
 
 class NetworkGraph(gym.Env):
@@ -23,6 +23,8 @@ class NetworkGraph(gym.Env):
         custom_adjacency_matrix=None,
         initial_opinions=None,
         impulse_resistance=None,
+        connectivity_matrix=None,
+        desired_centrality=None,
     ):
         """
         Initialize the Network Graph environment.
@@ -39,8 +41,17 @@ class NetworkGraph(gym.Env):
             custom_adjacency_matrix (np.array, optional): Custom adjacency matrix to define connections.
             initial_opinions (np.array, optional): Custom initial opinions for the agents.
             impulse_resistance (np.array, optional): Array representing resistance to impulse for each agent.
+            connectivity_matrix (np.array, optional): Binary connection matrix for the network.
+            desired_centrality (np.array, optional): Desired centrality vector.
         """
         super(NetworkGraph, self).__init__()
+
+        # Check if conflicting initialization methods are used
+        if (connectivity_matrix is not None or desired_centrality is not None) and custom_adjacency_matrix is not None:
+            raise ValueError(
+                "Cannot provide both a custom_adjacency_matrix and a connectivity_matrix with desired_centrality. "
+                "Please choose one method of initialization."
+            )
 
         self.num_agents = num_agents
         self.connection_prob_range = connection_prob_range
@@ -52,15 +63,23 @@ class NetworkGraph(gym.Env):
         self.initial_opinion_range = initial_opinion_range
         self.max_steps = max_steps
 
-        # Define or generate the adjacency matrix
-        if custom_adjacency_matrix is not None:
+        # Check if connectivity_matrix and desired_centrality are provided
+        if connectivity_matrix is not None and desired_centrality is not None:
+            self.adjacency_matrix, _ = inverse_centrality(
+                connectivity_matrix, desired_centrality
+            )
+            self.num_agents = len(connectivity_matrix)
+        elif custom_adjacency_matrix is not None:
+            # Use the provided custom adjacency matrix
             self.adjacency_matrix = custom_adjacency_matrix
         else:
+            # Generate a random adjacency matrix
             self.graph = nx.erdos_renyi_graph(
                 num_agents, np.random.uniform(*connection_prob_range)
             )
             self.adjacency_matrix = nx.to_numpy_array(self.graph)
 
+        # Compute the Laplacian matrix
         self.L = (
             np.diag(np.sum(self.adjacency_matrix, axis=1)) - self.adjacency_matrix
         )  # Laplacian matrix
@@ -70,7 +89,7 @@ class NetworkGraph(gym.Env):
             self.opinions = np.array(initial_opinions)
         else:
             self.opinions = np.random.uniform(
-                *self.initial_opinion_range, size=num_agents
+                *self.initial_opinion_range, size=self.num_agents
             )
 
         # Define or generate impulse resistance (cost) for each agent
@@ -78,15 +97,15 @@ class NetworkGraph(gym.Env):
             self.impulse_resistance = np.array(impulse_resistance)
         else:
             self.impulse_resistance = np.ones(
-                num_agents
+                self.num_agents
             )  # Default resistance is 1 for all agents
 
         # Define the action and observation spaces
         self.action_space = spaces.Box(
-            low=0, high=self.max_u, shape=(num_agents,), dtype=np.float32
+            low=0, high=self.max_u, shape=(self.num_agents,), dtype=np.float32
         )
         self.observation_space = spaces.Box(
-            low=0, high=1, shape=(num_agents,), dtype=np.float32
+            low=0, high=1, shape=(self.num_agents,), dtype=np.float32
         )
 
         self.current_step = 0

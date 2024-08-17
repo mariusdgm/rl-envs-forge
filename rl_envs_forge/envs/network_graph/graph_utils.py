@@ -14,17 +14,17 @@ def compute_laplacian(weights, connectivity_matrix):
     laplacian = degree_matrix - weighted_adj_matrix
     return laplacian
 
-def objective(weights, connectivity_matrix, desired_centrality):
-    L = compute_laplacian(weights, connectivity_matrix)
-    computed_centrality = compute_centrality(L)
-    return np.linalg.norm(computed_centrality - desired_centrality)
-
 def inverse_centrality(connectivity_matrix, desired_centrality):
     num_edges = np.sum(connectivity_matrix)  # Number of edges
     initial_weights = np.ones(num_edges)  # Start with equal weights for all edges
     
     bounds = [(0, None)] * num_edges  # Weights should be non-negative
     
+    def objective(weights, connectivity_matrix, desired_centrality):
+        L = compute_laplacian(weights, connectivity_matrix)
+        computed_centrality = compute_centrality(L)
+        return np.linalg.norm(computed_centrality - desired_centrality)
+
     result = minimize(
         objective, initial_weights, args=(connectivity_matrix, desired_centrality),
         method='L-BFGS-B', bounds=bounds
@@ -39,7 +39,6 @@ def inverse_centrality(connectivity_matrix, desired_centrality):
     computed_centrality = compute_centrality(L)
     
     return weighted_adj_matrix, computed_centrality
-
 
 
 if __name__ == "__main__":
