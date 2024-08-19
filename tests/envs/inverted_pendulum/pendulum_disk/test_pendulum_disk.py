@@ -1,6 +1,6 @@
 import pytest
 import numpy as np
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch, MagicMock
 
 from rl_envs_forge.envs.inverted_pendulum.pendulum_disk.pendulum_disk import (
     PendulumDisk,
@@ -53,7 +53,7 @@ class TestPendulumDisk:
         assert default_env.angle_termination is None
         assert default_env.initial_state is None
         assert default_env.nonlinear_reward is False
-        assert default_env.curve_param == 30.0
+        assert default_env.reward_decay_rate == 3.0
 
     def test_reset(self, default_env):
         default_env.reset()
@@ -90,8 +90,8 @@ class TestPendulumDisk:
         nonlinear_reward_env.state = [0.1, 0.0]  # Set state for testing
         state, reward, done, truncated, info = nonlinear_reward_env.step(action)
         expected_reward = 1.0 - (
-            1.0 - np.exp(-nonlinear_reward_env.curve_param * abs(0.1))
-        ) / (1.0 - np.exp(-nonlinear_reward_env.curve_param * np.pi))
+            1.0 - np.exp(-nonlinear_reward_env.reward_decay_rate * abs(0.1))
+        ) / (1.0 - np.exp(-nonlinear_reward_env.reward_decay_rate * np.pi))
         print(f"Expected reward: {expected_reward}, Actual reward: {reward}")
         assert reward == pytest.approx(expected_reward, rel=1e-5)
 
@@ -160,3 +160,17 @@ class TestPendulumDisk:
         invalid_action = np.array([5.0], dtype=np.float32)  # Out of action space bounds
         with pytest.raises(AssertionError):
             default_env.step(invalid_action)
+
+    @patch("matplotlib.pyplot.subplots")
+    def test_matplotlib_render(self, mock_subplots, default_env):
+        # Create mock objects for figure and axes
+        mock_fig = MagicMock()
+        mock_ax = MagicMock()
+        mock_subplots.return_value = (mock_fig, mock_ax)
+
+        # Call the render method with 'matplotlib' mode
+        default_env.reset()
+        default_env.render(mode="matplotlib")
+
+        # Check that subplots was called, which implies matplotlib rendering was used
+        mock_subplots.assert_called_once_with(figsize=(8, 8))

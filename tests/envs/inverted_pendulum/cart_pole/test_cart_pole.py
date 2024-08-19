@@ -86,11 +86,11 @@ class TestCartPole:
         nonlinear_reward_env.state = [0.0, 0.0, 0.1, 0.0]  # Set state for testing
         state, reward, done, truncated, info = nonlinear_reward_env.step(action)
         expected_reward = 1.0 - (
-            1.0 - np.exp(-nonlinear_reward_env.curve_param * abs(0.1))
+            1.0 - np.exp(-nonlinear_reward_env.reward_decay_rate * abs(0.1))
         ) / (
             1.0
             - np.exp(
-                -nonlinear_reward_env.curve_param
+                -nonlinear_reward_env.reward_decay_rate
                 * nonlinear_reward_env.theta_threshold_radians
             )
         )
@@ -165,3 +165,11 @@ class TestCartPole:
         invalid_action = np.array([5.0], dtype=np.float32)  # Out of action space bounds
         with pytest.raises(AssertionError):
             default_env.step(invalid_action)
+
+    @patch("matplotlib.pyplot.figure")
+    def test_matplotlib_render(self, mock_figure, default_env):
+        default_env.reset()
+        default_env.render(mode="matplotlib")
+        assert (
+            mock_figure.called
+        ), "matplotlib.figure should be called when rendering in 'matplotlib' mode"

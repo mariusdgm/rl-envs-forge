@@ -22,6 +22,7 @@ Lightweight environments for reinforcement learning applications.
       - [GridWorld rendered example](#gridworld-rendered-example)
     - [ACML](#acml)
     - [InvertedPendulum](#invertedpendulum)
+    - [NetworkGraph](#networkgraph)
   - [Usage](#usage)
   - [Tests](#tests)
   - [License](#license)
@@ -89,14 +90,24 @@ Inverted pendulum environments where the objective is to apply forces to maintai
 </tr>
 <tr>
 <td>
-<img src="docs/figures/inverted_pendulum/cart_pole/render.png" alt="CartPole" width="300">
+<img src="https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/docs/figures/inverted_pendulum/cart_pole/render.png" alt="CartPole" width="300">
 </td>
 <td>
-<img src="docs/figures/inverted_pendulum/pendulum_disk/render.png" alt="PendulumDisk" width="300">
+<img src="https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/docs/figures/inverted_pendulum/pendulum_disk/render.png" alt="PendulumDisk" width="300">
 </td>
 </tr>
 
 </table>
+
+### NetworkGraph
+
+NetworkGraph is an environment simulating the current opinion in a social network.
+
+📖 **Detailed Documentation**: [Click here to read more about the NetworkGraph environment](https://github.com/mariusdgm/rl-envs-forge/blob/main/rl_envs_forge/envs/network_graph/README.md)
+
+#### NetworkGraph rendered example
+
+![NetworkGraph render](https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/docs/figures/network_graph/example.png)
 
 ## Usage
 

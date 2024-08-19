@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.0] - 2024.08.18
+
+### Added
+
+- New environment: NetworkGraph
+- Matplotlib render mode for inverted pendulum envs
+
+### Changed
+
+- Default value for reward_decay_rate in InvertedPendulum envs, also removed internal attribute
+
+### Fixed
+
+- Main README fig paths for proper display on pypi page
+
 ## [4.0.1] - 2024.07.30
 
 ### Fixed
