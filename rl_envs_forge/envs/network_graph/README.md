@@ -103,7 +103,7 @@ env = NetworkGraph(
 env.render(mode="matplotlib")
 ```
 
-<img src="../../../../docs/figures/network_graph/example.png" alt="NetworkGraph render" width="300">
+<img src="../../../docs/figures/network_graph/example.png" alt="NetworkGraph render" width="300">
 
 ### Packages
 

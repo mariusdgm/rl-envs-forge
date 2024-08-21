@@ -185,3 +185,38 @@ class TestNetworkGraph:
         agent_size_env.render(mode="matplotlib")
         assert mock_show.called, "plt.show should be called when rendering in 'matplotlib' mode"
 
+
+    def test_saturation_of_control_and_opinions(self, default_env):
+        # Set up the environment with specific parameters
+        num_agents = 3
+        max_u = 0.1  # Maximum control input
+        initial_opinions = np.array([0.0, 0.5, 1.0])  # Initial opinions ranging from 0 to 1
+        
+        # Create an environment with these parameters
+        env = NetworkGraph(
+            num_agents=num_agents,
+            max_u=max_u,
+            initial_opinions=initial_opinions,
+            budget=10.0,
+            desired_opinion=1.0,
+            tau=1.0,
+            max_steps=100
+        )
+        
+        env.reset()
+
+        # Define an action that exceeds the maximum control input
+        action = np.array([0.2, 0.15, 0.25], dtype=np.float32)
+        
+        # Step the environment with the action
+        state, reward, done, truncated, info = env.step(action)
+        
+        # Retrieve the clipped action from the info dictionary
+        applied_action = info["action_applied"]
+        
+        # Check that the action was clipped to the max_u
+        np.testing.assert_array_less(applied_action, np.full(action.shape, max_u + 1e-5), 
+                                     "Control inputs should be clipped to max_u")
+        
+        # Check that the state (opinions) remains within [0, 1]
+        assert np.all(state >= 0.0) and np.all(state <= 1.0), "Opinions should be within the range [0, 1]"

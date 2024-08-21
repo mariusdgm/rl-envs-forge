@@ -160,12 +160,15 @@ class NetworkGraph(gym.Env):
             truncated (bool): Whether the episode was truncated (e.g., due to reaching the max number of steps).
             info (dict): Additional information.
         """
-        # Apply control action (impulsive dynamics at tk)
+        action = np.clip(action, 0, self.max_u)
+
         self.opinions = action * self.desired_opinion + (1 - action) * self.opinions
         self.total_spent += np.sum(action)
 
         # Update opinions based on network influence (evolution dynamics between tk and tk+1)
         self.opinions += self.tau * (-self.L @ self.opinions)
+
+        self.opinions = np.clip(self.opinions, 0, 1)
 
         # Reward based on how close opinions are to the desired value and penalize budget
         reward = -np.sum((self.opinions - self.desired_opinion) ** 2) - 0.01 * np.sum(
@@ -182,6 +185,7 @@ class NetworkGraph(gym.Env):
             "current_step": self.current_step,
             "total_spent": self.total_spent,
             "remaining_budget": self.budget - self.total_spent,
+            "action_applied": action
         }
 
         return self.opinions, reward, done, truncated, info
