@@ -3,6 +3,102 @@ import warnings
 from scipy.optimize import minimize
 
 
+def create_adjacency_matrix_from_links(num_nodes, links):
+    """
+    Create an adjacency matrix based on the provided node links.
+
+    Args:
+        num_nodes (int): The total number of nodes in the graph.
+        links (list of tuples): Each tuple represents a directed edge from one node to another (from_node, to_node).
+
+    Returns:
+        np.ndarray: The adjacency matrix.
+    """
+    adjacency_matrix = np.zeros((num_nodes, num_nodes), dtype=int)
+
+    for link in links:
+        from_node, to_node = link
+        adjacency_matrix[from_node, to_node] = 1
+        # adjacency_matrix[to_node, from_node] = 1
+
+    return adjacency_matrix
+
+
+def normalize_adjacency_matrix(A):
+    """
+    Normalize each row of the adjacency matrix A such that each element is divided by the sum of its row.
+
+    Args:
+        A (np.ndarray): The adjacency matrix to normalize.
+
+    Returns:
+        np.ndarray: The normalized adjacency matrix.
+    """
+    row_sums = A.sum(axis=1, keepdims=True)  # Sum of each row, shape (N, 1)
+    row_sums[row_sums == 0] = 1  # Avoid division by zero
+    A_normalized = A / row_sums  # Element-wise division of A by row_sums
+
+    return A_normalized
+
+
+def compute_laplacian(adjacency_matrix):
+    """
+    Computes the Laplacian matrix from an adjacency matrix.
+
+    Parameters:
+    adjacency_matrix (numpy.ndarray): The adjacency matrix of the graph.
+
+    Returns:
+    numpy.ndarray: The Laplacian matrix.
+    """
+    degree_matrix = np.diag(np.sum(adjacency_matrix, axis=1))
+    laplacian = degree_matrix - adjacency_matrix
+    return laplacian
+
+
+def compute_eigenvector_centrality(L):
+    """
+    Computes the eigenvector associated with the smallest (in absolute value) eigenvalue.
+
+    Parameters:
+    L (numpy.ndarray): The Laplacian matrix of the graph.
+
+    Returns:
+    numpy.ndarray: The normalized eigenvector corresponding to the smallest eigenvalue.
+    """
+    # Compute eigenvalues and eigenvectors
+    eigenvalues, eigenvectors = np.linalg.eig(L)
+
+    # Find the index of the eigenvector associated with the smallest eigenvalue
+    min_eigenvalue_index = np.argmin(np.abs(eigenvalues))
+
+    # Get the corresponding eigenvector
+    eigv = np.real(eigenvectors[:, min_eigenvalue_index])
+
+    # Normalize the eigenvector
+    eigv_normalized = np.abs(eigv) / np.sum(np.abs(eigv))
+
+    return eigv_normalized
+
+
+def process_multiple_components(components):
+    """
+    Processes multiple components and computes the centrality for each.
+
+    Parameters:
+    components (list of numpy.ndarray): List of adjacency matrices for each component.
+
+    Returns:
+    list of numpy.ndarray: Normalized eigenvector centralities for each component.
+    """
+    centralities = []
+    for component in components:
+        L_component = compute_laplacian(component)
+        centrality = compute_eigenvector_centrality(L_component)
+        centralities.append(centrality)
+    return centralities
+
+
 def compute_centrality_for_component(L):
     """
     Computes centrality for a single connected component.
@@ -72,22 +168,6 @@ def compute_centrality(L, adjacency_matrix):
         centrality /= connected_centrality_sum
 
     return centrality
-
-
-def compute_laplacian(adjacency_matrix):
-    """
-    Computes the Laplacian matrix from an adjacency matrix.
-
-    Parameters:
-    adjacency_matrix (numpy.ndarray): The adjacency matrix of the graph,
-                                      can be binary or weighted.
-
-    Returns:
-    numpy.ndarray: The Laplacian matrix.
-    """
-    degree_matrix = np.diag(np.sum(adjacency_matrix, axis=1))
-    laplacian = degree_matrix - adjacency_matrix
-    return laplacian
 
 
 def get_weighted_adjacency_matrix(
