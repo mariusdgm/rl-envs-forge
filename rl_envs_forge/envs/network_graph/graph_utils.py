@@ -1,6 +1,7 @@
 import numpy as np
 import warnings
 from scipy.optimize import minimize
+from scipy.linalg import eig
 
 
 def normalize_adjacency_matrix(A):
@@ -9,20 +10,23 @@ def normalize_adjacency_matrix(A):
     A_normalized = A / row_sums
     return A_normalized
 
+
 # Compute Laplacian
 def compute_laplacian(adjacency_matrix):
     degree_matrix = np.diag(np.sum(adjacency_matrix, axis=1))
     laplacian = degree_matrix - adjacency_matrix
     return laplacian
 
+
 # Compute centrality from Laplacian
 def compute_eigenvector_centrality(L):
-    eigenvalues, eigenvectors = np.linalg.eig(L.T)  # Transpose for left eigenvector
+    eigenvalues, eigenvectors = eig(
+        L, left=True, right=False
+    )  
     min_eigenvalue_index = np.argmin(np.abs(eigenvalues))
     eigv = np.real(eigenvectors[:, min_eigenvalue_index])
     eigv_normalized = np.abs(eigv) / np.sum(np.abs(eigv))
     return eigv_normalized
-
 
 def process_multiple_components(components):
     """
