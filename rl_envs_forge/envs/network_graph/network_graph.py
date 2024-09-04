@@ -126,7 +126,6 @@ class NetworkGraph(gym.Env):
 
         Args:
             action (np.array): Control inputs for influencing the agents.
-            tau_action_ratio (float): Ratio of tau to the number of agents.
 
         Returns:
             observation (np.array): Updated opinions.
@@ -137,10 +136,16 @@ class NetworkGraph(gym.Env):
         """
         action = np.clip(action, 0, self.max_u)
 
-        # Apply control input
-        controlled_opinions = (
-            action * self.desired_opinion + (1 - action) * self.opinions
-        )
+        # Old style control application
+        # controlled_opinions = (
+        #     action * self.desired_opinion + (1 - action) * self.opinions
+        # )
+        
+        # Apply the P matrix: P = I - diag(action)
+        P = np.eye(self.num_agents) - np.diag(action)
+
+        # Apply control input: X(t_k) = P * opinions
+        controlled_opinions = P @ self.opinions
 
         # Compute the propagation using the matrix exponential of the Laplacian
         expL = expm(-self.L * self.tau)
@@ -169,56 +174,6 @@ class NetworkGraph(gym.Env):
         }
 
         return self.opinions, reward, done, truncated, info
-    
-    # def step(self, action):
-    #     """
-    #     Execute one time step within the environment.
-
-    #     Args:
-    #         action (np.array): Control inputs for influencing the agents.
-
-    #     Returns:
-    #         observation (np.array): Updated opinions.
-    #         reward (float): Reward for the step.
-    #         done (bool): Whether the episode has ended.
-    #         truncated (bool): Whether the episode was truncated (e.g., due to reaching the max number of steps).
-    #         info (dict): Additional information.
-    #     """
-    #     action = np.clip(action, 0, self.max_u)
-
-    #     # Apply the P matrix: P = I - diag(action)
-    #     P = np.eye(self.num_agents) - np.diag(action)
-
-    #     # Apply control input: X(t_k) = P * opinions
-    #     controlled_opinions = P @ self.opinions
-
-    #     # Compute the propagation using the matrix exponential of the Laplacian
-    #     expL = expm(-self.L * self.tau)
-    #     propagated_opinions = expL @ controlled_opinions
-
-    #     # Update the state
-    #     self.opinions = np.clip(propagated_opinions, 0, 1)
-    #     self.total_spent += np.sum(action)
-
-    #     # Reward based on how close opinions are to the desired value and penalize budget
-    #     reward = -np.sum((self.opinions - self.desired_opinion) ** 2) - 0.01 * np.sum(
-    #         action * self.impulse_resistance
-    #     )
-
-    #     # Increment step counter and check if the episode is done or truncated
-    #     self.current_step += 1
-    #     done = self.total_spent >= self.budget
-    #     truncated = self.current_step >= self.max_steps
-
-    #     # Info dictionary can be used to pass additional information
-    #     info = {
-    #         "current_step": self.current_step,
-    #         "total_spent": self.total_spent,
-    #         "remaining_budget": self.budget - self.total_spent,
-    #         "action_applied": action,
-    #     }
-
-    #     return self.opinions, reward, done, truncated, info
 
     def render(self, mode="matplotlib"):
         """

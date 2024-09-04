@@ -20,13 +20,15 @@ def compute_laplacian(adjacency_matrix):
 
 # Compute centrality from Laplacian
 def compute_eigenvector_centrality(L):
-    eigenvalues, eigenvectors = eig(
-        L, left=True, right=False
-    )  
+    eigenvalues, eigenvectors = eig(L, left=True, right=False)
+
+    # This version seems to be an edge case that might not always work. Interesting
+    # eigenvalues, eigenvectors = np.linalg.eig(L.T)
     min_eigenvalue_index = np.argmin(np.abs(eigenvalues))
     eigv = np.real(eigenvectors[:, min_eigenvalue_index])
     eigv_normalized = np.abs(eigv) / np.sum(np.abs(eigv))
     return eigv_normalized
+
 
 def process_multiple_components(components):
     """
