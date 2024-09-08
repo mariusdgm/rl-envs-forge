@@ -1,12 +1,14 @@
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
+from scipy.linalg import expm
 import networkx as nx
-from .visualize import draw_network_graph
+from .visualize import draw_network_graph, plot_centralities_sorted
 from .graph_utils import (
     compute_centrality,
     get_weighted_adjacency_matrix,
     compute_laplacian,
+    compute_eigenvector_centrality,
 )
 
 
@@ -23,12 +25,9 @@ class NetworkGraph(gym.Env):
         tau=1.0,
         initial_opinion_range=(0.0, 1.0),
         max_steps=100,
-        custom_adjacency_matrix=None,
         initial_opinions=None,
         impulse_resistance=None,
         connectivity_matrix=None,
-        desired_centrality=None,
-        agent_sizes=None,  # New parameter
         use_weighted_edges=False,
         weight_range=(0.1, 1.0),
     ):
@@ -37,10 +36,6 @@ class NetworkGraph(gym.Env):
         # Store the initialization parameters
         if connectivity_matrix is not None:
             self.num_agents = connectivity_matrix.shape[0]
-        elif custom_adjacency_matrix is not None:
-            self.num_agents = custom_adjacency_matrix.shape[0]
-        elif agent_sizes is not None:
-            self.num_agents = len(agent_sizes)
         else:
             self.num_agents = num_agents
         self.connection_prob_range = connection_prob_range
@@ -54,56 +49,32 @@ class NetworkGraph(gym.Env):
         self.impulse_resistance = impulse_resistance
         self.use_weighted_edges = use_weighted_edges
         self.weight_range = weight_range
-        self.agent_sizes = agent_sizes  # Store the agent sizes if provided
 
-        # Check for conflicting initialization methods
-        if (
-            connectivity_matrix is not None or desired_centrality is not None
-        ) and custom_adjacency_matrix is not None:
-            raise ValueError(
-                "Cannot provide both a custom_adjacency_matrix and a connectivity_matrix with desired_centrality. "
-                "Please choose one method of initialization."
-            )
-            
         # Determine adjacency matrix
         if connectivity_matrix is not None:
-            if desired_centrality is None:
-                desired_centrality = np.ones(self.num_agents)/self.num_agents
-
-            self.adjacency_matrix, self.centralities = get_weighted_adjacency_matrix(
-                connectivity_matrix, desired_centrality
-            )
-        elif custom_adjacency_matrix is not None:
-            self.adjacency_matrix = custom_adjacency_matrix
+            self.connectivity_matrix = connectivity_matrix
         else:
             # Generate a random adjacency matrix using Erdos-Renyi graph
             self.graph = nx.erdos_renyi_graph(
                 self.num_agents, np.random.uniform(*connection_prob_range)
             )
-            self.adjacency_matrix = nx.to_numpy_array(self.graph)
+            self.connectivity_matrix = nx.to_numpy_array(self.graph)
 
             if self.use_weighted_edges:
                 # Assign random weights to the edges within the specified range
                 for i in range(self.num_agents):
                     for j in range(i + 1, self.num_agents):
-                        if self.adjacency_matrix[i, j] == 1:
+                        if self.connectivity_matrix[i, j] == 1:
                             weight = np.random.uniform(*self.weight_range)
-                            self.adjacency_matrix[i, j] = weight
-                            self.adjacency_matrix[j, i] = weight  # Ensure symmetry
+                            self.connectivity_matrix[i, j] = weight
+                            self.connectivity_matrix[j, i] = weight  # Ensure symmetry
 
         # Compute Laplacian
-        self.L = compute_laplacian(self.adjacency_matrix)
-
-        # Compute centralities if agent sizes are not provided
-        if self.agent_sizes is None:
-            self.centralities = compute_centrality(self.L, self.adjacency_matrix)
-        else:
-            self.centralities = (
-                None  # Centralities are not needed if agent sizes are provided
-            )
+        self.L = compute_laplacian(self.connectivity_matrix)
+        self.centralities = compute_eigenvector_centrality(self.L)
 
         # Check if the graph is fully connected
-        G = nx.from_numpy_array(self.adjacency_matrix)
+        G = nx.from_numpy_array(self.connectivity_matrix)
         if not nx.is_connected(G):
             print("Warning: The generated graph is not fully connected.")
 
@@ -162,13 +133,24 @@ class NetworkGraph(gym.Env):
         """
         action = np.clip(action, 0, self.max_u)
 
-        self.opinions = action * self.desired_opinion + (1 - action) * self.opinions
+        # Old style control application
+        # controlled_opinions = (
+        #     action * self.desired_opinion + (1 - action) * self.opinions
+        # )
+
+        # Apply the P matrix: P = I - diag(action)
+        P = np.eye(self.num_agents) - np.diag(action)
+
+        # Apply control input: X(t_k) = P * opinions
+        controlled_opinions = P @ self.opinions
+
+        # Compute the propagation using the matrix exponential of the Laplacian
+        expL = expm(-self.L * self.tau)
+        propagated_opinions = expL @ controlled_opinions
+
+        # Update the state
+        self.opinions = np.clip(propagated_opinions, 0, 1)
         self.total_spent += np.sum(action)
-
-        # Update opinions based on network influence (evolution dynamics between tk and tk+1)
-        self.opinions += self.tau * (-self.L @ self.opinions)
-
-        self.opinions = np.clip(self.opinions, 0, 1)
 
         # Reward based on how close opinions are to the desired value and penalize budget
         reward = -np.sum((self.opinions - self.desired_opinion) ** 2) - 0.01 * np.sum(
@@ -185,7 +167,7 @@ class NetworkGraph(gym.Env):
             "current_step": self.current_step,
             "total_spent": self.total_spent,
             "remaining_budget": self.budget - self.total_spent,
-            "action_applied": action
+            "action_applied": action,
         }
 
         return self.opinions, reward, done, truncated, info
@@ -198,10 +180,9 @@ class NetworkGraph(gym.Env):
             mode (str): The mode to render with. Supported modes: "human", "matplotlib".
         """
         if mode == "matplotlib":
-            if self.agent_sizes is not None:
-                draw_network_graph(self.adjacency_matrix, self.agent_sizes)
-            else:
-                draw_network_graph(self.adjacency_matrix, self.centralities)
+            draw_network_graph(self.connectivity_matrix, self.centralities)
+        elif mode == "centralities":
+            plot_centralities_sorted(self.centralities)
         elif mode == "human":
             print(
                 f"Step: {self.current_step}, Opinions: {self.opinions}, Total Spent: {self.total_spent}"

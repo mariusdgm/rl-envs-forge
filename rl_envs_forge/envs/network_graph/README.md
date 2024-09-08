@@ -20,30 +20,6 @@ action = env.action_space.sample()  # Sample a random action
 next_state, reward, done, truncated, info = env.step(action)
 ```
 
-### Custom Initialization with a Predefined Adjacency Matrix
-```python
-import numpy as np
-from rl_envs_forge.envs.network_graph.network_graph import NetworkGraph
-custom_matrix = np.array([
-    [0, 1, 0],
-    [1, 0, 1],
-    [0, 1, 0],
-])
-env = NetworkGraph(custom_adjacency_matrix=custom_matrix)  # Initialize with a custom adjacency matrix
-```
-
-### Initialization with Connectivity Matrix and Desired Centrality
-```python
-import numpy as np
-from rl_envs_forge.envs.network_graph.network_graph import NetworkGraph
-connectivity_matrix = np.array([
-    [0, 1, 0],
-    [1, 0, 1],
-    [0, 1, 0],
-])
-desired_centrality = np.array([0.3, 0.4, 0.3])
-env = NetworkGraph(connectivity_matrix=connectivity_matrix, desired_centrality=desired_centrality)
-```
 
 ### Rendering the Environment
 ```python
@@ -71,28 +47,8 @@ connectivity_matrix = np.array(
     ]
 )
 
-desired_centrality = np.array(
-    [0.08, # 1
-    0.06, # 2
-    0.14, # 3
-    0.08, # 4
-    0.04, # 5
-    0.02, # 6
-    0.06, # 7
-    0.03, # 8
-    0.04, # 9
-    0.08, # 10
-    0.13, # 11
-    0.06, # 12
-    0.04, # 13
-    0.07, # 14
-    0.07] # 15
-)  # Example centrality
-
-
 env = NetworkGraph(
     connectivity_matrix=connectivity_matrix,
-    desired_centrality=desired_centrality,
     max_u=0.1,
     budget=10.0,
     desired_opinion=1.0,

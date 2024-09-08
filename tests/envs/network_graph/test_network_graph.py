@@ -9,53 +9,10 @@ def default_env():
     return NetworkGraph()
 
 @pytest.fixture
-def custom_adjacency_matrix_env():
-    """Fixture to create a NetworkGraph environment with a custom adjacency matrix."""
-    custom_matrix = np.array([
-        [0, 1, 0],
-        [1, 0, 1],
-        [0, 1, 0],
-    ])
-    return NetworkGraph(custom_adjacency_matrix=custom_matrix)
-
-@pytest.fixture
-def centrality_connectivity_env():
-    """Fixture to create a NetworkGraph environment using connectivity and centrality."""
-    connectivity_matrix = np.array([
-        [0, 1, 0],
-        [1, 0, 1],
-        [0, 1, 0],
-    ])
-    desired_centrality = np.array([0.3, 0.4, 0.3])
-    return NetworkGraph(connectivity_matrix=connectivity_matrix, desired_centrality=desired_centrality)
-
-@pytest.fixture
 def weighted_env():
     """Fixture to create a NetworkGraph environment with weighted edges."""
     return NetworkGraph(use_weighted_edges=True, weight_range=(0.1, 5.0))
 
-@pytest.fixture
-def isolated_node_env():
-    """Fixture to create a NetworkGraph environment with isolated nodes."""
-    custom_matrix = np.array([
-        [0, 0, 0],
-        [0, 0, 1],
-        [0, 1, 0],
-    ])
-    return NetworkGraph(custom_adjacency_matrix=custom_matrix)
-
-@pytest.fixture
-def agent_size_env():
-    """Fixture to create a NetworkGraph environment using agent sizes derived from desired centrality."""
-    connectivity_matrix = np.array([
-        [0, 1, 0],
-        [1, 0, 1],
-        [0, 1, 0],
-    ])
-    desired_centrality = np.array([0.3, 0.4, 0.3])
-    return NetworkGraph(connectivity_matrix=connectivity_matrix, 
-                        desired_centrality=desired_centrality, 
-                        agent_sizes=desired_centrality)
 
 class TestNetworkGraph:
     def test_initialization(self, default_env):
@@ -66,38 +23,11 @@ class TestNetworkGraph:
         assert default_env.current_step == 0
         assert default_env.total_spent == 0.0
 
-    def test_initialization_with_custom_adjacency_matrix(self, custom_adjacency_matrix_env):
-        assert custom_adjacency_matrix_env.num_agents == 3
-        np.testing.assert_array_equal(custom_adjacency_matrix_env.adjacency_matrix, np.array([
-            [0, 1, 0],
-            [1, 0, 1],
-            [0, 1, 0],
-        ]))
-
-    def test_initialization_with_connectivity_and_centrality(self, centrality_connectivity_env):
-        assert centrality_connectivity_env.num_agents == 3
-        assert centrality_connectivity_env.adjacency_matrix is not None
-
     def test_initialization_with_weighted_edges(self, weighted_env):
         assert weighted_env.use_weighted_edges is True
         assert weighted_env.weight_range == (0.1, 5.0)
         assert weighted_env.num_agents == 10
-        assert np.any(weighted_env.adjacency_matrix > 1), "The adjacency matrix should have weights greater than 1"
-
-    def test_initialization_with_isolated_nodes(self, isolated_node_env):
-        assert isolated_node_env.num_agents == 3
-        np.testing.assert_array_equal(isolated_node_env.adjacency_matrix, np.array([
-            [0, 0, 0],
-            [0, 0, 1],
-            [0, 1, 0],
-        ]))
-        assert np.sum(isolated_node_env.centralities) > 0, "Centrality should be calculated even with isolated nodes"
-
-    def test_initialization_with_agent_sizes(self, agent_size_env):
-        assert agent_size_env.num_agents == 3
-        assert agent_size_env.agent_sizes is not None
-        np.testing.assert_array_equal(agent_size_env.agent_sizes, np.array([0.3, 0.4, 0.3]))
-
+       
     def test_reset(self, default_env):
         initial_opinions = default_env.reset()
         assert len(initial_opinions) == default_env.num_agents
@@ -148,27 +78,7 @@ class TestNetworkGraph:
             default_env.render(mode="human")
             mock_print.assert_called()
 
-    def test_invalid_initialization(self):
-        with pytest.raises(ValueError):
-            NetworkGraph(
-                custom_adjacency_matrix=np.array([
-                    [0, 1, 0],
-                    [1, 0, 1],
-                    [0, 1, 0],
-                ]),
-                connectivity_matrix=np.array([
-                    [0, 1, 0],
-                    [1, 0, 1],
-                    [0, 1, 0],
-                ]),
-                desired_centrality=np.array([0.3, 0.4, 0.3])
-            )
 
-    def test_centrality_computation_with_isolated_nodes(self, isolated_node_env):
-        L = isolated_node_env.L
-        centralities = isolated_node_env.centralities
-        assert np.sum(centralities) > 0, "Centralities should be computed even with isolated nodes"
-        assert L[0, 0] == 0, "The Laplacian for an isolated node should have a 0 row and column"
 
     def test_centrality_computation_with_weighted_edges(self, weighted_env):
         L = weighted_env.L
@@ -179,13 +89,7 @@ class TestNetworkGraph:
         assert np.all(np.diag(L) >= 0), "Diagonal of Laplacian should be non-negative"
         assert np.all(L - np.diag(np.diag(L)) <= 0), "Off-diagonal elements of Laplacian should be non-positive"
 
-    @patch("rl_envs_forge.envs.network_graph.visualize.plt.show")  # Patch plt.show
-    def test_render_with_agent_sizes(self, mock_show, agent_size_env):
-        agent_size_env.reset()
-        agent_size_env.render(mode="matplotlib")
-        assert mock_show.called, "plt.show should be called when rendering in 'matplotlib' mode"
-
-
+   
     def test_saturation_of_control_and_opinions(self, default_env):
         # Set up the environment with specific parameters
         num_agents = 3
@@ -198,6 +102,7 @@ class TestNetworkGraph:
             max_u=max_u,
             initial_opinions=initial_opinions,
             budget=10.0,
+            
             desired_opinion=1.0,
             tau=1.0,
             max_steps=100

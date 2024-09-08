@@ -1,6 +1,51 @@
 import numpy as np
 import warnings
 from scipy.optimize import minimize
+from scipy.linalg import eig
+
+
+def normalize_adjacency_matrix(A):
+    row_sums = A.sum(axis=1, keepdims=True)
+    row_sums[row_sums == 0] = 1
+    A_normalized = A / row_sums
+    return A_normalized
+
+
+# Compute Laplacian
+def compute_laplacian(adjacency_matrix):
+    degree_matrix = np.diag(np.sum(adjacency_matrix, axis=1))
+    laplacian = degree_matrix - adjacency_matrix
+    return laplacian
+
+
+# Compute centrality from Laplacian
+def compute_eigenvector_centrality(L):
+    eigenvalues, eigenvectors = eig(L, left=True, right=False)
+
+    # This version seems to be an edge case that might not always work. Interesting
+    # eigenvalues, eigenvectors = np.linalg.eig(L.T)
+    min_eigenvalue_index = np.argmin(np.abs(eigenvalues))
+    eigv = np.real(eigenvectors[:, min_eigenvalue_index])
+    eigv_normalized = np.abs(eigv) / np.sum(np.abs(eigv))
+    return eigv_normalized
+
+
+def process_multiple_components(components):
+    """
+    Processes multiple components and computes the centrality for each.
+
+    Parameters:
+    components (list of numpy.ndarray): List of adjacency matrices for each component.
+
+    Returns:
+    list of numpy.ndarray: Normalized eigenvector centralities for each component.
+    """
+    centralities = []
+    for component in components:
+        L_component = compute_laplacian(component)
+        centrality = compute_eigenvector_centrality(L_component)
+        centralities.append(centrality)
+    return centralities
 
 
 def compute_centrality_for_component(L):
@@ -72,22 +117,6 @@ def compute_centrality(L, adjacency_matrix):
         centrality /= connected_centrality_sum
 
     return centrality
-
-
-def compute_laplacian(adjacency_matrix):
-    """
-    Computes the Laplacian matrix from an adjacency matrix.
-
-    Parameters:
-    adjacency_matrix (numpy.ndarray): The adjacency matrix of the graph,
-                                      can be binary or weighted.
-
-    Returns:
-    numpy.ndarray: The Laplacian matrix.
-    """
-    degree_matrix = np.diag(np.sum(adjacency_matrix, axis=1))
-    laplacian = degree_matrix - adjacency_matrix
-    return laplacian
 
 
 def get_weighted_adjacency_matrix(
