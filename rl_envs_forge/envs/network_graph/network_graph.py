@@ -8,8 +8,9 @@ from .graph_utils import (
     compute_centrality,
     get_weighted_adjacency_matrix,
     compute_laplacian,
-    compute_eigenvector_centrality
+    compute_eigenvector_centrality,
 )
+
 
 class NetworkGraph(gym.Env):
     metadata = {"render.modes": ["human", "matplotlib"]}
@@ -27,7 +28,6 @@ class NetworkGraph(gym.Env):
         initial_opinions=None,
         impulse_resistance=None,
         connectivity_matrix=None,
-        agent_sizes=None,  # New parameter
         use_weighted_edges=False,
         weight_range=(0.1, 1.0),
     ):
@@ -36,8 +36,6 @@ class NetworkGraph(gym.Env):
         # Store the initialization parameters
         if connectivity_matrix is not None:
             self.num_agents = connectivity_matrix.shape[0]
-        elif agent_sizes is not None:
-            self.num_agents = len(agent_sizes)
         else:
             self.num_agents = num_agents
         self.connection_prob_range = connection_prob_range
@@ -51,7 +49,6 @@ class NetworkGraph(gym.Env):
         self.impulse_resistance = impulse_resistance
         self.use_weighted_edges = use_weighted_edges
         self.weight_range = weight_range
-        self.agent_sizes = agent_sizes  # Store the agent sizes if provided
 
         # Determine adjacency matrix
         if connectivity_matrix is not None:
@@ -75,7 +72,7 @@ class NetworkGraph(gym.Env):
         # Compute Laplacian
         self.L = compute_laplacian(self.connectivity_matrix)
         self.centralities = compute_eigenvector_centrality(self.L)
-        
+
         # Check if the graph is fully connected
         G = nx.from_numpy_array(self.connectivity_matrix)
         if not nx.is_connected(G):
@@ -140,7 +137,7 @@ class NetworkGraph(gym.Env):
         # controlled_opinions = (
         #     action * self.desired_opinion + (1 - action) * self.opinions
         # )
-        
+
         # Apply the P matrix: P = I - diag(action)
         P = np.eye(self.num_agents) - np.diag(action)
 

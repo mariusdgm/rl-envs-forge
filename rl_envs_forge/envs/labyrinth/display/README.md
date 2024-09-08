@@ -1,3 +1,4 @@
+
 # Labyrinth Display
 
 This folder contains the code for displaying and rendering the Labyrinth environment.
