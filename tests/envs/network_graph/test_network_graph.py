@@ -125,3 +125,22 @@ class TestNetworkGraph:
         
         # Check that the state (opinions) remains within [0, 1]
         assert np.all(state >= 0.0) and np.all(state <= 1.0), "Opinions should be within the range [0, 1]"
+
+    def test_step_max_vs_zero_action(self, default_env):
+        # Reset the environment
+        default_env.reset()
+
+        # Define zero action (no control) and max action (full control)
+        zero_action = np.zeros(default_env.num_agents, dtype=np.float32)
+        max_action = np.full(default_env.num_agents, default_env.max_u, dtype=np.float32)
+
+        # Step with zero action
+        zero_action_state, _, _, _, _ = default_env.step(zero_action)
+
+        # Step with max action
+        default_env.reset()  # Reset the environment again to start from the same initial state
+        max_action_state, _, _, _, _ = default_env.step(max_action)
+
+        # Check that the state resulting from max action is greater than the state from zero action
+        assert np.all(max_action_state >= zero_action_state), \
+            "The resulting state with max action should be greater than or equal to the state with zero action"
