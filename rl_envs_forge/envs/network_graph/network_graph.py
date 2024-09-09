@@ -131,28 +131,25 @@ class NetworkGraph(gym.Env):
             truncated (bool): Whether the episode was truncated (e.g., due to reaching the max number of steps).
             info (dict): Additional information.
         """
+        # Clip the action values to be within the allowed range
         action = np.clip(action, 0, self.max_u)
 
-        # Old style control application
-        # controlled_opinions = (
-        #     action * self.desired_opinion + (1 - action) * self.opinions
-        # )
+        # Apply control by blending current opinions with the desired opinion
+        controlled_opinions = (
+            action * self.desired_opinion + (1 - action) * self.opinions
+        )
 
-        # Apply the P matrix: P = I - diag(action)
-        P = np.eye(self.num_agents) - np.diag(action)
-
-        # Apply control input: X(t_k) = P * opinions
-        controlled_opinions = P @ self.opinions
-
-        # Compute the propagation using the matrix exponential of the Laplacian
+        # Propagate opinions using the matrix exponential of the Laplacian
         expL = expm(-self.L * self.tau)
         propagated_opinions = expL @ controlled_opinions
 
-        # Update the state
+        # Update the state by applying the propagation step
         self.opinions = np.clip(propagated_opinions, 0, 1)
+
+        # Update the total spent budget
         self.total_spent += np.sum(action)
 
-        # Reward based on how close opinions are to the desired value and penalize budget
+        # Compute the reward based on closeness to desired opinions and budget spent
         reward = -np.sum((self.opinions - self.desired_opinion) ** 2) - 0.01 * np.sum(
             action * self.impulse_resistance
         )
