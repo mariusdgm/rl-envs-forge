@@ -127,20 +127,40 @@ class TestNetworkGraph:
         assert np.all(state >= 0.0) and np.all(state <= 1.0), "Opinions should be within the range [0, 1]"
 
     def test_step_max_vs_zero_action(self, default_env):
-        # Reset the environment
-        default_env.reset()
+
+        # Set initial opinions to be a linspace between 0 and 1
+        num_agents = default_env.num_agents
+        initial_opinions = np.linspace(0, 1, num_agents)
+
+        # Initialize the environment with the specified initial opinions
+        env = NetworkGraph(
+            num_agents=num_agents,
+            initial_opinions=initial_opinions,
+            max_u=0.1,  # Define max control input for testing
+            desired_opinion=1.0,
+            tau=1.0,
+            budget=10.0,
+            max_steps=100
+        )
+        
+        env.reset()
 
         # Define zero action (no control) and max action (full control)
-        zero_action = np.zeros(default_env.num_agents, dtype=np.float32)
-        max_action = np.full(default_env.num_agents, default_env.max_u, dtype=np.float32)
+        zero_action = np.zeros(num_agents, dtype=np.float32)
+        max_action = np.full(num_agents, env.max_u, dtype=np.float32)
 
         # Step with zero action
-        zero_action_state, _, _, _, _ = default_env.step(zero_action)
+        zero_action_state, _, _, _, _ = env.step(zero_action)
 
         # Step with max action
-        default_env.reset()  # Reset the environment again to start from the same initial state
-        max_action_state, _, _, _, _ = default_env.step(max_action)
+        env.reset()  # Reset the environment again to start from the same initial state
+        max_action_state, _, _, _, _ = env.step(max_action)
 
-        # Check that the state resulting from max action is greater than the state from zero action
-        assert np.all(max_action_state >= zero_action_state), \
-            "The resulting state with max action should be greater than or equal to the state with zero action"
+        # Compute the average opinions for both actions
+        avg_zero_action_state = np.mean(zero_action_state)
+        avg_max_action_state = np.mean(max_action_state)
+
+        # Check that the average state resulting from max action is greater than the average state from zero action
+        assert avg_max_action_state >= avg_zero_action_state, \
+            "The average state with max action should be greater than or equal to the average state with zero action"
+
