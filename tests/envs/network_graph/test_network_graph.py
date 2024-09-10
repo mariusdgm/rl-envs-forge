@@ -127,6 +127,7 @@ class TestNetworkGraph:
         assert np.all(state >= 0.0) and np.all(state <= 1.0), "Opinions should be within the range [0, 1]"
 
     def test_step_max_vs_zero_action(self, default_env):
+
         # Set initial opinions to be a linspace between 0 and 1
         num_agents = default_env.num_agents
         initial_opinions = np.linspace(0, 1, num_agents)
@@ -162,3 +163,4 @@ class TestNetworkGraph:
         # Check that the average state resulting from max action is greater than the average state from zero action
         assert avg_max_action_state >= avg_zero_action_state, \
             "The average state with max action should be greater than or equal to the average state with zero action"
+
