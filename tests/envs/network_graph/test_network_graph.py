@@ -2,6 +2,7 @@ import pytest
 import numpy as np
 from unittest.mock import patch, MagicMock
 from rl_envs_forge.envs.network_graph.network_graph import NetworkGraph
+from scipy.linalg import expm
 
 @pytest.fixture
 def default_env():
@@ -102,7 +103,6 @@ class TestNetworkGraph:
             max_u=max_u,
             initial_opinions=initial_opinions,
             budget=10.0,
-            
             desired_opinion=1.0,
             tau=1.0,
             max_steps=100
@@ -164,3 +164,294 @@ class TestNetworkGraph:
         assert avg_max_action_state >= avg_zero_action_state, \
             "The average state with max action should be greater than or equal to the average state with zero action"
 
+    # New tests for action_duration and step_duration
+    def test_step_with_action_duration_and_step_duration(self, default_env):
+        # Reset the environment
+        default_env.reset()
+        
+        # Define an action
+        action = np.array([default_env.max_u] * default_env.num_agents, dtype=np.float32)
+        
+        # Define action_duration and step_duration
+        action_duration = 0.2
+        step_duration = 0.5
+        
+        # Step the environment
+        state, reward, done, truncated, info = default_env.step(
+            action, action_duration=action_duration, step_duration=step_duration
+        )
+        
+        # Check that the state is updated correctly
+        assert len(state) == default_env.num_agents
+        assert isinstance(reward, float)
+        assert not done
+        assert not truncated
+        assert info["current_step"] == 1
+        
+        # Check that total_spent is updated correctly
+        expected_total_spent = np.sum(action)
+        assert default_env.total_spent == expected_total_spent
+        
+    def test_step_with_action_duration_equal_to_step_duration(self, default_env):
+        # Reset the environment
+        default_env.reset()
+        
+        # Define an action
+        action = np.array([default_env.max_u] * default_env.num_agents, dtype=np.float32)
+        
+        # Define action_duration and step_duration as equal
+        action_duration = 0.5
+        step_duration = 0.5
+        
+        # Step the environment
+        state, reward, done, truncated, info = default_env.step(
+            action, action_duration=action_duration, step_duration=step_duration
+        )
+        
+        # Check that the state is updated correctly
+        assert len(state) == default_env.num_agents
+        assert isinstance(reward, float)
+        assert not done
+        assert not truncated
+        assert info["current_step"] == 1
+
+    def test_step_with_action_duration_greater_than_step_duration(self, default_env):
+        # Reset the environment
+        default_env.reset()
+        
+        # Define an action
+        action = np.array([default_env.max_u] * default_env.num_agents, dtype=np.float32)
+        
+        # Define action_duration greater than step_duration
+        action_duration = 1.0
+        step_duration = 0.5
+        
+        # Expect a ValueError to be raised
+        with pytest.raises(ValueError) as excinfo:
+            default_env.step(
+                action, action_duration=action_duration, step_duration=step_duration
+            )
+        assert "action_duration cannot be greater than step_duration" in str(excinfo.value)
+        
+    def test_step_with_zero_action_duration(self, default_env):
+        # Reset the environment
+        default_env.reset()
+        
+        # Define an action
+        action = np.array([default_env.max_u] * default_env.num_agents, dtype=np.float32)
+        
+        # Define action_duration as zero
+        action_duration = 0.0
+        step_duration = 0.5
+        
+        # Step the environment
+        state, reward, done, truncated, info = default_env.step(
+            action, action_duration=action_duration, step_duration=step_duration
+        )
+        
+        # Since action_duration is zero, the action should not affect the state
+        # The opinions should only evolve according to the network dynamics
+        
+        # Check that the total_spent is updated correctly (should still be increased)
+        expected_total_spent = np.sum(action)
+        assert default_env.total_spent == expected_total_spent
+        
+        # Check that the state is updated correctly
+        assert len(state) == default_env.num_agents
+        assert isinstance(reward, float)
+        assert not done
+        assert not truncated
+        assert info["current_step"] == 1
+
+    def test_step_with_no_action_duration_and_step_duration(self, default_env):
+        # Reset the environment
+        default_env.reset()
+        
+        # Define an action
+        action = np.array([default_env.max_u] * default_env.num_agents, dtype=np.float32)
+        
+        # Step the environment without providing action_duration and step_duration
+        # It should default to self.tau
+        state, reward, done, truncated, info = default_env.step(action)
+        
+        # Check that the state is updated correctly
+        assert len(state) == default_env.num_agents
+        assert isinstance(reward, float)
+        assert not done
+        assert not truncated
+        assert info["current_step"] == 1
+        
+        # Check that total_spent is updated correctly
+        expected_total_spent = np.sum(action)
+        assert default_env.total_spent == expected_total_spent
+
+    def test_step_with_negative_action_duration(self, default_env):
+        # Reset the environment
+        default_env.reset()
+        
+        # Define an action
+        action = np.array([default_env.max_u] * default_env.num_agents, dtype=np.float32)
+        
+        # Define a negative action_duration
+        action_duration = -0.1
+        step_duration = 0.5
+        
+        # Expect a ValueError to be raised
+        with pytest.raises(ValueError) as excinfo:
+            default_env.step(
+                action, action_duration=action_duration, step_duration=step_duration
+            )
+        assert "action_duration must be non-negative" in str(excinfo.value)
+        
+    def test_step_with_negative_step_duration(self, default_env):
+        # Reset the environment
+        default_env.reset()
+        
+        # Define an action
+        action = np.array([default_env.max_u] * default_env.num_agents, dtype=np.float32)
+        
+        # Define a negative step_duration
+        action_duration = 0.1
+        step_duration = -0.5
+        
+        # Expect a ValueError to be raised
+        with pytest.raises(ValueError) as excinfo:
+            default_env.step(
+                action, action_duration=action_duration, step_duration=step_duration
+            )
+        assert "step_duration must be positive" in str(excinfo.value)
+        
+    def test_step_with_action_duration_equal_zero(self, default_env):
+        # Reset the environment
+        default_env.reset()
+        
+        # Define an action
+        action = np.array([default_env.max_u] * default_env.num_agents, dtype=np.float32)
+        
+        # Define action_duration and step_duration as zero
+        action_duration = 0.0
+        step_duration = 0.0
+        
+        # Expect a ValueError to be raised (step_duration must be positive)
+        with pytest.raises(ValueError) as excinfo:
+            default_env.step(
+                action, action_duration=action_duration, step_duration=step_duration
+            )
+        assert "step_duration must be positive" in str(excinfo.value)
+        
+    def test_step_with_large_step_duration(self, default_env):
+        # Reset the environment
+        default_env.reset()
+        
+        # Define an action (no action applied)
+        action = np.zeros(default_env.num_agents, dtype=np.float32)
+        
+        # Define a large step_duration
+        action_duration = 0.0
+        step_duration = 10.0  # Simulate over a long time without action
+        
+        # Step the environment
+        state, reward, done, truncated, info = default_env.step(
+            action, action_duration=action_duration, step_duration=step_duration
+        )
+        
+        # Check that the state has evolved only according to the network dynamics
+        # Since the Laplacian tends to drive opinions towards consensus, the opinions should be closer together
+        
+        # Check that the state is updated correctly
+        assert len(state) == default_env.num_agents
+        assert isinstance(reward, float)
+        assert not done
+        assert not truncated
+        assert info["current_step"] == 1
+
+    def test_step_with_action_only(self, default_env):
+        # Reset the environment
+        default_env.reset()
+        
+        # Define an action
+        action = np.array([default_env.max_u] * default_env.num_agents, dtype=np.float32)
+        
+        # Define action_duration equal to step_duration
+        action_duration = default_env.tau
+        step_duration = default_env.tau
+        
+        # Step the environment
+        state_with_action, _, _, _, _ = default_env.step(
+            action, action_duration=action_duration, step_duration=step_duration
+        )
+        
+        # Reset and step without action
+        default_env.reset()
+        action_zero = np.zeros(default_env.num_agents, dtype=np.float32)
+        state_without_action, _, _, _, _ = default_env.step(
+            action_zero, action_duration=0.0, step_duration=default_env.tau
+        )
+        
+        # Check that the state with action is different from state without action
+        assert not np.allclose(state_with_action, state_without_action), \
+            "State with action should differ from state without action"
+
+    def test_step_with_action_duration_zero(self, default_env):
+        # Reset the environment
+        default_env.reset()
+        
+        # Capture the opinions before stepping
+        opinions_before = default_env.opinions.copy()
+        
+        # Define an action
+        action = np.array([default_env.max_u] * default_env.num_agents, dtype=np.float32)
+        
+        # Define action_duration as zero
+        action_duration = 0.0
+        step_duration = default_env.tau
+        
+        # Step the environment
+        state, _, _, _, _ = default_env.step(
+            action, action_duration=action_duration, step_duration=step_duration
+        )
+        
+        # Since action_duration is zero, the action should not affect the state
+        # The opinions should evolve only due to network dynamics
+        
+        # Propagate opinions using the Laplacian without action
+        expL = expm(-default_env.L * step_duration)
+        expected_state = expL @ opinions_before
+        expected_state = np.clip(expected_state, 0, 1)
+        
+        # Check that the state matches the expected state
+        np.testing.assert_allclose(state, expected_state, atol=1e-5)
+
+    def test_step_with_full_action_duration(self, default_env):
+        # Reset the environment
+        default_env.reset()
+        
+        # Capture the opinions before stepping
+        opinions_before = default_env.opinions.copy()
+        
+        # Define an action
+        action = np.array([default_env.max_u] * default_env.num_agents, dtype=np.float32)
+        
+        # Define action_duration equal to step_duration
+        action_duration = default_env.tau
+        step_duration = default_env.tau
+        
+        # Step the environment
+        state, _, _, _, _ = default_env.step(
+            action, action_duration=action_duration, step_duration=step_duration
+        )
+        
+        # The opinions should be influenced by the action over the entire duration
+        
+        # Apply control by blending current opinions with the desired opinion
+        controlled_opinions = (
+            action * default_env.desired_opinion + (1 - action) * opinions_before
+        )
+        
+        # Propagate opinions using the matrix exponential over the entire duration
+        expL = expm(-default_env.L * step_duration)
+        expected_state = expL @ controlled_opinions
+        expected_state = np.clip(expected_state, 0, 1)
+        
+        # Check that the state matches the expected state
+        np.testing.assert_allclose(state, expected_state, atol=1e-5)

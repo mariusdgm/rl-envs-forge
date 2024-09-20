@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.3.0] - 2024.09.20
+
+### Changed
+
+- Changed step function of NetworkGraph so we can simulate long campaigns
+
 ## [5.2.1] - 2024.09.09
 
 ### Fixed
