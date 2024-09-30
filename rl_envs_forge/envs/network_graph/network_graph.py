@@ -117,14 +117,12 @@ class NetworkGraph(gym.Env):
         self.total_spent = 0.0
         return self.opinions
 
-    def step(self, action, action_duration=None, step_duration=None):
+    def step(self, action, step_duration=None):
         """
         Execute one time step within the environment.
 
         Args:
             action (np.array): Control inputs for influencing the agents.
-            action_duration (float, optional): Duration over which the action is applied.
-                                            Defaults to self.tau.
             step_duration (float, optional): Total duration over which the opinions are propagated.
                                             Defaults to self.tau.
 
@@ -136,44 +134,23 @@ class NetworkGraph(gym.Env):
             info (dict): Additional information.
         """
         # Set default durations if not provided
-        if action_duration is None:
-            action_duration = self.tau
         if step_duration is None:
             step_duration = self.tau
 
-        # Validate durations
-        if action_duration < 0:
-            raise ValueError("action_duration must be non-negative")
         if step_duration <= 0:
             raise ValueError("step_duration must be positive")
-        if action_duration > step_duration:
-            raise ValueError("action_duration cannot be greater than step_duration")
-
+        
         # Clip the action values to be within the allowed range
         action = np.clip(action, 0, self.max_u)
 
-        # Apply control if action_duration > 0
-        if action_duration > 0:
-            # Apply control by blending current opinions with the desired opinion
-            controlled_opinions = (
-                action * self.desired_opinion + (1 - action) * self.opinions
-            )
+        # Apply control by blending current opinions with the desired opinion
+        opinions = (
+            action * self.desired_opinion + (1 - action) * self.opinions
+        )
 
-            # Propagate opinions during the action duration
-            expL_action = expm(-self.L * action_duration)
-            opinions_after_action = expL_action @ controlled_opinions
-        else:
-            # No action applied, opinions remain the same
-            opinions_after_action = self.opinions
-
-        # Propagate opinions for the remaining duration
-        remaining_duration = step_duration - action_duration
-        if remaining_duration > 0:
-            expL_remaining = expm(-self.L * remaining_duration)
-            propagated_opinions = expL_remaining @ opinions_after_action
-        else:
-            propagated_opinions = opinions_after_action
-
+        expL_remaining = expm(-self.L * step_duration)
+        propagated_opinions = expL_remaining @ opinions
+      
         # Update the state by applying the propagation step
         self.opinions = np.clip(propagated_opinions, 0, 1)
 
