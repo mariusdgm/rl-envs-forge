@@ -117,6 +117,35 @@ class NetworkGraph(gym.Env):
         self.total_spent = 0.0
         return self.opinions
 
+    def compute_dynamics(self, current_state, control_action, step_duration):
+        """
+        Compute the new state of the network given the current state, control action, and step duration.
+
+        Parameters:
+            current_state (numpy.ndarray): The current state of the network.
+            control_action (numpy.ndarray): The control action to apply to the network.
+            step_duration (float): The duration of the step.
+
+        Returns:
+            numpy.ndarray: The new state of the network.
+        """
+        # Ensure step duration is positive
+        if step_duration <= 0:
+            raise ValueError("step_duration must be positive")
+
+        # Apply control to blend current opinions with the desired opinion
+        opinions = (
+            control_action * self.desired_opinion + (1 - control_action) * current_state
+        )
+
+        # Compute opinion propagation with the influence of the Laplacian
+        expL_remaining = expm(-self.L * step_duration)
+        propagated_opinions = expL_remaining @ opinions
+
+        # Clip the resulting opinions to be within [0, 1]
+        new_states = np.clip(propagated_opinions, 0, 1)
+        return new_states
+
     def step(self, action, step_duration=None):
         """
         Execute one time step within the environment.
@@ -133,31 +162,20 @@ class NetworkGraph(gym.Env):
             truncated (bool): Whether the episode was truncated (e.g., due to reaching the max number of steps).
             info (dict): Additional information.
         """
-        # Set default durations if not provided
         if step_duration is None:
             step_duration = self.tau
 
-        if step_duration <= 0:
-            raise ValueError("step_duration must be positive")
-        
-        # Clip the action values to be within the allowed range
+        # Clip the control action to within [0, max_u]
         action = np.clip(action, 0, self.max_u)
+        
+        # Use the compute_dynamics function to determine the next state
+        next_opinions = self.compute_dynamics(self.opinions, action, step_duration)
 
-        # Apply control by blending current opinions with the desired opinion
-        opinions = (
-            action * self.desired_opinion + (1 - action) * self.opinions
-        )
-
-        expL_remaining = expm(-self.L * step_duration)
-        propagated_opinions = expL_remaining @ opinions
-      
-        # Update the state by applying the propagation step
-        self.opinions = np.clip(propagated_opinions, 0, 1)
-
-        # Update the total spent budget
+        # Update environment state with the new opinions
+        self.opinions = next_opinions
         self.total_spent += np.sum(action)
 
-        # Compute the reward based on closeness to desired opinions and budget spent
+        # Compute reward based on closeness to the desired opinions and budget spent
         reward = -np.sum((self.opinions - self.desired_opinion) ** 2) - 0.01 * np.sum(
             action * self.impulse_resistance
         )

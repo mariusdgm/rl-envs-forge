@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.5.0] - 2024.11.04
+
+### Added
+
+- Added compute_dynamics function in NetworkGraph for external state computation.
+
 ## [5.4.0] - 2024.09.30
 
 ### Changed
