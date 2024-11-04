@@ -91,7 +91,7 @@ class TestNetworkGraph:
         assert np.all(L - np.diag(np.diag(L)) <= 0), "Off-diagonal elements of Laplacian should be non-positive"
 
    
-    def test_saturation_of_control_and_opinions(self, default_env):
+    def test_saturation_of_control_and_opinions(self):
         # Set up the environment with specific parameters
         num_agents = 3
         max_u = 0.1  # Maximum control input
@@ -210,4 +210,24 @@ class TestNetworkGraph:
         assert not truncated
         assert info["current_step"] == 1
 
-    
+    def test_dynamics_function_no_state_modification(self, default_env):
+        # Set the initial conditions for testing
+        initial_opinions = np.linspace(0, 1, default_env.num_agents)
+        action = np.full(default_env.num_agents, default_env.max_u / 2)  # Use half of max_u for control
+        step_duration = 1.0  # Set a step duration
+        
+        # Set the initial state of the environment and save its original state
+        default_env.opinions = initial_opinions.copy()
+        initial_step = default_env.current_step
+        initial_total_spent = default_env.total_spent
+
+        # Call the dynamics function directly without modifying the env state
+        next_state = default_env.compute_dynamics(initial_opinions, action, step_duration)
+
+        # Verify that the output is in the expected range
+        assert np.all(next_state >= 0) and np.all(next_state <= 1), "Next state should be within [0, 1]"
+
+        # Check that the internal metrics of the environment have not changed
+        np.testing.assert_array_equal(default_env.opinions, initial_opinions, "Opinions should remain unchanged")
+        assert default_env.current_step == initial_step, "Current step should not be modified"
+        assert default_env.total_spent == initial_total_spent, "Total spent should not be modified"
