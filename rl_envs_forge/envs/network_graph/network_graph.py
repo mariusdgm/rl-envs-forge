@@ -20,16 +20,18 @@ class NetworkGraph(gym.Env):
         num_agents=10,
         connection_prob_range=(0.1, 0.3),
         max_u=0.1,
-        budget=10.0,
         desired_opinion=1.0,
         tau=1.0,
         initial_opinion_range=(0.0, 1.0),
-        max_steps=100,
         initial_opinions=None,
-        impulse_resistance=None,
+        control_resistance=None,
         connectivity_matrix=None,
         use_weighted_edges=False,
         weight_range=(0.1, 1.0),
+        budget=10.0,
+        max_steps=100,
+        opinion_end_tolerance=0.01,
+        control_beta=0.4,
     ):
         super(NetworkGraph, self).__init__()
 
@@ -39,16 +41,20 @@ class NetworkGraph(gym.Env):
         else:
             self.num_agents = num_agents
         self.connection_prob_range = connection_prob_range
+        self.use_weighted_edges = use_weighted_edges
+        self.weight_range = weight_range
+
         self.max_u = max_u
-        self.budget = budget
         self.desired_opinion = desired_opinion
         self.tau = tau
         self.initial_opinion_range = initial_opinion_range
-        self.max_steps = max_steps
         self.initial_opinions = initial_opinions
-        self.impulse_resistance = impulse_resistance
-        self.use_weighted_edges = use_weighted_edges
-        self.weight_range = weight_range
+        self.control_resistance = control_resistance
+
+        self.budget = budget
+        self.max_steps = max_steps
+        self.opinion_end_tolerance = opinion_end_tolerance
+        self.control_beta = control_beta
 
         # Determine adjacency matrix
         if connectivity_matrix is not None:
@@ -87,10 +93,10 @@ class NetworkGraph(gym.Env):
             )
 
         # Define or generate impulse resistance (cost) for each agent
-        if impulse_resistance is not None:
-            self.impulse_resistance = np.array(impulse_resistance)
+        if control_resistance is not None:
+            self.control_resistance = np.array(control_resistance)
         else:
-            self.impulse_resistance = np.ones(self.num_agents)
+            self.control_resistance = np.zeros(self.num_agents)
 
         # Define the action and observation spaces
         self.action_space = spaces.Box(
@@ -133,9 +139,12 @@ class NetworkGraph(gym.Env):
         if step_duration <= 0:
             raise ValueError("step_duration must be positive")
 
+        effective_control = control_action * (1 - self.control_resistance)
+
         # Apply control to blend current opinions with the desired opinion
         opinions = (
-            control_action * self.desired_opinion + (1 - control_action) * current_state
+            effective_control * self.desired_opinion
+            + (1 - effective_control) * current_state
         )
 
         # Compute opinion propagation with the influence of the Laplacian
@@ -145,6 +154,9 @@ class NetworkGraph(gym.Env):
         # Clip the resulting opinions to be within [0, 1]
         new_states = np.clip(propagated_opinions, 0, 1)
         return new_states
+
+    def reward_function(self, x, u, d, beta):
+        return -np.abs(d - x).sum() - beta * np.sum(u)
 
     def step(self, action, step_duration=None):
         """
@@ -167,7 +179,7 @@ class NetworkGraph(gym.Env):
 
         # Clip the control action to within [0, max_u]
         action = np.clip(action, 0, self.max_u)
-        
+
         # Use the compute_dynamics function to determine the next state
         next_opinions = self.compute_dynamics(self.opinions, action, step_duration)
 
@@ -176,8 +188,8 @@ class NetworkGraph(gym.Env):
         self.total_spent += np.sum(action)
 
         # Compute reward based on closeness to the desired opinions and budget spent
-        reward = -np.sum((self.opinions - self.desired_opinion) ** 2) - 0.01 * np.sum(
-            action * self.impulse_resistance
+        reward = self.reward_function(
+            self.opinions, action, self.desired_opinion, self.control_beta
         )
 
         # Increment step counter and check if the episode is done or truncated
