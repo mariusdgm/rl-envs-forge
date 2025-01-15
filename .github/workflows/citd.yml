@@ -93,7 +93,19 @@ jobs:
       run: |
         curl -sSL https://install.python-poetry.org | python3 -
 
-    - name: Build and publish
+    - name: Clean build environment
       run: |
-        poetry build
-        poetry publish --username ${{ secrets.PYPI_USERNAME }} --password ${{ secrets.PYPI_PASSWORD }}
+        rm -rf dist build
+
+    - name: Build the package with verbose logging
+      run: |
+        poetry build --verbose
+
+    - name: Verify build contents
+      run: |
+        tar -tf dist/*.tar.gz
+        unzip -l dist/*.whl
+
+    - name: Publish package
+      run: |
+        poetry publish --build --username ${{ secrets.PYPI_USERNAME }} --password ${{ secrets.PYPI_PASSWORD }}
