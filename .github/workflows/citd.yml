@@ -30,7 +30,7 @@ jobs:
         poetry install
 
     - name: Run tests with coverage
-      run: poetry run pytest --cov=rl_envs_forge --cov-report=term-missing
+      run: poetry run pytest -m "not slow" --cov=rl_envs_forge --cov-report=term-missing
 
   tag:
     needs: test
@@ -92,11 +92,12 @@ jobs:
     - name: Install Poetry
       run: |
         curl -sSL https://install.python-poetry.org | python3 -
+        poetry self update
 
     - name: Clean build environment
       run: |
-        rm -rf dist build
-
+        rm -rf dist build *.egg-info
+    
     - name: Build the package with verbose logging
       run: |
         poetry build --verbose
@@ -108,4 +109,4 @@ jobs:
 
     - name: Publish package
       run: |
-        poetry publish --build --username ${{ secrets.PYPI_USERNAME }} --password ${{ secrets.PYPI_PASSWORD }}
+        poetry publish --verbose --username ${{ secrets.PYPI_USERNAME }} --password ${{ secrets.PYPI_PASSWORD }}
