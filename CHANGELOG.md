@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+
 ## [5.7.0] - 2025.01.15
 
 ### Added
@@ -14,8 +15,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Info in opinion network reset
 
 ## [5.6.0] - 2024.12.19
-
-### Changed
 
 - Reward function and control resistance in NetworkGraph
 
