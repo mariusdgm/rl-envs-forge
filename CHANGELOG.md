@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Attempt to change build process
 
+## [5.7.3] - 2025.01.15
+
+### Fixed
+
+- Attempt to hotfix release pipeline
+
 ## [5.7.2] - 2025.01.15
 
 ### Fixed

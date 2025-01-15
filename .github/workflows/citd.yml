@@ -109,4 +109,4 @@ jobs:
 
     - name: Publish package
       run: |
-        poetry publish --verbose --username ${{ secrets.PYPI_USERNAME }} --password ${{ secrets.PYPI_PASSWORD }}
+        poetry publish --username ${{ secrets.PYPI_USERNAME }} --password ${{ secrets.PYPI_PASSWORD }}
