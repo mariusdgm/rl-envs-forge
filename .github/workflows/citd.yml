@@ -96,8 +96,8 @@ jobs:
 
     - name: Clean build environment
       run: |
-        rm -rf dist build
-
+        rm -rf dist build *.egg-info
+    
     - name: Build the package with verbose logging
       run: |
         poetry build --verbose
@@ -109,4 +109,4 @@ jobs:
 
     - name: Publish package
       run: |
-        poetry publish --build --verbose --username ${{ secrets.PYPI_USERNAME }} --password ${{ secrets.PYPI_PASSWORD }}
+        poetry publish --username ${{ secrets.PYPI_USERNAME }} --password ${{ secrets.PYPI_PASSWORD }}
