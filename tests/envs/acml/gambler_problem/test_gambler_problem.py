@@ -17,7 +17,7 @@ class TestGamblersProblem:
 
     def test_reset(self, fixture_env):
         fixture_env.step(5)
-        state = fixture_env.reset()
+        state, _ = fixture_env.reset()
         assert isinstance(state, numbers.Number)
 
     def test_mdp_build(self, fixture_env):

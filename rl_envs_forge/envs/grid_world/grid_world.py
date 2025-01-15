@@ -535,7 +535,7 @@ class GridWorld(gym.Env):
             new_start_state (Optional[Tuple[int, int]], optional): A new starting state for the agent. Defaults to None.
 
         Returns:
-            Tuple[int, int]: The initial observation.
+            Tuple[int, int]: The initial observation and reward.
         """
         if new_start_state is not None:
             if (
@@ -548,7 +548,7 @@ class GridWorld(gym.Env):
 
         self.state = self.start_state
         self.episode_length_counter = 0
-        return self.state
+        return self.state, {}
 
     def render(self, mode="human"):
         """

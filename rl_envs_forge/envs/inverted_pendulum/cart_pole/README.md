@@ -12,7 +12,7 @@ Different environment setups are presented in [Usage](#usage).
 from rl_envs_forge.envs.inverted_pendulum.cart_pole.cart_pole import CartPole
 
 env = CartPole(tau=0.02)  # Set the integration time step to 0.02 seconds
-state = env.reset()
+state, info = env.reset()
 
 action = env.action_space.sample()  # Sample a random action
 next_state, reward, done, truncated, info = env.step(action)
@@ -26,7 +26,7 @@ print(next_state, reward, done, truncated, info)
 ### Custom Initialization with Continuous Reward
 ```python
 env = CartPole(tau=0.02, continuous_reward=True)
-state = env.reset()
+state, info = env.reset()
 
 action = env.action_space.sample()  # Sample a random action
 next_state, reward, done, truncated, info = env.step(action)
@@ -41,7 +41,7 @@ print(next_state, reward, done, truncated, info)
 
 ```
 env = CartPole(tau=0.02)
-state = env.reset()
+state, info = env.reset()
 
 for _ in range(1000):
     env.render()

@@ -44,7 +44,7 @@ class TestGridWorld:
 
     def test_reset(self, default_env):
         default_env.step(Action.DOWN)
-        state = default_env.reset()
+        state, _ = default_env.reset()
         assert state == (0, 0)
 
     def test_special_transition(self, default_env):
@@ -236,7 +236,7 @@ class TestGridWorld:
     def test_reset_to_new_starting_state(self, default_env):
         # Reset to a new starting state and ensure it's correctly set
         new_start_state = (5, 5)
-        initial_state = default_env.reset(new_start_state=new_start_state)
+        initial_state, _ = default_env.reset(new_start_state=new_start_state)
         assert (
             initial_state == new_start_state
         ), f"Expected initial state to be {new_start_state}, but got {initial_state}"

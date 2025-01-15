@@ -214,7 +214,7 @@ class KArmedBandit(gym.Env):
             self.seed = seed
         self.np_random = np.random.RandomState(self.seed)
         self._init_arms()
-        return 0
+        return 0, {}
 
     def render(self, mode="violin_plot"):
         """

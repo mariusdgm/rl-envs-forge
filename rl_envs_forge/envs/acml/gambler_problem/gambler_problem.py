@@ -70,10 +70,10 @@ class GamblersProblem(gym.Env):
         Reset the environment to an initial state.
 
         Returns:
-            The initial state.
+            The initial state and additional info.
         """
         self.state = self.start_capital
-        return self.state
+        return self.state, {}
 
     def render(self, mode="human") -> str:
         """

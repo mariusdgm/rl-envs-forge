@@ -126,7 +126,7 @@ class JacksCarRental(gym.Env):
             option (str, optional): The reset option. Can be "random" or "equal". Defaults to "random".
 
         Returns:
-            tuple: The new state of the environment after the reset.
+            tuple: The new state of the environment after the reset and a dictionary containing the reset option.
         """
 
         if option == "random":
@@ -137,7 +137,7 @@ class JacksCarRental(gym.Env):
         elif option == "equal":
             initial_cars = self.max_cars // 2
             self.state = (initial_cars, initial_cars)
-        return self.state
+        return self.state, {"Reset Option": option}
 
     def render(self, mode: str = "human") -> str:
         """

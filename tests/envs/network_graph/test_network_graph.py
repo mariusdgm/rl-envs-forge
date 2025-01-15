@@ -32,7 +32,7 @@ class TestNetworkGraph:
         assert weighted_env.num_agents == 10
 
     def test_reset(self, default_env):
-        initial_opinions = default_env.reset()
+        initial_opinions, _ = default_env.reset()
         assert len(initial_opinions) == default_env.num_agents
         assert default_env.current_step == 0
         assert default_env.total_spent == 0.0
@@ -40,7 +40,7 @@ class TestNetworkGraph:
     def test_reset_with_initial_opinions(self, default_env):
         initial_opinions = np.array([0.1, 0.2, 0.3])
         default_env = NetworkGraph(num_agents=3, initial_opinions=initial_opinions)
-        opinions = default_env.reset()
+        opinions, _ = default_env.reset()
         np.testing.assert_array_equal(opinions, initial_opinions)
 
     def test_step(self, default_env):

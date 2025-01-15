@@ -121,7 +121,7 @@ class NetworkGraph(gym.Env):
             self.opinions = np.array(self.initial_opinions)
         self.current_step = 0
         self.total_spent = 0.0
-        return self.opinions
+        return self.opinions, {}
 
     def compute_dynamics(self, current_state, control_action, step_duration):
         """

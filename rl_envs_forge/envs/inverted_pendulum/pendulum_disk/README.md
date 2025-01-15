@@ -13,7 +13,7 @@ Different environment setups are presented in [Usage](#usage).
 from rl_envs_forge.envs.inverted_pendulum.pendulum_disk.pendulum_disk import PendulumDisk
 
 env = PendulumDisk(tau=0.005)  # Set the integration time step to 0.005 seconds
-state = env.reset()
+state, info = env.reset()
 
 action = env.action_space.sample()  # Sample a random action
 next_state, reward, done, truncated, info = env.step(action)
@@ -27,7 +27,7 @@ print(next_state, reward, done, truncated, info)
 ### Custom Initialization with Continuous Reward
 ```python
 env = PendulumDisk(tau=0.005, continuous_reward=True)
-state = env.reset()
+state, info = env.reset()
 
 action = env.action_space.sample()  # Sample a random action
 next_state, reward, done, truncated, info = env.step(action)
@@ -42,7 +42,7 @@ print(next_state, reward, done, truncated, info)
 
 ```
 env = PendulumDisk(tau=0.005)
-state = env.reset()
+state, info = env.reset()
 
 for _ in range(1000):
     env.render()

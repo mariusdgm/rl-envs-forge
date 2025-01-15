@@ -23,7 +23,7 @@ class TestJacksCarRental:
 
     def test_reset(self, fixture_env):
         fixture_env.step(0)
-        state = fixture_env.reset()
+        state, _ = fixture_env.reset()
         assert isinstance(state, tuple)
 
 
