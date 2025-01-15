@@ -347,7 +347,7 @@ class Labyrinth(gym.Env):
             seed (int, optional): External seed if a user wants to provide one. Defaults to None.
 
         Returns:
-            np.ndarray: The new state matrix.
+            tuple: state as ndarray, info
 
         """
         if seed:
@@ -360,7 +360,7 @@ class Labyrinth(gym.Env):
 
         self.setup_labyrinth()
 
-        return self.state
+        return self.state, {}
 
     def render(
         self,

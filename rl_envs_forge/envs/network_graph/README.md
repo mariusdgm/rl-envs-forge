@@ -14,7 +14,7 @@ import numpy as np
 from rl_envs_forge.envs.network_graph.network_graph import NetworkGraph
 
 env = NetworkGraph(num_agents=100, max_u=0.1, budget=10.0)  # Initialize with 100 agents
-state = env.reset()
+state, info = env.reset()
 
 action = env.action_space.sample()  # Sample a random action
 next_state, reward, done, truncated, info = env.step(action)

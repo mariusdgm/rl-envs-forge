@@ -62,7 +62,7 @@ class TestPendulumDisk:
 
     def test_reset_with_initial_state(self, default_env):
         initial_state = [0.1, 0.1]
-        state = default_env.reset(initial_state=initial_state)
+        state, _ = default_env.reset(initial_state=initial_state)
         assert np.array_equal(state, initial_state)
         assert np.array_equal(default_env.state, initial_state)
 

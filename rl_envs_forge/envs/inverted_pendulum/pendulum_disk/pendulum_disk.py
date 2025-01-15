@@ -103,7 +103,7 @@ class PendulumDisk(gym.Env):
         self.current_step = 0
         self.current_reward = 0.0  # Reset current reward
         self.total_reward = 0.0  # Reset total reward
-        return np.array(self.state, dtype=np.float64)
+        return np.array(self.state, dtype=np.float64), {}
 
     def step(self, action):
         assert self.action_space.contains(action), f"{action} ({type(action)}) invalid"
