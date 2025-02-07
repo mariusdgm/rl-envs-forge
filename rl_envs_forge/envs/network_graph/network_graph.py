@@ -194,7 +194,7 @@ class NetworkGraph(gym.Env):
 
         # Increment step counter and check if the episode is done or truncated
         self.current_step += 1
-        done = self.total_spent >= self.budget
+        done = np.abs(np.mean(self.opinions) - self.desired_opinion) <= self.opinion_end_tolerance
         truncated = self.current_step >= self.max_steps
 
         # Info dictionary can be used to pass additional information

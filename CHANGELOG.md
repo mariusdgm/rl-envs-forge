@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.8.0] - 2025.02.07
+
+### Changed
+
+- Network Env termination based on average opinion
+
 ## [5.7.5] - 2025.01.15
 
 ### Fixed

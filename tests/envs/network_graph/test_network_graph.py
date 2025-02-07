@@ -53,16 +53,6 @@ class TestNetworkGraph:
         assert not truncated
         assert info["current_step"] == 1
 
-    def test_step_budget_exceeded(self, default_env):
-        default_env = NetworkGraph(
-            num_agents=3, budget=0.05, control_resistance=np.array([1.0, 1.0, 1.0])
-        )
-        default_env.reset()
-        action = np.array([0.1, 0.1, 0.1], dtype=np.float32)
-        state, reward, done, truncated, info = default_env.step(action)
-        assert done
-        assert not truncated
-
     def test_step_max_steps_exceeded(self, default_env):
         default_env = NetworkGraph(num_agents=3, max_steps=1)
         default_env.reset()
@@ -280,10 +270,11 @@ class TestNetworkGraph:
         env_with_resistance.reset()
         state_with_resistance, _, _, _, _ = env_with_resistance.step(action)
 
-      
         mean_no_resistance = np.mean(state_no_resistance)
         mean_with_resistance = np.mean(state_with_resistance)
-        assert mean_with_resistance < mean_no_resistance, "Mean opinion with resistance should be smaller."
+        assert (
+            mean_with_resistance < mean_no_resistance
+        ), "Mean opinion with resistance should be smaller."
 
     def test_reward_function_effect(self):
         """Test that the reward function returns higher rewards when closer to desired opinions."""
@@ -309,6 +300,34 @@ class TestNetworkGraph:
         _, reward_final, _, _, _ = env.step(action)
 
         # Assert that the final reward is greater (less negative) than the initial reward
-        assert reward_final > reward_initial, (
-            "Reward should improve as opinions get closer to the desired value."
+        assert (
+            reward_final > reward_initial
+        ), "Reward should improve as opinions get closer to the desired value."
+
+    def test_termination_based_on_average_opinion(self):
+        """Test that the environment terminates when the average opinion is within tolerance of the desired opinion."""
+        num_agents = 5
+        initial_opinions = np.array([0.2, 0.3, 0.4, 0.5, 0.6])
+        desired_opinion = 0.5
+        tolerance = 0.05
+
+        env = NetworkGraph(
+            num_agents=num_agents,
+            initial_opinions=initial_opinions,
+            desired_opinion=desired_opinion,
+            opinion_end_tolerance=tolerance,
         )
+        env.reset()
+
+        # Set opinions manually to be within the tolerance range
+        env.opinions = np.array(
+            [0.48, 0.49, 0.50, 0.51, 0.52]
+        )  # Average = 0.5, within tolerance
+
+        # Take a step with zero action to trigger the termination check
+        _, _, done, _, _ = env.step(np.zeros(num_agents, dtype=np.float32))
+
+        # Check if the episode is correctly marked as done
+        assert (
+            done
+        ), "Episode should terminate when the average opinion is within the tolerance range."
