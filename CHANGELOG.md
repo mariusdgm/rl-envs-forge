@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.9.0] - 2025.03.03
+
+### Added
+
+- Network Env state attribute
+
 ## [5.8.0] - 2025.02.07
 
 ### Changed

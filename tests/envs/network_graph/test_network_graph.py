@@ -331,3 +331,21 @@ class TestNetworkGraph:
         assert (
             done
         ), "Episode should terminate when the average opinion is within the tolerance range."
+
+    def test_state_getter(self, default_env):
+        default_env.opinions = np.array([0.1, 0.2, 0.3])
+        assert np.array_equal(default_env.state, np.array([0.1, 0.2, 0.3]))
+
+    def test_state_setter(self, default_env):
+        new_opinions = np.array([0.4, 0.5, 0.6])
+        default_env.state = new_opinions
+        assert np.array_equal(default_env.opinions, new_opinions)
+
+    def test_opinions_and_state_sync(self, default_env):
+        """Ensure that opinions and state are always synchronized."""
+        new_opinions = np.array([0.7, 0.8, 0.9])
+        default_env.state = new_opinions
+        assert np.array_equal(default_env.opinions, default_env.state)
+
+        default_env.opinions = np.array([0.2, 0.3, 0.4])
+        assert np.array_equal(default_env.opinions, default_env.state)
