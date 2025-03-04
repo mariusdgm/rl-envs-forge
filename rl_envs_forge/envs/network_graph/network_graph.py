@@ -109,6 +109,20 @@ class NetworkGraph(gym.Env):
         self.current_step = 0
         self.total_spent = 0.0
 
+    @property
+    def state(self):
+        """
+        Getter for opinions, allowing access via self.state.
+        """
+        return self.opinions
+
+    @state.setter
+    def state(self, value):
+        """
+        Setter for opinions, allowing assignment via self.state.
+        """
+        self.opinions = np.array(value)
+        
     def reset(self):
         """
         Reset the environment to its initial state.
