@@ -32,6 +32,7 @@ class NetworkGraph(gym.Env):
         max_steps=100,
         opinion_end_tolerance=0.01,
         control_beta=0.4,
+        normalize_reward=False,
     ):
         super(NetworkGraph, self).__init__()
 
@@ -55,6 +56,7 @@ class NetworkGraph(gym.Env):
         self.max_steps = max_steps
         self.opinion_end_tolerance = opinion_end_tolerance
         self.control_beta = control_beta
+        self.normalize_reward = normalize_reward
 
         # Determine adjacency matrix
         if connectivity_matrix is not None:
@@ -170,7 +172,15 @@ class NetworkGraph(gym.Env):
         return new_states
 
     def reward_function(self, x, u, d, beta):
-        return -np.abs(d - x).sum() - beta * np.sum(u)
+        raw_reward = -np.abs(d - x).sum() - beta * np.sum(u)
+    
+        if self.normalize_reward:
+            max_penalty = self.num_agents * 1.0 + beta * self.num_agents * self.max_u
+            normalized_reward = 1.0 + raw_reward / max_penalty  # since raw_reward is negative
+            normalized_reward = np.clip(normalized_reward, 0.0, 1.0)
+            return normalized_reward
+        
+        return raw_reward
 
     def step(self, action, step_duration=None):
         """

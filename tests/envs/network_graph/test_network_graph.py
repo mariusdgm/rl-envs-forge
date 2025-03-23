@@ -349,3 +349,37 @@ class TestNetworkGraph:
 
         default_env.opinions = np.array([0.2, 0.3, 0.4])
         assert np.array_equal(default_env.opinions, default_env.state)
+
+    def test_normalized_reward_scaling_and_trend(self):
+        """Test that normalized rewards are in [0, 1] and increase as opinions approach desired value."""
+        num_agents = 5
+        initial_opinions = np.zeros(num_agents)
+        desired_opinion = 1.0
+        max_u = 0.1
+        control_beta = 0.4
+        action = np.full(num_agents, max_u)
+
+        env = NetworkGraph(
+            num_agents=num_agents,
+            initial_opinions=initial_opinions,
+            desired_opinion=desired_opinion,
+            max_u=max_u,
+            control_beta=control_beta,
+            normalize_reward=True,
+        )
+
+        env.reset()
+
+        # Step once and record reward
+        _, reward_initial, _, _, _ = env.step(action)
+
+        # Move opinions manually closer to desired value
+        env.opinions = np.full(num_agents, 0.9)
+
+        # Step again and record updated reward
+        _, reward_later, _, _, _ = env.step(action)
+
+        # Check rewards are normalized and trend is correct
+        assert 0.0 <= reward_initial <= 1.0, "Initial normalized reward should be in [0, 1]"
+        assert 0.0 <= reward_later <= 1.0, "Improved normalized reward should be in [0, 1]"
+        assert reward_later > reward_initial, "Reward should increase as opinions approach the desired value"
