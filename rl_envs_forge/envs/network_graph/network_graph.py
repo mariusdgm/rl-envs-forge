@@ -175,12 +175,15 @@ class NetworkGraph(gym.Env):
         raw_reward = -np.abs(d - x).sum() - beta * np.sum(u)
     
         if self.normalize_reward:
+            # Worst possible penalty = max opinion error + max control cost
             max_penalty = self.num_agents * 1.0 + beta * self.num_agents * self.max_u
-            normalized_reward = 1.0 + raw_reward / max_penalty  # since raw_reward is negative
-            normalized_reward = np.clip(normalized_reward, 0.0, 1.0)
-            return normalized_reward
+
+            # Normalize to [-1, 0], where -1 is worst, 0 is perfect
+            normalized_reward = raw_reward / max_penalty
+            normalized_reward = np.clip(normalized_reward, -1.0, 0.0)
+            return float(normalized_reward)
         
-        return raw_reward
+        return float(raw_reward)
 
     def step(self, action, step_duration=None):
         """
