@@ -7,7 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [5.10.1] - 2025.03.23
+## [5.11.0] - 2025.03.25
+
+### Added
+
+- Terminal reward in network env
+
+## [5.10.1] - 2025.03.24
 
 ### Fixed
 
