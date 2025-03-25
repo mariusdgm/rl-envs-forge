@@ -33,6 +33,7 @@ class NetworkGraph(gym.Env):
         opinion_end_tolerance=0.01,
         control_beta=0.4,
         normalize_reward=False,
+        terminal_reward=0.0,
     ):
         super(NetworkGraph, self).__init__()
 
@@ -57,6 +58,7 @@ class NetworkGraph(gym.Env):
         self.opinion_end_tolerance = opinion_end_tolerance
         self.control_beta = control_beta
         self.normalize_reward = normalize_reward
+        self.terminal_reward = terminal_reward
 
         # Determine adjacency matrix
         if connectivity_matrix is not None:
@@ -171,19 +173,22 @@ class NetworkGraph(gym.Env):
         new_states = np.clip(propagated_opinions, 0, 1)
         return new_states
 
-    def reward_function(self, x, u, d, beta):
+    def reward_function(self, x, u, d, beta, done: bool = False):
         raw_reward = -np.abs(d - x).sum() - beta * np.sum(u)
-    
-        if self.normalize_reward:
-            # Worst possible penalty = max opinion error + max control cost
-            max_penalty = self.num_agents * 1.0 + beta * self.num_agents * self.max_u
 
-            # Normalize to [-1, 0], where -1 is worst, 0 is perfect
+        if self.normalize_reward:
+            max_penalty = self.num_agents * 1.0 + beta * self.num_agents * self.max_u
             normalized_reward = raw_reward / max_penalty
             normalized_reward = np.clip(normalized_reward, -1.0, 0.0)
-            return float(normalized_reward)
-        
-        return float(raw_reward)
+            reward = float(normalized_reward)
+        else:
+            reward = float(raw_reward)
+
+        # Add terminal bonus if we're done due to reaching target
+        if done:
+            reward += self.terminal_reward
+
+        return reward
 
     def step(self, action, step_duration=None):
         """
@@ -221,8 +226,15 @@ class NetworkGraph(gym.Env):
 
         # Increment step counter and check if the episode is done or truncated
         self.current_step += 1
+        
         done = np.abs(np.mean(self.opinions) - self.desired_opinion) <= self.opinion_end_tolerance
         truncated = self.current_step >= self.max_steps
+
+        terminal_success = done and not truncated
+        # Compute reward with terminal condition
+        reward = self.reward_function(
+            self.opinions, action, self.desired_opinion, self.control_beta, done=terminal_success
+        )
 
         # Info dictionary can be used to pass additional information
         info = {
@@ -230,6 +242,7 @@ class NetworkGraph(gym.Env):
             "total_spent": self.total_spent,
             "remaining_budget": self.budget - self.total_spent,
             "action_applied": action,
+            "terminal_reward_applied": terminal_success,  # ✅ Now this is always tracked
         }
 
         return self.opinions, reward, done, truncated, info

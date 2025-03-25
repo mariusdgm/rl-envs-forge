@@ -385,3 +385,30 @@ class TestNetworkGraph:
         assert -1.0 <= reward_later <= 0.0, "Improved normalized reward should be in [-1, 0]"
         assert reward_later > reward_initial, "Reward should improve as opinions approach the desired value"
 
+    def test_terminal_reward_added_when_done(self):
+        """Test that terminal reward is added when the environment reaches the done state."""
+        num_agents = 5
+        desired_opinion = 0.5
+        tolerance = 0.01
+        terminal_reward = 1.0
+
+        # Set initial opinions to match desired (triggering immediate termination)
+        initial_opinions = np.full(num_agents, desired_opinion)
+
+        env = NetworkGraph(
+            num_agents=num_agents,
+            initial_opinions=initial_opinions,
+            desired_opinion=desired_opinion,
+            opinion_end_tolerance=tolerance,
+        )
+        env.terminal_reward = terminal_reward  # set terminal reward directly
+        env.reset()
+
+        # Step with zero action; should immediately trigger `done = True`
+        action = np.zeros(num_agents, dtype=np.float32)
+        _, reward, done, truncated, info = env.step(action)
+
+        # Assert that we hit terminal condition and reward includes the terminal bonus
+        assert done, "Environment should be done when opinions match desired within tolerance"
+        assert reward > 0.0, "Reward should include terminal bonus and be greater than 0"
+        assert info.get("terminal_reward_applied", False), "Info should flag terminal reward as applied"
