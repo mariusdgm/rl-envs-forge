@@ -20,7 +20,7 @@ def weighted_env():
 class TestNetworkGraph:
     def test_initialization(self, default_env):
         assert default_env.num_agents == 10
-        assert default_env.budget == 10.0
+        assert default_env.budget is None
         assert default_env.tau == 1.0
         assert default_env.max_steps == 100
         assert default_env.current_step == 0
@@ -115,20 +115,26 @@ class TestNetworkGraph:
         # Step the environment with the action
         state, reward, done, truncated, info = env.step(action)
 
-        # Retrieve the clipped action from the info dictionary
-        applied_action = info["action_applied"]
-
-        # Check that the action was clipped to the max_u
-        np.testing.assert_array_less(
-            applied_action,
-            np.full(action.shape, max_u + 1e-5),
-            "Control inputs should be clipped to max_u",
+        # Check that the **original** action (before saturation) is what we passed
+        np.testing.assert_array_almost_equal(
+            info["action_applied_raw"],
+            action,
+            err_msg="The environment should record the original (unsaturated) action correctly."
         )
 
-        # Check that the state (opinions) remains within [0, 1]
+        # Check that the **applied** action was **saturated** correctly
+        np.testing.assert_array_less(
+            info["action_applied_clipped"],
+            env.max_u + 1e-5,
+            err_msg="The saturated control action should be clipped to max_u."
+        )
+
+        # Check that the **opinions** are still within valid range [0, 1]
         assert np.all(state >= 0.0) and np.all(
             state <= 1.0
-        ), "Opinions should be within the range [0, 1]"
+        ), "Opinions should be within [0, 1] after applying dynamics."
+
+      
 
     def test_step_max_vs_zero_action(self, default_env):
 
@@ -412,3 +418,71 @@ class TestNetworkGraph:
         assert done, "Environment should be done when opinions match desired within tolerance"
         assert reward > 0.0, "Reward should include terminal bonus and be greater than 0"
         assert info.get("terminal_reward_applied", False), "Info should flag terminal reward as applied"
+        
+    @pytest.mark.parametrize("mode,params", [
+    ("uniform", (0.2, 0.5)),           # tuple for uniform
+    ("normal", {"mean": 0.4, "std": 0.1}),  # dict for normal
+    ("exponential", {"scale": 2.0})    # dict for exponential
+])
+    def test_graph_generation_modes(self, mode, params):
+        """Test that graph generation modes create reasonable graphs."""
+        num_agents = 20
+
+        env = NetworkGraph(
+            num_agents=num_agents,
+            graph_connection_distribution=mode,
+            graph_connection_params=params,
+        )
+
+        adj = env.connectivity_matrix
+
+        # Check adjacency matrix is correct shape
+        assert adj.shape == (num_agents, num_agents)
+        assert np.allclose(adj, adj.T), "Adjacency matrix should be symmetric"
+
+        # Check some connections exist
+        assert np.any(adj > 0), f"Graph generated in mode '{mode}' should have some edges"
+    
+    def test_no_budget_removes_remaining_budget_from_info(self):
+        """Test that when budget=None, remaining_budget is not included in info."""
+        env = NetworkGraph(num_agents=5, budget=None)
+        env.reset()
+        action = np.zeros(5, dtype=np.float32)
+        _, _, _, _, info = env.step(action)
+
+        assert "remaining_budget" not in info, "Info should not contain remaining_budget if budget is None"
+        
+    def test_action_raw_vs_clipped_behavior(self):
+        """Test that action_applied_raw and action_applied_clipped are handled correctly."""
+        num_agents = 4
+        max_u = 0.1
+
+        env = NetworkGraph(num_agents=num_agents, max_u=max_u)
+        env.reset()
+
+        action = np.array([0.2, 0.05, 0.15, 0.09], dtype=np.float32)
+        _, _, _, _, info = env.step(action)
+
+        np.testing.assert_array_almost_equal(info["action_applied_raw"], action)
+        assert np.all(info["action_applied_clipped"] <= env.max_u + 1e-5), "Clipped action must be <= max_u"
+
+        # At least one value should have been clipped
+        assert np.any(info["action_applied_raw"] > info["action_applied_clipped"]), "Some values should have been clipped"
+        
+    def test_normalized_reward_with_exceeding_action(self):
+        """Test that normalized reward handles exceeding actions and stays in [-1, 0]."""
+        num_agents = 6
+        max_u = 0.1
+        env = NetworkGraph(
+            num_agents=num_agents,
+            max_u=max_u,
+            desired_opinion=1.0,
+            normalize_reward=True,
+        )
+        env.reset()
+
+        # Apply action that exceeds allowed max_u
+        action = np.full(num_agents, 2 * max_u, dtype=np.float32)  # double max_u
+        _, reward, _, _, _ = env.step(action)
+
+        assert -1.0 <= reward <= 0.0, "Normalized reward should be within [-1, 0] even with large action"
