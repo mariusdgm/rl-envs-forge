@@ -5,8 +5,6 @@ from scipy.linalg import expm
 import networkx as nx
 from .visualize import draw_network_graph, plot_centralities_sorted
 from .graph_utils import (
-    compute_centrality,
-    get_weighted_adjacency_matrix,
     compute_laplacian,
     compute_eigenvector_centrality,
 )
@@ -26,9 +24,11 @@ class NetworkGraph(gym.Env):
         initial_opinions=None,
         control_resistance=None,
         connectivity_matrix=None,
+        graph_connection_distribution="uniform",
+        graph_connection_params=None,
         use_weighted_edges=False,
         weight_range=(0.1, 1.0),
-        budget=10.0,
+        budget=None,
         max_steps=100,
         opinion_end_tolerance=0.01,
         control_beta=0.4,
@@ -46,7 +46,12 @@ class NetworkGraph(gym.Env):
         self.use_weighted_edges = use_weighted_edges
         self.weight_range = weight_range
 
-        self.max_u = max_u
+        if np.isscalar(max_u):
+            self.max_u = np.full(self.num_agents, max_u, dtype=np.float32)
+        else:
+            assert len(max_u) == self.num_agents, "max_u vector must match number of agents"
+            self.max_u = np.array(max_u, dtype=np.float32)
+            
         self.desired_opinion = desired_opinion
         self.tau = tau
         self.initial_opinion_range = initial_opinion_range
@@ -63,13 +68,7 @@ class NetworkGraph(gym.Env):
         # Determine adjacency matrix
         if connectivity_matrix is not None:
             self.connectivity_matrix = connectivity_matrix
-        else:
-            # Generate a random adjacency matrix using Erdos-Renyi graph
-            self.graph = nx.erdos_renyi_graph(
-                self.num_agents, np.random.uniform(*connection_prob_range)
-            )
-            self.connectivity_matrix = nx.to_numpy_array(self.graph)
-
+            
             if self.use_weighted_edges:
                 # Assign random weights to the edges within the specified range
                 for i in range(self.num_agents):
@@ -77,7 +76,49 @@ class NetworkGraph(gym.Env):
                         if self.connectivity_matrix[i, j] == 1:
                             weight = np.random.uniform(*self.weight_range)
                             self.connectivity_matrix[i, j] = weight
-                            self.connectivity_matrix[j, i] = weight  # Ensure symmetry
+                            self.connectivity_matrix[j, i] = weight  # Ensure symmetry 
+        else:
+            # Generate a random adjacency matrix depending on the distribution type
+            if graph_connection_distribution == "uniform":
+                prob = np.random.uniform(*connection_prob_range)
+                self.graph = nx.erdos_renyi_graph(self.num_agents, prob)
+
+            elif graph_connection_distribution == "normal":
+                mean = graph_connection_params.get("mean", 0.2)
+                std = graph_connection_params.get("std", 0.05)
+                probs = np.clip(np.random.normal(mean, std, (self.num_agents, self.num_agents)), 0, 1)
+                probs = (probs + probs.T) / 2  # Make symmetric
+                self.graph = nx.Graph()
+                self.graph.add_nodes_from(range(self.num_agents))
+                for i in range(self.num_agents):
+                    for j in range(i+1, self.num_agents):
+                        if np.random.rand() < probs[i, j]:
+                            self.graph.add_edge(i, j)
+
+            elif graph_connection_distribution == "exponential":
+                scale = graph_connection_params.get("scale", 0.2)
+                probs = np.clip(np.random.exponential(scale, (self.num_agents, self.num_agents)), 0, 1)
+                probs = (probs + probs.T) / 2  # Make symmetric
+                self.graph = nx.Graph()
+                self.graph.add_nodes_from(range(self.num_agents))
+                for i in range(self.num_agents):
+                    for j in range(i+1, self.num_agents):
+                        if np.random.rand() < probs[i, j]:
+                            self.graph.add_edge(i, j)
+
+            else:
+                raise ValueError(f"Unknown graph_connection_distribution: {graph_connection_distribution}")
+
+            self.connectivity_matrix = nx.to_numpy_array(self.graph)
+            
+            G = nx.from_numpy_array(self.connectivity_matrix)
+            for node in range(self.num_agents):
+                if G.degree[node] == 0:
+                    candidates = list(range(self.num_agents))
+                    candidates.remove(node)
+                    neighbor = np.random.choice(candidates)
+                    G.add_edge(node, neighbor)
+            
 
         # Compute Laplacian
         self.L = compute_laplacian(self.connectivity_matrix)
@@ -104,7 +145,10 @@ class NetworkGraph(gym.Env):
 
         # Define the action and observation spaces
         self.action_space = spaces.Box(
-            low=0, high=self.max_u, shape=(self.num_agents,), dtype=np.float32
+            low=np.zeros(self.num_agents, dtype=np.float32),
+            high=self.max_u,
+            shape=(self.num_agents,),
+            dtype=np.float32
         )
         self.observation_space = spaces.Box(
             low=0, high=1, shape=(self.num_agents,), dtype=np.float32
@@ -177,7 +221,7 @@ class NetworkGraph(gym.Env):
         raw_reward = -np.abs(d - x).sum() - beta * np.sum(u)
 
         if self.normalize_reward:
-            max_penalty = self.num_agents * 1.0 + beta * self.num_agents * self.max_u
+            max_penalty = self.num_agents * 1.0 + beta * np.sum(self.max_u)
             normalized_reward = raw_reward / max_penalty
             normalized_reward = np.clip(normalized_reward, -1.0, 0.0)
             reward = float(normalized_reward)
@@ -209,41 +253,44 @@ class NetworkGraph(gym.Env):
         if step_duration is None:
             step_duration = self.tau
 
-        # Clip the control action to within [0, max_u]
-        action = np.clip(action, 0, self.max_u)
+        original_action = np.array(action, copy=True)  # Save the raw action (for cost calculation)
+
+        # Clip the action *only* for applying to the environment dynamics
+        clipped_action = np.clip(original_action, 0, self.max_u)
 
         # Use the compute_dynamics function to determine the next state
-        next_opinions = self.compute_dynamics(self.opinions, action, step_duration)
+        next_opinions = self.compute_dynamics(self.opinions, clipped_action, step_duration)
 
         # Update environment state with the new opinions
         self.opinions = next_opinions
-        self.total_spent += np.sum(action)
+        self.total_spent += np.sum(original_action)  # ❗total spent is from original, not clipped
 
-        # Compute reward based on closeness to the desired opinions and budget spent
+        # Compute reward based on original action (encourages minimal effort)
         reward = self.reward_function(
-            self.opinions, action, self.desired_opinion, self.control_beta
+            self.opinions, original_action, self.desired_opinion, self.control_beta
         )
 
-        # Increment step counter and check if the episode is done or truncated
         self.current_step += 1
-        
+
         done = np.abs(np.mean(self.opinions) - self.desired_opinion) <= self.opinion_end_tolerance
         truncated = self.current_step >= self.max_steps
 
         terminal_success = done and not truncated
-        # Compute reward with terminal condition
+
         reward = self.reward_function(
-            self.opinions, action, self.desired_opinion, self.control_beta, done=terminal_success
+            self.opinions, original_action, self.desired_opinion, self.control_beta, done=terminal_success
         )
 
-        # Info dictionary can be used to pass additional information
         info = {
             "current_step": self.current_step,
             "total_spent": self.total_spent,
-            "remaining_budget": self.budget - self.total_spent,
-            "action_applied": action,
-            "terminal_reward_applied": terminal_success,  # ✅ Now this is always tracked
+            "action_applied_raw": original_action, 
+            "action_applied_clipped": clipped_action,  
+            "terminal_reward_applied": terminal_success,
         }
+        
+        if self.budget is not None:
+            info["remaining_budget"] = self.budget - self.total_spent
 
         return self.opinions, reward, done, truncated, info
 
