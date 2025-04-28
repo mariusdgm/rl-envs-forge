@@ -53,11 +53,14 @@ class TestNetworkGraph:
         assert not truncated
         assert info["current_step"] == 1
 
-    def test_step_max_steps_exceeded(self, default_env):
-        default_env = NetworkGraph(num_agents=3, max_steps=1)
-        default_env.reset()
+    def test_step_max_steps_exceeded(self):
+        env = NetworkGraph(num_agents=3, 
+                           max_steps=1, 
+                           initial_opinions=[0, 0, 0],
+                           tau=0.1)
+        env.reset()
         action = np.array([0.1, 0.1, 0.1], dtype=np.float32)
-        state, reward, done, truncated, info = default_env.step(action)
+        state, reward, done, truncated, info = env.step(action)
         assert not done
         assert truncated
 
@@ -486,3 +489,36 @@ class TestNetworkGraph:
         _, reward, _, _, _ = env.step(action)
 
         assert -1.0 <= reward <= 0.0, "Normalized reward should be within [-1, 0] even with large action"
+        
+    def test_step_reward_computed_from_previous_state(self):
+        """Test that reward is computed based on the previous state, not next."""
+        env = NetworkGraph(
+            num_agents=3,
+            max_steps=5,
+            initial_opinions=[0.1, 0.1, 0.1],
+            tau=0.1,
+            desired_opinion=1.0,
+            max_u=0.4,
+            control_beta=0.5,  # some penalty on action
+            normalize_reward=False,
+            terminal_reward=10.0  # make terminal reward big if successful
+        )
+        env.reset()
+
+        # Save original opinions for manual reward calculation
+        old_opinions = env.opinions.copy()
+
+        # Define a moderate action
+        action = np.array([0.2, 0.0, 0.2], dtype=np.float32)
+
+        # Step
+        state, reward, done, truncated, info = env.step(action)
+
+        # MANUALLY compute expected reward:
+        expected_raw_reward = -np.abs(env.desired_opinion - old_opinions).sum() - env.control_beta * np.sum(action)
+        expected_terminal = False  # Not done yet
+        if expected_terminal:
+            expected_raw_reward += env.terminal_reward
+
+        # Check reward
+        assert np.isclose(reward, expected_raw_reward, atol=1e-5), f"Reward mismatch: {reward} vs {expected_raw_reward}"

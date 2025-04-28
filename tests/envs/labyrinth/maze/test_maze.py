@@ -26,7 +26,7 @@ class TestMaze:
 
     def test_levy_flight(self):
         maze = Maze(50, 50, nr_desired_rooms=1)
-        experiments = 5  # Number of experiments to perform
+        experiments = 15  # Number of experiments to perform
         total_step_size = 0
 
         # Perform multiple experiments to gather a more reliable average

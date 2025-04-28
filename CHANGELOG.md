@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.12.0] - 2025.04.28
+
+### Fixed
+
+- Fixed reward in NetworkGraph
+- Increased nr of eperiments in test_levy_flight to reduce chance of wrong condition 
+
 ## [5.12.0] - 2025.04.25
 
 ### Added
