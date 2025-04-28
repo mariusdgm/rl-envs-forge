@@ -253,26 +253,15 @@ class NetworkGraph(gym.Env):
         if step_duration is None:
             step_duration = self.tau
 
-        original_action = np.array(action, copy=True)  # Save the raw action (for cost calculation)
-
-        # Clip the action *only* for applying to the environment dynamics
+        original_action = np.array(action, copy=True)  
         clipped_action = np.clip(original_action, 0, self.max_u)
 
-        # Use the compute_dynamics function to determine the next state
         next_opinions = self.compute_dynamics(self.opinions, clipped_action, step_duration)
 
-        # Update environment state with the new opinions
-        self.opinions = next_opinions
-        self.total_spent += np.sum(original_action)  # ❗total spent is from original, not clipped
-
-        # Compute reward based on original action (encourages minimal effort)
-        reward = self.reward_function(
-            self.opinions, original_action, self.desired_opinion, self.control_beta
-        )
-
+        self.total_spent += np.sum(original_action)
         self.current_step += 1
-
-        done = np.abs(np.mean(self.opinions) - self.desired_opinion) <= self.opinion_end_tolerance
+        
+        done = np.abs(np.mean(next_opinions) - self.desired_opinion) <= self.opinion_end_tolerance
         truncated = self.current_step >= self.max_steps
 
         terminal_success = done and not truncated
@@ -280,7 +269,9 @@ class NetworkGraph(gym.Env):
         reward = self.reward_function(
             self.opinions, original_action, self.desired_opinion, self.control_beta, done=terminal_success
         )
-
+        
+        self.opinions = next_opinions
+        
         info = {
             "current_step": self.current_step,
             "total_spent": self.total_spent,
