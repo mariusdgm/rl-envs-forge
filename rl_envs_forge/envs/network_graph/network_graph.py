@@ -221,9 +221,7 @@ class NetworkGraph(gym.Env):
         raw_reward = -np.abs(d - x).sum() - beta * np.sum(u)
 
         if self.normalize_reward:
-            max_penalty = self.num_agents * 1.0 + beta * np.sum(self.max_u)
-            normalized_reward = raw_reward / max_penalty
-            normalized_reward = np.clip(normalized_reward, -1.0, 0.0)
+            normalized_reward = raw_reward / self.num_agents
             reward = float(normalized_reward)
         else:
             reward = float(raw_reward)

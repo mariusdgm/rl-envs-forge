@@ -360,8 +360,8 @@ class TestNetworkGraph:
         assert np.array_equal(default_env.opinions, default_env.state)
 
 
-    def test_normalized_reward_scaling_and_trend(self):
-        """Test that normalized rewards are in [-1, 0] and increase as opinions approach desired value."""
+    def test_normalized_vs_non_normalized_rewards(self):
+        """Test consistency between normalized and non-normalized rewards as opinions approach the desired value."""
         num_agents = 5
         initial_opinions = np.zeros(num_agents)
         desired_opinion = 1.0
@@ -369,7 +369,8 @@ class TestNetworkGraph:
         control_beta = 0.4
         action = np.full(num_agents, max_u)
 
-        env = NetworkGraph(
+        # Environment 1: Normalized rewards
+        env_norm = NetworkGraph(
             num_agents=num_agents,
             initial_opinions=initial_opinions,
             desired_opinion=desired_opinion,
@@ -377,23 +378,52 @@ class TestNetworkGraph:
             control_beta=control_beta,
             normalize_reward=True,
         )
+        env_norm.reset()
 
-        env.reset()
+        # Environment 2: Raw rewards
+        env_raw = NetworkGraph(
+            num_agents=num_agents,
+            initial_opinions=initial_opinions,
+            desired_opinion=desired_opinion,
+            max_u=max_u,
+            control_beta=control_beta,
+            normalize_reward=False,
+        )
+        env_raw.reset()
 
-        # Step once and record reward
-        _, reward_initial, _, _, _ = env.step(action)
+        # Step both envs once
+        _, reward_norm_initial, _, _, _ = env_norm.step(action)
+        _, reward_raw_initial, _, _, _ = env_raw.step(action)
 
-        # Move opinions manually closer to desired value
-        env.opinions = np.full(num_agents, 0.9)
+        # Move opinions closer to desired
+        env_norm.opinions = np.full(num_agents, 0.9)
+        env_raw.opinions = np.full(num_agents, 0.9)
 
-        # Step again and record updated reward
-        _, reward_later, _, _, _ = env.step(action)
+        # Step both envs again
+        _, reward_norm_later, _, _, _ = env_norm.step(action)
+        _, reward_raw_later, _, _, _ = env_raw.step(action)
 
-        # Check rewards are normalized and trend is correct
-        assert -1.0 <= reward_initial <= 0.0, "Initial normalized reward should be in [-1, 0]"
-        assert -1.0 <= reward_later <= 0.0, "Improved normalized reward should be in [-1, 0]"
-        assert reward_later > reward_initial, "Reward should improve as opinions approach the desired value"
+        # Checks for normalized rewards
+        assert reward_norm_initial <= 0.0, "Normalized reward should be <= 0 initially"
+        assert reward_norm_later <= 0.0, "Normalized reward should be <= 0 after improvement"
+        assert reward_norm_later > reward_norm_initial, "Normalized reward should improve as opinions approach desired"
 
+        # Checks for raw rewards
+        assert reward_raw_initial <= 0.0, "Raw reward should be <= 0 initially"
+        assert reward_raw_later <= 0.0, "Raw reward should be <= 0 after improvement"
+        assert reward_raw_later > reward_raw_initial, "Raw reward should improve as opinions approach desired"
+
+        # Cross-check: normalized reward should be a scaled version of raw reward
+        scale_factor = env_norm.num_agents  # Since normalization divides by num_agents
+        np.testing.assert_allclose(
+            reward_norm_initial, reward_raw_initial / scale_factor, rtol=1e-5,
+            err_msg="Normalized initial reward should match raw reward divided by number of agents."
+        )
+        np.testing.assert_allclose(
+            reward_norm_later, reward_raw_later / scale_factor, rtol=1e-5,
+            err_msg="Normalized later reward should match raw reward divided by number of agents."
+        )
+        
     def test_terminal_reward_added_when_done(self):
         """Test that terminal reward is added when the environment reaches the done state."""
         num_agents = 5
