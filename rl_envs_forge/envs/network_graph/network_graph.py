@@ -34,14 +34,18 @@ class NetworkGraph(gym.Env):
         control_beta=0.4,
         normalize_reward=False,
         terminal_reward=0.0,
+        seed=None,
     ):
         super(NetworkGraph, self).__init__()
 
-        # Store the initialization parameters
+        self.seed = seed
+        self._rng = np.random.default_rng(seed)
+        
         if connectivity_matrix is not None:
             self.num_agents = connectivity_matrix.shape[0]
         else:
             self.num_agents = num_agents
+            
         self.connection_prob_range = connection_prob_range
         self.use_weighted_edges = use_weighted_edges
         self.weight_range = weight_range
@@ -51,7 +55,7 @@ class NetworkGraph(gym.Env):
         else:
             assert len(max_u) == self.num_agents, "max_u vector must match number of agents"
             self.max_u = np.array(max_u, dtype=np.float32)
-            
+
         self.desired_opinion = desired_opinion
         self.tau = tau
         self.initial_opinion_range = initial_opinion_range
@@ -65,90 +69,82 @@ class NetworkGraph(gym.Env):
         self.normalize_reward = normalize_reward
         self.terminal_reward = terminal_reward
 
-        # Determine adjacency matrix
         if connectivity_matrix is not None:
             self.connectivity_matrix = connectivity_matrix
-            
             if self.use_weighted_edges:
-                # Assign random weights to the edges within the specified range
                 for i in range(self.num_agents):
                     for j in range(i + 1, self.num_agents):
                         if self.connectivity_matrix[i, j] == 1:
-                            weight = np.random.uniform(*self.weight_range)
+                            weight = self._rng.uniform(*self.weight_range)
                             self.connectivity_matrix[i, j] = weight
-                            self.connectivity_matrix[j, i] = weight  # Ensure symmetry 
+                            self.connectivity_matrix[j, i] = weight
         else:
-            # Generate a random adjacency matrix depending on the distribution type
             if graph_connection_distribution == "uniform":
-                prob = np.random.uniform(*connection_prob_range)
-                self.graph = nx.erdos_renyi_graph(self.num_agents, prob)
+                prob = self._rng.uniform(*connection_prob_range)
+                self.graph = nx.erdos_renyi_graph(self.num_agents, prob, seed=self.seed)
 
             elif graph_connection_distribution == "normal":
+                graph_connection_params = graph_connection_params or {}
                 mean = graph_connection_params.get("mean", 0.2)
                 std = graph_connection_params.get("std", 0.05)
-                probs = np.clip(np.random.normal(mean, std, (self.num_agents, self.num_agents)), 0, 1)
-                probs = (probs + probs.T) / 2  # Make symmetric
+                probs = np.clip(
+                    self._rng.normal(mean, std, (self.num_agents, self.num_agents)), 0, 1
+                )
+                probs = (probs + probs.T) / 2
                 self.graph = nx.Graph()
                 self.graph.add_nodes_from(range(self.num_agents))
                 for i in range(self.num_agents):
-                    for j in range(i+1, self.num_agents):
-                        if np.random.rand() < probs[i, j]:
+                    for j in range(i + 1, self.num_agents):
+                        if self._rng.random() < probs[i, j]:
                             self.graph.add_edge(i, j)
 
             elif graph_connection_distribution == "exponential":
+                graph_connection_params = graph_connection_params or {}
                 scale = graph_connection_params.get("scale", 0.2)
-                probs = np.clip(np.random.exponential(scale, (self.num_agents, self.num_agents)), 0, 1)
-                probs = (probs + probs.T) / 2  # Make symmetric
+                probs = np.clip(
+                    self._rng.exponential(scale, (self.num_agents, self.num_agents)), 0, 1
+                )
+                probs = (probs + probs.T) / 2
                 self.graph = nx.Graph()
                 self.graph.add_nodes_from(range(self.num_agents))
                 for i in range(self.num_agents):
-                    for j in range(i+1, self.num_agents):
-                        if np.random.rand() < probs[i, j]:
+                    for j in range(i + 1, self.num_agents):
+                        if self._rng.random() < probs[i, j]:
                             self.graph.add_edge(i, j)
-
             else:
                 raise ValueError(f"Unknown graph_connection_distribution: {graph_connection_distribution}")
 
             self.connectivity_matrix = nx.to_numpy_array(self.graph)
-            
             G = nx.from_numpy_array(self.connectivity_matrix)
             for node in range(self.num_agents):
                 if G.degree[node] == 0:
                     candidates = list(range(self.num_agents))
                     candidates.remove(node)
-                    neighbor = np.random.choice(candidates)
+                    neighbor = self._rng.choice(candidates)
                     G.add_edge(node, neighbor)
-            
+            self.connectivity_matrix = nx.to_numpy_array(G)
 
-        # Compute Laplacian
         self.L = compute_laplacian(self.connectivity_matrix)
         self.centralities = compute_eigenvector_centrality(self.L)
 
-        # Check if the graph is fully connected
-        G = nx.from_numpy_array(self.connectivity_matrix)
-        if not nx.is_connected(G):
+        if not nx.is_connected(nx.from_numpy_array(self.connectivity_matrix)):
             print("Warning: The generated graph is not fully connected.")
 
-        # Define or generate initial opinions
         if initial_opinions is not None:
             self.opinions = np.array(initial_opinions)
         else:
-            self.opinions = np.random.uniform(
-                *self.initial_opinion_range, size=self.num_agents
-            )
+            self.opinions = self._rng.uniform(*self.initial_opinion_range, size=self.num_agents)
 
-        # Define or generate impulse resistance (cost) for each agent
         if control_resistance is not None:
             self.control_resistance = np.array(control_resistance)
         else:
             self.control_resistance = np.zeros(self.num_agents)
 
-        # Define the action and observation spaces
         self.action_space = spaces.Box(
             low=np.zeros(self.num_agents, dtype=np.float32),
             high=self.max_u,
             shape=(self.num_agents,),
-            dtype=np.float32
+            dtype=np.float32,
         )
         self.observation_space = spaces.Box(
             low=0, high=1, shape=(self.num_agents,), dtype=np.float32
@@ -171,19 +167,23 @@ class NetworkGraph(gym.Env):
         """
         self.opinions = np.array(value)
         
-    def reset(self):
+    def reset(self, randomize_opinions=False):
         """
         Reset the environment to its initial state.
+
+        Args:
+            randomize_opinions (bool): If True, ignore self.initial_opinions and use random initialization instead.
         """
-        if self.initial_opinions is None:
-            self.opinions = np.random.uniform(
-                *self.initial_opinion_range, size=self.num_agents
-            )
+        if randomize_opinions or self.initial_opinions is None:
+            self.opinions = self._rng.uniform(*self.initial_opinion_range, size=self.num_agents)
+            info = {"random_opinions": True}
         else:
             self.opinions = np.array(self.initial_opinions)
+            info = {"random_opinions": False}
+
         self.current_step = 0
         self.total_spent = 0.0
-        return self.opinions, {}
+        return self.opinions, info
 
     def compute_dynamics(self, current_state, control_action, step_duration):
         """
