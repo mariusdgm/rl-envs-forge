@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+
+## [5.14.0] - 2025.05.06
+
+### Added
+- Added seed support to NetworkGraph for reproducible random graph generation
+- Added random reset option
+
 ## [5.13.0] - 2025.04.29
 
 ### Fixed

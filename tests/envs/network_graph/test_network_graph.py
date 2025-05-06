@@ -552,3 +552,31 @@ class TestNetworkGraph:
 
         # Check reward
         assert np.isclose(reward, expected_raw_reward, atol=1e-5), f"Reward mismatch: {reward} vs {expected_raw_reward}"
+        
+    def test_reset_randomize_opinions(self):
+        env = NetworkGraph(num_agents=4, initial_opinions=np.array([0.1, 0.2, 0.3, 0.4]))
+        opinions_fixed, info_fixed = env.reset(randomize_opinions=False)
+        opinions_random, info_random = env.reset(randomize_opinions=True)
+
+        # Should differ because one is random
+        assert not np.allclose(opinions_fixed, opinions_random), "Randomized reset should produce different opinions"
+        assert info_fixed["random_opinions"] is False
+        assert info_random["random_opinions"] is True
+        
+    def test_graph_reproducibility_with_seeds(self):
+        # Same seed -> same graph
+        env1 = NetworkGraph(num_agents=5, graph_connection_distribution="uniform", seed=123)
+        env2 = NetworkGraph(num_agents=5, graph_connection_distribution="uniform", seed=123)
+
+        np.testing.assert_array_equal(
+            env1.connectivity_matrix,
+            env2.connectivity_matrix,
+            err_msg="Environments with the same seed should produce identical connectivity matrices"
+        )
+
+        # Different seed -> likely different graph
+        env3 = NetworkGraph(num_agents=5, graph_connection_distribution="uniform", seed=456)
+
+        assert not np.allclose(
+            env1.connectivity_matrix, env3.connectivity_matrix
+        ), "Environments with different seeds should likely produce different connectivity matrices"
