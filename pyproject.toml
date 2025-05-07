@@ -1,12 +1,11 @@
 [tool.poetry]
 name = "rl-envs-forge"
-version = "5.14.0"
+version = "5.15.0"
 description = "Environments for reinforcement learning"
 authors = ["mariusdgm <marius.dragomir.dgm@gmail.com>"]
 license = "MIT"
 readme = "README.md"
-include = ["pyproject.toml", 
-           "assets/labyrinth/sprites/*.png"]
+include = ["pyproject.toml", "assets/labyrinth/sprites/*.png"]
 
 [tool.poetry.dependencies]
 python = ">=3.10,<4.0"
