@@ -74,3 +74,22 @@ class TestGraphUtils:
         desired_centrality = np.array([0.3, 0.4, 0.3])
         with pytest.raises(ValueError, match="The connectivity matrix has no edges."):
             get_weighted_adjacency_matrix(connectivity_matrix, desired_centrality)
+
+    def test_random_directed_graph_centrality_varies(self):
+        """Test that eigenvector centrality varies in a random directed graph."""
+        np.random.seed(42)
+        num_nodes = 10
+        adj = np.zeros((num_nodes, num_nodes))
+
+        # Generate a directed random graph with varying connections
+        for i in range(num_nodes):
+            for j in range(num_nodes):
+                if i != j and np.random.rand() < 0.3:
+                    adj[i, j] = 1
+
+        L = compute_laplacian(adj)
+        centrality = compute_centrality(L, adj)
+
+        assert np.isclose(np.sum(centrality), 1.0), "Centrality should be normalized"
+        assert np.std(centrality) > 0.01, "Centrality should vary across nodes"
+        

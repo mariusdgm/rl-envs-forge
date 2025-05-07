@@ -265,6 +265,7 @@ class TestNetworkGraph:
             num_agents=num_agents,
             initial_opinions=initial_opinions,
             control_resistance=np.zeros(num_agents),
+            seed=42
         )
         env_no_resistance.reset()
         state_no_resistance, _, _, _, _ = env_no_resistance.step(action)
@@ -275,6 +276,7 @@ class TestNetworkGraph:
             num_agents=num_agents,
             initial_opinions=initial_opinions,
             control_resistance=control_resistance,
+            seed=42
         )
         env_with_resistance.reset()
         state_with_resistance, _, _, _, _ = env_with_resistance.step(action)
@@ -453,28 +455,37 @@ class TestNetworkGraph:
         assert info.get("terminal_reward_applied", False), "Info should flag terminal reward as applied"
         
     @pytest.mark.parametrize("mode,params", [
-    ("uniform", (0.2, 0.5)),           # tuple for uniform
-    ("normal", {"mean": 0.4, "std": 0.1}),  # dict for normal
-    ("exponential", {"scale": 2.0})    # dict for exponential
-])
+        ("uniform", (0.2, 0.5)),
+        ("normal", {"mean": 0.4, "std": 0.1}),
+        ("exponential", {"scale": 2.0})
+    ])
     def test_graph_generation_modes(self, mode, params):
         """Test that graph generation modes create reasonable graphs."""
         num_agents = 20
 
-        env = NetworkGraph(
+        # Test with bidirectional probability 1.0 → symmetric
+        env_symmetric = NetworkGraph(
             num_agents=num_agents,
             graph_connection_distribution=mode,
             graph_connection_params=params,
+            bidirectional_prob=1.0
         )
+        adj_sym = env_symmetric.connectivity_matrix
+        assert np.allclose(adj_sym, adj_sym.T), "Adjacency matrix should be symmetric when bidirectional=1.0"
 
-        adj = env.connectivity_matrix
+        # Test with bidirectional probability 0.0 → asymmetric (directed)
+        env_asymmetric = NetworkGraph(
+            num_agents=num_agents,
+            graph_connection_distribution=mode,
+            graph_connection_params=params,
+            bidirectional_prob=0.0
+        )
+        adj_asym = env_asymmetric.connectivity_matrix
+        assert not np.allclose(adj_asym, adj_asym.T), "Adjacency matrix should not be symmetric when bidirectional=0.0"
 
-        # Check adjacency matrix is correct shape
-        assert adj.shape == (num_agents, num_agents)
-        assert np.allclose(adj, adj.T), "Adjacency matrix should be symmetric"
-
-        # Check some connections exist
-        assert np.any(adj > 0), f"Graph generated in mode '{mode}' should have some edges"
+        # In both cases, graph should have at least some edges
+        assert np.any(adj_sym > 0), f"Graph with mode='{mode}' should have edges (symmetric)"
+        assert np.any(adj_asym > 0), f"Graph with mode='{mode}' should have edges (asymmetric)"
     
     def test_no_budget_removes_remaining_budget_from_info(self):
         """Test that when budget=None, remaining_budget is not included in info."""
@@ -580,3 +591,18 @@ class TestNetworkGraph:
         assert not np.allclose(
             env1.connectivity_matrix, env3.connectivity_matrix
         ), "Environments with different seeds should likely produce different connectivity matrices"
+        
+    def test_random_graph_centralities_vary(self):
+        """Ensure that centralities vary in a directed random graph."""
+        env = NetworkGraph(
+            num_agents=10,
+            graph_connection_distribution="uniform",
+            connection_prob_range=(0.4, 0.6),
+            bidirectional_prob=0.3,  # allow directionality
+            seed=42,
+        )
+        centralities = env.centralities
+
+        # Check that centralities sum to 1 and vary across nodes
+        assert np.isclose(np.sum(centralities), 1.0), "Centralities should be normalized to sum to 1"
+        assert np.std(centralities) > 0.01, f"Centralities should vary across nodes, got std={np.std(centralities)}"
