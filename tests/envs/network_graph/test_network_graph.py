@@ -606,3 +606,28 @@ class TestNetworkGraph:
         # Check that centralities sum to 1 and vary across nodes
         assert np.isclose(np.sum(centralities), 1.0), "Centralities should be normalized to sum to 1"
         assert np.std(centralities) > 0.01, f"Centralities should vary across nodes, got std={np.std(centralities)}"
+    
+    def test_dynamics_step_zero_behavior(self):
+        """Test that compute_dynamics with step_duration=0 only applies control and no propagation."""
+
+        num_agents = 5
+        initial_opinions = np.linspace(0.1, 0.9, num_agents)
+        action = np.zeros(num_agents)
+        action[1] = 0.5  # Apply control to just one node
+
+        env = NetworkGraph(
+            num_agents=num_agents,
+            initial_opinions=initial_opinions,
+            desired_opinion=1.0,
+            control_resistance=np.zeros(num_agents),  # No resistance for clarity
+        )
+        env.reset()
+
+        result = env.compute_dynamics(current_state=initial_opinions, control_action=action, step_duration=0.0)
+
+        # Manually compute expected outcome
+        expected = initial_opinions.copy()
+        expected[1] = (1 - action[1]) * initial_opinions[1] + action[1] * env.desired_opinion
+
+        np.testing.assert_allclose(result, expected, rtol=1e-6,
+            err_msg="Only the controlled node should be affected when step_duration=0")
