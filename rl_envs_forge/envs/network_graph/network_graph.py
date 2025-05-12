@@ -101,27 +101,42 @@ class NetworkGraph(gym.Env):
                 raise ValueError(f"Unknown graph_connection_distribution: {graph_connection_distribution}")
 
             # Build directed graph with probabilistic bidirectionality
-            self.graph = nx.DiGraph()
-            self.graph.add_nodes_from(range(self.num_agents))
-            for i in range(self.num_agents):
-                for j in range(self.num_agents):
-                    if i == j:
-                        continue
-                    if self._rng.random() < probs[i, j]:
-                        self.graph.add_edge(i, j)
-                        if self._rng.random() < self.bidirectional_prob:
-                            self.graph.add_edge(j, i)
+            if self.bidirectional_prob >= 1.0:
+                # Fully undirected
+                self.graph = nx.Graph()
+                self.graph.add_nodes_from(range(self.num_agents))
+                for i in range(self.num_agents):
+                    for j in range(i + 1, self.num_agents):
+                        if self._rng.random() < probs[i, j]:
+                            self.graph.add_edge(i, j)
+            else:
+                # Directed graph with probabilistic bidirectionality
+                self.graph = nx.DiGraph()
+                self.graph.add_nodes_from(range(self.num_agents))
+                for i in range(self.num_agents):
+                    for j in range(self.num_agents):
+                        if i == j:
+                            continue
+                        if self._rng.random() < probs[i, j]:
+                            self.graph.add_edge(i, j)
+                            if self._rng.random() < self.bidirectional_prob:
+                                self.graph.add_edge(j, i)
 
             self.connectivity_matrix = nx.to_numpy_array(self.graph)
 
-            # Ensure weak connectivity by forcing at least one connection if isolated
-            G = nx.DiGraph(self.connectivity_matrix)
+            # Ensure at least weak connectivity
+            if isinstance(self.graph, nx.DiGraph):
+                G = nx.DiGraph(self.connectivity_matrix)
+            else:
+                G = nx.Graph(self.connectivity_matrix)
+
             for node in range(self.num_agents):
-                if G.in_degree(node) + G.out_degree(node) == 0:
+                if (G.in_degree(node) + G.out_degree(node)) if isinstance(G, nx.DiGraph) else G.degree(node) == 0:
                     candidates = list(range(self.num_agents))
                     candidates.remove(node)
                     neighbor = self._rng.choice(candidates)
                     G.add_edge(node, neighbor)
+
             self.connectivity_matrix = nx.to_numpy_array(G)
 
         # Laplacian and centrality
@@ -199,7 +214,7 @@ class NetworkGraph(gym.Env):
             numpy.ndarray: The new state of the network.
         """
         # Ensure step duration is positive
-        if step_duration <= 0:
+        if step_duration < 0:
             raise ValueError("step_duration must be positive")
 
         effective_control = control_action * (1 - self.control_resistance)

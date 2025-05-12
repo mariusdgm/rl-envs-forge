@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.15.1] - 2025.05.12
+
+### Fixed
+
+- Graph symmetry fix in NetworkGraph
+
+### Changed
+
+- Allow step time 0 in NetworkGraph
+
+### Changed
+
+- Changed graphs in NetworkGraph to probabilistic directed graphs
+
 ## [5.15.0] - 2025.05.08
 
 ### Changed
