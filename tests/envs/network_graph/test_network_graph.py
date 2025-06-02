@@ -631,3 +631,30 @@ class TestNetworkGraph:
 
         np.testing.assert_allclose(result, expected, rtol=1e-6,
             err_msg="Only the controlled node should be affected when step_duration=0")
+        
+    def test_disable_termination_flag(self):
+        """Test that when terminate_when_converged is False, the environment never sets done=True."""
+        num_agents = 5
+        desired_opinion = 0.5
+        tolerance = 0.01
+
+        # Opinions close enough to desired_opinion to normally trigger done=True
+        initial_opinions = np.full(num_agents, desired_opinion)
+
+        env = NetworkGraph(
+            num_agents=num_agents,
+            initial_opinions=initial_opinions,
+            desired_opinion=desired_opinion,
+            opinion_end_tolerance=tolerance,
+            terminate_when_converged=False  
+        )
+        env.reset()
+
+        # Step with zero action (would normally converge)
+        action = np.zeros(num_agents, dtype=np.float32)
+        _, reward, done, truncated, info = env.step(action)
+
+        assert not done, "Environment should not terminate when terminate_when_converged is False"
+        assert not truncated, "Episode should not be truncated"
+        assert "terminal_reward_applied" in info
+        assert info["terminal_reward_applied"] is False, "Terminal reward should not be applied"

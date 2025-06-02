@@ -35,6 +35,7 @@ class NetworkGraph(gym.Env):
         control_beta=0.4,
         normalize_reward=False,
         terminal_reward=0.0,
+        terminate_when_converged: bool = True,
         seed=None,
     ):
         super(NetworkGraph, self).__init__()
@@ -70,6 +71,7 @@ class NetworkGraph(gym.Env):
         self.control_beta = control_beta
         self.normalize_reward = normalize_reward
         self.terminal_reward = terminal_reward
+        self.terminate_when_converged = terminate_when_converged
         
         if connectivity_matrix is not None:
             self.connectivity_matrix = connectivity_matrix
@@ -275,7 +277,10 @@ class NetworkGraph(gym.Env):
         self.total_spent += np.sum(original_action)
         self.current_step += 1
         
-        done = np.abs(np.mean(next_opinions) - self.desired_opinion) <= self.opinion_end_tolerance
+        done = (
+            self.terminate_when_converged
+            and np.abs(np.mean(next_opinions) - self.desired_opinion) <= self.opinion_end_tolerance
+        )
         truncated = self.current_step >= self.max_steps
 
         terminal_success = done and not truncated
