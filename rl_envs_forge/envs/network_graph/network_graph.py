@@ -29,6 +29,7 @@ class NetworkGraph(gym.Env):
         use_weighted_edges=False,
         weight_range=(0.1, 1.0),
         bidirectional_prob: float = 0.5,  # 1.0 = fully undirected, 0.0 = fully directed
+        dynamics_model="laplacian", # "laplacian" or "coca"
         budget=None,
         max_steps=100,
         opinion_end_tolerance=0.01,
@@ -64,6 +65,7 @@ class NetworkGraph(gym.Env):
         self.initial_opinions = initial_opinions
         self.control_resistance = control_resistance
         self.bidirectional_prob = bidirectional_prob
+        self.dynamics_model = dynamics_model
 
         self.budget = budget
         self.max_steps = max_steps
@@ -140,13 +142,19 @@ class NetworkGraph(gym.Env):
                     G.add_edge(node, neighbor)
 
             self.connectivity_matrix = nx.to_numpy_array(G)
-
+        
+        if not nx.is_connected(nx.from_numpy_array(self.connectivity_matrix)):
+            print("Warning: The generated graph is not fully connected.")
+            
         # Laplacian and centrality
         self.L = compute_laplacian(self.connectivity_matrix)
         self.centralities = compute_eigenvector_centrality(self.L)
-
-        if not nx.is_connected(nx.from_numpy_array(self.connectivity_matrix)):
-            print("Warning: The generated graph is not fully connected.")
+        
+        # Precompute neighbor indices for COCA dynamics
+        self.neighbor_lists = []
+        for i in range(self.num_agents):
+            neighbors = np.nonzero(self.connectivity_matrix[i])[0]
+            self.neighbor_lists.append(neighbors)
 
         if initial_opinions is not None:
             self.opinions = np.array(initial_opinions)
@@ -227,12 +235,27 @@ class NetworkGraph(gym.Env):
             + (1 - effective_control) * current_state
         )
 
-        # Compute opinion propagation with the influence of the Laplacian
-        expL_remaining = expm(-self.L * step_duration)
-        propagated_opinions = expL_remaining @ opinions
+        if self.dynamics_model == "laplacian":
+            # Compute opinion propagation with the influence of the Laplacian
+            expL_remaining = expm(-self.L * step_duration)
+            propagated_opinions = expL_remaining @ opinions
+            new_states = np.clip(propagated_opinions, 0, 1)
+            
+        elif self.dynamics_model == "coca":
+            new_states = np.copy(opinions)
+            for i in range(self.num_agents):
+                neighbors = np.where(self.connectivity_matrix[i] > 0)[0]
+                if len(neighbors) == 0:
+                    continue
 
-        # Clip the resulting opinions to be within [0, 1]
-        new_states = np.clip(propagated_opinions, 0, 1)
+                pi = opinions[i]
+                sum_diff = sum(opinions[j] - pi for j in neighbors)
+                delta = (pi * (1 - pi) / len(neighbors)) * sum_diff
+                new_states[i] = np.clip(pi + delta, 0, 1)
+        
+        else:
+            raise ValueError(f"Unknown dynamics model: {self.dynamics_model}")
+        
         return new_states
 
     def reward_function(self, x, u, d, beta, done: bool = False):

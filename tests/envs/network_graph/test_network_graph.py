@@ -658,3 +658,45 @@ class TestNetworkGraph:
         assert not truncated, "Episode should not be truncated"
         assert "terminal_reward_applied" in info
         assert info["terminal_reward_applied"] is False, "Terminal reward should not be applied"
+        
+    def test_coca_dynamics_behavior(self):
+        """Test that COCA dynamics run and change opinions in expected nonlinear way."""
+        num_agents = 3
+        initial_opinions = np.array([0.1, 0.5, 0.9])  # more asymmetrical
+        desired_opinion = 1.0
+        tau = 1.0
+
+        # Fully connected undirected graph
+        connectivity_matrix = np.array([
+            [0, 1, 1],
+            [1, 0, 1],
+            [1, 1, 0],
+        ])
+
+        env = NetworkGraph(
+            num_agents=num_agents,
+            initial_opinions=initial_opinions,
+            desired_opinion=desired_opinion,
+            tau=tau,
+            connectivity_matrix=connectivity_matrix,
+            dynamics_model="coca",
+        )
+        env.reset()
+
+        action = np.zeros(num_agents, dtype=np.float32)
+        state_before = env.opinions.copy()
+        state_after, _, _, _, _ = env.step(action)
+
+        # Ensure opinions changed
+        assert not np.allclose(state_before, state_after), "Opinions should update under COCA dynamics"
+
+        # Ensure outputs remain valid
+        assert np.all((state_after >= 0) & (state_after <= 1)), "Opinions must be within [0, 1]"
+
+        # Ensure expected direction of movement (toward average)
+        avg_before = np.mean(state_before)
+        for i in range(num_agents):
+            if state_before[i] < avg_before:
+                assert state_after[i] > state_before[i], f"Agent {i} should move upward toward average"
+            elif state_before[i] > avg_before:
+                assert state_after[i] < state_before[i], f"Agent {i} should move downward toward average"

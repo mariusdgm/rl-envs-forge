@@ -17,7 +17,7 @@ def draw_network_graph(adjacency_matrix, node_sizes):
         G, pos, node_size=node_sizes, node_color="skyblue", alpha=0.8
     )
     nx.draw_networkx_labels(G, pos, font_size=12, font_weight="bold")
-    nx.draw_networkx_edges(G, pos, edge_color="gray", arrowsize=20, arrowstyle="->")
+    nx.draw_networkx_edges(G, pos, edge_color="gray", arrowsize=20, arrowstyle="<-")
 
     for i, j in G.edges():
         if G.has_edge(j, i):
