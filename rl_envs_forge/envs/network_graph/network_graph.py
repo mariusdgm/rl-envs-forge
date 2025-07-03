@@ -60,6 +60,14 @@ class NetworkGraph(gym.Env):
             self.max_u = np.array(max_u, dtype=np.float32)
 
         self.desired_opinion = desired_opinion
+        if np.isscalar(desired_opinion):
+            self.desired_opinion = desired_opinion
+            self.desired_opinion_vector = np.full(self.num_agents, desired_opinion)
+        else:
+            assert len(desired_opinion) == self.num_agents, "desired_opinion vector must match number of agents"
+            self.desired_opinion = np.mean(desired_opinion)  # or any meaningful aggregate
+            self.desired_opinion_vector = np.array(desired_opinion)
+    
         self.tau = tau
         self.initial_opinion_range = initial_opinion_range
         self.initial_opinions = initial_opinions
@@ -231,7 +239,7 @@ class NetworkGraph(gym.Env):
 
         # Apply control to blend current opinions with the desired opinion
         opinions = (
-            effective_control * self.desired_opinion
+            effective_control * self.desired_opinion_vector
             + (1 - effective_control) * current_state
         )
 
@@ -249,7 +257,9 @@ class NetworkGraph(gym.Env):
                     continue
 
                 pi = opinions[i]
-                sum_diff = sum(opinions[j] - pi for j in neighbors)
+                neighbor_opinions = opinions[neighbors]
+                sum_diff = np.sum(neighbor_opinions - pi)
+
                 delta = (pi * (1 - pi) / len(neighbors)) * sum_diff
                 new_states[i] = np.clip(pi + delta, 0, 1)
         
