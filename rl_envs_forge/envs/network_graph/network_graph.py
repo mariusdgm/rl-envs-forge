@@ -19,7 +19,8 @@ class NetworkGraph(gym.Env):
         connection_prob_range=(0.1, 0.3),
         max_u=0.1,
         desired_opinion=1.0,
-        tau=1.0,
+        t_campaign=1.0,              
+        t_s=0.1,                     
         initial_opinion_range=(0.0, 1.0),
         initial_opinions=None,
         control_resistance=None,
@@ -68,7 +69,17 @@ class NetworkGraph(gym.Env):
             self.desired_opinion = np.mean(desired_opinion)  # or any meaningful aggregate
             self.desired_opinion_vector = np.array(desired_opinion)
     
-        self.tau = tau
+        # Store time parameters and validate
+        self.t_campaign = t_campaign
+        self.t_s = t_s
+
+        if self.t_campaign <= 0:
+            raise ValueError(f"t_campaign must be positive, got {self.t_campaign}")
+        if self.t_s <= 0:
+            raise ValueError(f"t_s must be positive, got {self.t_s}")
+        if abs(self.t_campaign / self.t_s - round(self.t_campaign / self.t_s)) > 1e-8:
+            raise ValueError(f"t_s = {self.t_s} must evenly divide t_campaign = {self.t_campaign}")
+        
         self.initial_opinion_range = initial_opinion_range
         self.initial_opinions = initial_opinions
         self.control_resistance = control_resistance
@@ -219,54 +230,61 @@ class NetworkGraph(gym.Env):
         self.total_spent = 0.0
         return self.opinions, info
 
-    def compute_dynamics(self, current_state, control_action, step_duration):
+    def compute_dynamics(self, current_state, control_action, t_campaign, t_s):
         """
-        Compute the new state of the network given the current state, control action, and step duration.
+        Compute the new state of the network given the current state, control action, and simulate over t_campaign.
 
         Parameters:
             current_state (numpy.ndarray): The current state of the network.
-            control_action (numpy.ndarray): The control action to apply to the network.
-            step_duration (float): The duration of the step.
+            control_action (numpy.ndarray): The control action to apply.
+            t_campaign (float): Total duration to simulate (until next control).
+            t_s (float): Time increment for integration steps.
 
         Returns:
-            numpy.ndarray: The new state of the network.
+            final_state (np.ndarray): State at the end of t_campaign.
+            intermediate_states (List[np.ndarray]): All intermediate states including initial state after control.
         """
-        # Ensure step duration is positive
-        if step_duration < 0:
-            raise ValueError("step_duration must be positive")
+        if t_campaign <= 0 or t_s <= 0:
+            raise ValueError("Both t_campaign and t_s must be positive.")
 
+        if abs(t_campaign / t_s - round(t_campaign / t_s)) > 1e-8:
+            raise ValueError(f"t_s = {t_s} must evenly divide t_campaign = {t_campaign}")
+
+        # --- Apply impulse control (instantaneous) ---
         effective_control = control_action * (1 - self.control_resistance)
+        controlled_state = effective_control * self.desired_opinion_vector + (1 - effective_control) * current_state
 
-        # Apply control to blend current opinions with the desired opinion
-        opinions = (
-            effective_control * self.desired_opinion_vector
-            + (1 - effective_control) * current_state
-        )
+        # Store trajectory: initial controlled state
+        intermediate_states = [controlled_state.copy()]
 
-        if self.dynamics_model == "laplacian":
-            # Compute opinion propagation with the influence of the Laplacian
-            expL_remaining = expm(-self.L * step_duration)
-            propagated_opinions = expL_remaining @ opinions
-            new_states = np.clip(propagated_opinions, 0, 1)
-            
-        elif self.dynamics_model == "coca":
-            new_states = np.copy(opinions)
-            for i in range(self.num_agents):
-                neighbors = np.where(self.connectivity_matrix[i] > 0)[0]
-                if len(neighbors) == 0:
-                    continue
+        num_steps = int(round(t_campaign / t_s))
+        current = controlled_state.copy()
 
-                pi = opinions[i]
-                neighbor_opinions = opinions[neighbors]
-                sum_diff = np.sum(neighbor_opinions - pi)
+        for _ in range(num_steps):
+            if self.dynamics_model == "laplacian":
+                expL = expm(-self.L * t_s)
+                current = expL @ current
+                current = np.clip(current, 0, 1)
 
-                delta = (pi * (1 - pi) / len(neighbors)) * sum_diff
-                new_states[i] = np.clip(pi + delta, 0, 1)
-        
-        else:
-            raise ValueError(f"Unknown dynamics model: {self.dynamics_model}")
-        
-        return new_states
+            elif self.dynamics_model == "coca":
+                next_state = np.copy(current)
+                for i in range(self.num_agents):
+                    neighbors = self.neighbor_lists[i]
+                    if len(neighbors) == 0:
+                        continue
+                    pi = current[i]
+                    neighbor_opinions = current[neighbors]
+                    sum_diff = np.sum(neighbor_opinions - pi)
+                    delta = t_s * (pi * (1 - pi) / len(neighbors)) * sum_diff
+                    next_state[i] = np.clip(pi + delta, 0, 1)
+                current = next_state
+
+            else:
+                raise ValueError(f"Unknown dynamics model: {self.dynamics_model}")
+
+            intermediate_states.append(current.copy())
+
+        return current, np.array(intermediate_states)
 
     def reward_function(self, x, u, d, beta, done: bool = False):
         raw_reward = -np.abs(d - x).sum() - beta * np.sum(u)
@@ -283,55 +301,54 @@ class NetworkGraph(gym.Env):
 
         return reward
 
-    def step(self, action, step_duration=None):
+    def step(self, action, t_campaign=None, t_s=None):
         """
-        Execute one time step within the environment.
+        Execute one time step: apply control and simulate propagation.
 
         Args:
-            action (np.array): Control inputs for influencing the agents.
-            step_duration (float, optional): Total duration over which the opinions are propagated.
-                                            Defaults to self.tau.
+            action (np.array): Control inputs.
+            t_campaign (float, optional): Time until next control (default: self.t_campaign).
+            t_s (float, optional): Time step for internal dynamics (default: self.t_s).
 
         Returns:
-            observation (np.array): Updated opinions.
-            reward (float): Reward for the step.
+            observation (np.array): State after t_campaign.
+            reward (float): Reward for this step.
             done (bool): Whether the episode has ended.
-            truncated (bool): Whether the episode was truncated (e.g., due to reaching the max number of steps).
-            info (dict): Additional information.
+            truncated (bool): Whether max steps were reached.
+            info (dict): Additional info including intermediate_states.
         """
-        if step_duration is None:
-            step_duration = self.tau
+        t_campaign = t_campaign if t_campaign is not None else self.t_campaign
+        t_s = t_s if t_s is not None else self.t_s
 
-        original_action = np.array(action, copy=True)  
+        original_action = np.array(action, copy=True)
         clipped_action = np.clip(original_action, 0, self.max_u)
 
-        next_opinions = self.compute_dynamics(self.opinions, clipped_action, step_duration)
+        final_state, intermediate_states = self.compute_dynamics(self.opinions, clipped_action, t_campaign, t_s)
 
         self.total_spent += np.sum(original_action)
         self.current_step += 1
-        
+        self.opinions = final_state
+
         done = (
             self.terminate_when_converged
-            and np.abs(np.mean(next_opinions) - self.desired_opinion) <= self.opinion_end_tolerance
+            and np.abs(np.mean(final_state) - self.desired_opinion) <= self.opinion_end_tolerance
         )
         truncated = self.current_step >= self.max_steps
-
         terminal_success = done and not truncated
 
         reward = self.reward_function(
             self.opinions, original_action, self.desired_opinion, self.control_beta, done=terminal_success
         )
-        
-        self.opinions = next_opinions
-        
+
         info = {
             "current_step": self.current_step,
             "total_spent": self.total_spent,
-            "action_applied_raw": original_action, 
-            "action_applied_clipped": clipped_action,  
+            "action_applied_raw": original_action,
+            "action_applied_clipped": clipped_action,
             "terminal_reward_applied": terminal_success,
+            "intermediate_states": intermediate_states  # Shape: (num_substeps+1, num_agents)
         }
-        
+
         if self.budget is not None:
             info["remaining_budget"] = self.budget - self.total_spent
 
