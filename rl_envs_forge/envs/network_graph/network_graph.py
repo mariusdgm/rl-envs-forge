@@ -73,7 +73,7 @@ class NetworkGraph(gym.Env):
         self.t_campaign = t_campaign
         self.t_s = t_s
 
-        if self.t_campaign <= 0:
+        if self.t_campaign < 0:
             raise ValueError(f"t_campaign must be positive, got {self.t_campaign}")
         if self.t_s <= 0:
             raise ValueError(f"t_s must be positive, got {self.t_s}")
@@ -230,7 +230,7 @@ class NetworkGraph(gym.Env):
         self.total_spent = 0.0
         return self.opinions, info
 
-    def compute_dynamics(self, current_state, control_action, t_campaign, t_s):
+    def compute_dynamics(self, current_state, control_action, t_campaign=None, t_s=None):
         """
         Compute the new state of the network given the current state, control action, and simulate over t_campaign.
 
@@ -244,7 +244,12 @@ class NetworkGraph(gym.Env):
             final_state (np.ndarray): State at the end of t_campaign.
             intermediate_states (List[np.ndarray]): All intermediate states including initial state after control.
         """
-        if t_campaign <= 0 or t_s <= 0:
+        if t_campaign is None:
+            t_campaign = self.t_campaign
+        if t_s is None:
+            t_s = self.t_s
+        
+        if t_campaign < 0 or t_s <= 0:
             raise ValueError("Both t_campaign and t_s must be positive.")
 
         if abs(t_campaign / t_s - round(t_campaign / t_s)) > 1e-8:
@@ -253,7 +258,7 @@ class NetworkGraph(gym.Env):
         # --- Apply impulse control (instantaneous) ---
         effective_control = control_action * (1 - self.control_resistance)
         controlled_state = effective_control * self.desired_opinion_vector + (1 - effective_control) * current_state
-
+        
         # Store trajectory: initial controlled state
         intermediate_states = [controlled_state.copy()]
 
@@ -327,7 +332,6 @@ class NetworkGraph(gym.Env):
 
         self.total_spent += np.sum(original_action)
         self.current_step += 1
-        self.opinions = final_state
 
         done = (
             self.terminate_when_converged
@@ -339,6 +343,8 @@ class NetworkGraph(gym.Env):
         reward = self.reward_function(
             self.opinions, original_action, self.desired_opinion, self.control_beta, done=terminal_success
         )
+        
+        self.opinions = final_state
 
         info = {
             "current_step": self.current_step,
