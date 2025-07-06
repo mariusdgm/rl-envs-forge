@@ -21,7 +21,8 @@ class TestNetworkGraph:
     def test_initialization(self, default_env):
         assert default_env.num_agents == 10
         assert default_env.budget is None
-        assert default_env.tau == 1.0
+        assert default_env.t_campaign == 1
+        assert default_env.t_s == 0.1
         assert default_env.max_steps == 100
         assert default_env.current_step == 0
         assert default_env.total_spent == 0.0
@@ -54,10 +55,7 @@ class TestNetworkGraph:
         assert info["current_step"] == 1
 
     def test_step_max_steps_exceeded(self):
-        env = NetworkGraph(num_agents=3, 
-                           max_steps=1, 
-                           initial_opinions=[0, 0, 0],
-                           tau=0.1)
+        env = NetworkGraph(num_agents=3, max_steps=1, initial_opinions=[0, 0, 0])
         env.reset()
         action = np.array([0.1, 0.1, 0.1], dtype=np.float32)
         state, reward, done, truncated, info = env.step(action)
@@ -106,7 +104,6 @@ class TestNetworkGraph:
             initial_opinions=initial_opinions,
             budget=10.0,
             desired_opinion=1.0,
-            tau=1.0,
             max_steps=100,
         )
 
@@ -122,22 +119,20 @@ class TestNetworkGraph:
         np.testing.assert_array_almost_equal(
             info["action_applied_raw"],
             action,
-            err_msg="The environment should record the original (unsaturated) action correctly."
+            err_msg="The environment should record the original (unsaturated) action correctly.",
         )
 
         # Check that the **applied** action was **saturated** correctly
         np.testing.assert_array_less(
             info["action_applied_clipped"],
             env.max_u + 1e-5,
-            err_msg="The saturated control action should be clipped to max_u."
+            err_msg="The saturated control action should be clipped to max_u.",
         )
 
         # Check that the **opinions** are still within valid range [0, 1]
         assert np.all(state >= 0.0) and np.all(
             state <= 1.0
         ), "Opinions should be within [0, 1] after applying dynamics."
-
-      
 
     def test_step_max_vs_zero_action(self, default_env):
 
@@ -151,7 +146,6 @@ class TestNetworkGraph:
             initial_opinions=initial_opinions,
             max_u=0.1,  # Define max control input for testing
             desired_opinion=1.0,
-            tau=1.0,
             budget=10.0,
             max_steps=100,
         )
@@ -187,13 +181,10 @@ class TestNetworkGraph:
             [default_env.max_u] * default_env.num_agents, dtype=np.float32
         )
 
-        # Define a negative step_duration
-        step_duration = -0.5
-
         # Expect a ValueError to be raised
         with pytest.raises(ValueError) as excinfo:
-            default_env.step(action, step_duration=step_duration)
-        assert "step_duration must be positive" in str(excinfo.value)
+            default_env.step(action, t_s=-0.5)
+        assert "t_s must be positive" in str(excinfo.value)
 
     def test_step_with_large_step_duration(self, default_env):
         # Reset the environment
@@ -202,13 +193,8 @@ class TestNetworkGraph:
         # Define an action (no action applied)
         action = np.zeros(default_env.num_agents, dtype=np.float32)
 
-        # Define a large step_duration
-        step_duration = 10.0  # Simulate over a long time without action
-
         # Step the environment
-        state, reward, done, truncated, info = default_env.step(
-            action, step_duration=step_duration
-        )
+        state, reward, done, truncated, info = default_env.step(action, t_campaign=10.0)
 
         # Check that the state has evolved only according to the network dynamics
         # Since the Laplacian tends to drive opinions towards consensus, the opinions should be closer together
@@ -226,7 +212,6 @@ class TestNetworkGraph:
         action = np.full(
             default_env.num_agents, default_env.max_u / 2
         )  # Use half of max_u for control
-        step_duration = 1.0  # Set a step duration
 
         # Set the initial state of the environment and save its original state
         default_env.opinions = initial_opinions.copy()
@@ -234,9 +219,7 @@ class TestNetworkGraph:
         initial_total_spent = default_env.total_spent
 
         # Call the dynamics function directly without modifying the env state
-        next_state = default_env.compute_dynamics(
-            initial_opinions, action, step_duration
-        )
+        next_state, _ = default_env.compute_dynamics(initial_opinions, action)
 
         # Verify that the output is in the expected range
         assert np.all(next_state >= 0) and np.all(
@@ -265,7 +248,7 @@ class TestNetworkGraph:
             num_agents=num_agents,
             initial_opinions=initial_opinions,
             control_resistance=np.zeros(num_agents),
-            seed=42
+            seed=42,
         )
         env_no_resistance.reset()
         state_no_resistance, _, _, _, _ = env_no_resistance.step(action)
@@ -276,7 +259,7 @@ class TestNetworkGraph:
             num_agents=num_agents,
             initial_opinions=initial_opinions,
             control_resistance=control_resistance,
-            seed=42
+            seed=42,
         )
         env_with_resistance.reset()
         state_with_resistance, _, _, _, _ = env_with_resistance.step(action)
@@ -361,7 +344,6 @@ class TestNetworkGraph:
         default_env.opinions = np.array([0.2, 0.3, 0.4])
         assert np.array_equal(default_env.opinions, default_env.state)
 
-
     def test_normalized_vs_non_normalized_rewards(self):
         """Test consistency between normalized and non-normalized rewards as opinions approach the desired value."""
         num_agents = 5
@@ -407,25 +389,35 @@ class TestNetworkGraph:
 
         # Checks for normalized rewards
         assert reward_norm_initial <= 0.0, "Normalized reward should be <= 0 initially"
-        assert reward_norm_later <= 0.0, "Normalized reward should be <= 0 after improvement"
-        assert reward_norm_later > reward_norm_initial, "Normalized reward should improve as opinions approach desired"
+        assert (
+            reward_norm_later <= 0.0
+        ), "Normalized reward should be <= 0 after improvement"
+        assert (
+            reward_norm_later > reward_norm_initial
+        ), "Normalized reward should improve as opinions approach desired"
 
         # Checks for raw rewards
         assert reward_raw_initial <= 0.0, "Raw reward should be <= 0 initially"
         assert reward_raw_later <= 0.0, "Raw reward should be <= 0 after improvement"
-        assert reward_raw_later > reward_raw_initial, "Raw reward should improve as opinions approach desired"
+        assert (
+            reward_raw_later > reward_raw_initial
+        ), "Raw reward should improve as opinions approach desired"
 
         # Cross-check: normalized reward should be a scaled version of raw reward
         scale_factor = env_norm.num_agents  # Since normalization divides by num_agents
         np.testing.assert_allclose(
-            reward_norm_initial, reward_raw_initial / scale_factor, rtol=1e-5,
-            err_msg="Normalized initial reward should match raw reward divided by number of agents."
+            reward_norm_initial,
+            reward_raw_initial / scale_factor,
+            rtol=1e-5,
+            err_msg="Normalized initial reward should match raw reward divided by number of agents.",
         )
         np.testing.assert_allclose(
-            reward_norm_later, reward_raw_later / scale_factor, rtol=1e-5,
-            err_msg="Normalized later reward should match raw reward divided by number of agents."
+            reward_norm_later,
+            reward_raw_later / scale_factor,
+            rtol=1e-5,
+            err_msg="Normalized later reward should match raw reward divided by number of agents.",
         )
-        
+
     def test_terminal_reward_added_when_done(self):
         """Test that terminal reward is added when the environment reaches the done state."""
         num_agents = 5
@@ -450,15 +442,24 @@ class TestNetworkGraph:
         _, reward, done, truncated, info = env.step(action)
 
         # Assert that we hit terminal condition and reward includes the terminal bonus
-        assert done, "Environment should be done when opinions match desired within tolerance"
-        assert reward > 0.0, "Reward should include terminal bonus and be greater than 0"
-        assert info.get("terminal_reward_applied", False), "Info should flag terminal reward as applied"
-        
-    @pytest.mark.parametrize("mode,params", [
-        ("uniform", (0.2, 0.5)),
-        ("normal", {"mean": 0.4, "std": 0.1}),
-        ("exponential", {"scale": 2.0})
-    ])
+        assert (
+            done
+        ), "Environment should be done when opinions match desired within tolerance"
+        assert (
+            reward > 0.0
+        ), "Reward should include terminal bonus and be greater than 0"
+        assert info.get(
+            "terminal_reward_applied", False
+        ), "Info should flag terminal reward as applied"
+
+    @pytest.mark.parametrize(
+        "mode,params",
+        [
+            ("uniform", (0.2, 0.5)),
+            ("normal", {"mean": 0.4, "std": 0.1}),
+            ("exponential", {"scale": 2.0}),
+        ],
+    )
     def test_graph_generation_modes(self, mode, params):
         """Test that graph generation modes create reasonable graphs."""
         num_agents = 20
@@ -468,25 +469,33 @@ class TestNetworkGraph:
             num_agents=num_agents,
             graph_connection_distribution=mode,
             graph_connection_params=params,
-            bidirectional_prob=1.0
+            bidirectional_prob=1.0,
         )
         adj_sym = env_symmetric.connectivity_matrix
-        assert np.allclose(adj_sym, adj_sym.T), "Adjacency matrix should be symmetric when bidirectional=1.0"
+        assert np.allclose(
+            adj_sym, adj_sym.T
+        ), "Adjacency matrix should be symmetric when bidirectional=1.0"
 
         # Test with bidirectional probability 0.0 → asymmetric (directed)
         env_asymmetric = NetworkGraph(
             num_agents=num_agents,
             graph_connection_distribution=mode,
             graph_connection_params=params,
-            bidirectional_prob=0.0
+            bidirectional_prob=0.0,
         )
         adj_asym = env_asymmetric.connectivity_matrix
-        assert not np.allclose(adj_asym, adj_asym.T), "Adjacency matrix should not be symmetric when bidirectional=0.0"
+        assert not np.allclose(
+            adj_asym, adj_asym.T
+        ), "Adjacency matrix should not be symmetric when bidirectional=0.0"
 
         # In both cases, graph should have at least some edges
-        assert np.any(adj_sym > 0), f"Graph with mode='{mode}' should have edges (symmetric)"
-        assert np.any(adj_asym > 0), f"Graph with mode='{mode}' should have edges (asymmetric)"
-    
+        assert np.any(
+            adj_sym > 0
+        ), f"Graph with mode='{mode}' should have edges (symmetric)"
+        assert np.any(
+            adj_asym > 0
+        ), f"Graph with mode='{mode}' should have edges (asymmetric)"
+
     def test_no_budget_removes_remaining_budget_from_info(self):
         """Test that when budget=None, remaining_budget is not included in info."""
         env = NetworkGraph(num_agents=5, budget=None)
@@ -494,8 +503,10 @@ class TestNetworkGraph:
         action = np.zeros(5, dtype=np.float32)
         _, _, _, _, info = env.step(action)
 
-        assert "remaining_budget" not in info, "Info should not contain remaining_budget if budget is None"
-        
+        assert (
+            "remaining_budget" not in info
+        ), "Info should not contain remaining_budget if budget is None"
+
     def test_action_raw_vs_clipped_behavior(self):
         """Test that action_applied_raw and action_applied_clipped are handled correctly."""
         num_agents = 4
@@ -508,11 +519,15 @@ class TestNetworkGraph:
         _, _, _, _, info = env.step(action)
 
         np.testing.assert_array_almost_equal(info["action_applied_raw"], action)
-        assert np.all(info["action_applied_clipped"] <= env.max_u + 1e-5), "Clipped action must be <= max_u"
+        assert np.all(
+            info["action_applied_clipped"] <= env.max_u + 1e-5
+        ), "Clipped action must be <= max_u"
 
         # At least one value should have been clipped
-        assert np.any(info["action_applied_raw"] > info["action_applied_clipped"]), "Some values should have been clipped"
-        
+        assert np.any(
+            info["action_applied_raw"] > info["action_applied_clipped"]
+        ), "Some values should have been clipped"
+
     def test_normalized_reward_with_exceeding_action(self):
         """Test that normalized reward handles exceeding actions and stays in [-1, 0]."""
         num_agents = 6
@@ -529,20 +544,23 @@ class TestNetworkGraph:
         action = np.full(num_agents, 2 * max_u, dtype=np.float32)  # double max_u
         _, reward, _, _, _ = env.step(action)
 
-        assert -1.0 <= reward <= 0.0, "Normalized reward should be within [-1, 0] even with large action"
-        
+        assert (
+            -1.0 <= reward <= 0.0
+        ), "Normalized reward should be within [-1, 0] even with large action"
+
     def test_step_reward_computed_from_previous_state(self):
         """Test that reward is computed based on the previous state, not next."""
         env = NetworkGraph(
             num_agents=3,
             max_steps=5,
             initial_opinions=[0.1, 0.1, 0.1],
-            tau=0.1,
+            t_campaign=1,
+            t_s=0.1,
             desired_opinion=1.0,
             max_u=0.4,
             control_beta=0.5,  # some penalty on action
             normalize_reward=False,
-            terminal_reward=10.0  # make terminal reward big if successful
+            terminal_reward=10.0,  # make terminal reward big if successful
         )
         env.reset()
 
@@ -556,42 +574,56 @@ class TestNetworkGraph:
         state, reward, done, truncated, info = env.step(action)
 
         # MANUALLY compute expected reward:
-        expected_raw_reward = -np.abs(env.desired_opinion - old_opinions).sum() - env.control_beta * np.sum(action)
+        expected_raw_reward = -np.abs(
+            env.desired_opinion - old_opinions
+        ).sum() - env.control_beta * np.sum(action)
         expected_terminal = False  # Not done yet
         if expected_terminal:
             expected_raw_reward += env.terminal_reward
 
         # Check reward
-        assert np.isclose(reward, expected_raw_reward, atol=1e-5), f"Reward mismatch: {reward} vs {expected_raw_reward}"
-        
+        assert np.isclose(
+            reward, expected_raw_reward, atol=1e-5
+        ), f"Reward mismatch: {reward} vs {expected_raw_reward}"
+
     def test_reset_randomize_opinions(self):
-        env = NetworkGraph(num_agents=4, initial_opinions=np.array([0.1, 0.2, 0.3, 0.4]))
+        env = NetworkGraph(
+            num_agents=4, initial_opinions=np.array([0.1, 0.2, 0.3, 0.4])
+        )
         opinions_fixed, info_fixed = env.reset(randomize_opinions=False)
         opinions_random, info_random = env.reset(randomize_opinions=True)
 
         # Should differ because one is random
-        assert not np.allclose(opinions_fixed, opinions_random), "Randomized reset should produce different opinions"
+        assert not np.allclose(
+            opinions_fixed, opinions_random
+        ), "Randomized reset should produce different opinions"
         assert info_fixed["random_opinions"] is False
         assert info_random["random_opinions"] is True
-        
+
     def test_graph_reproducibility_with_seeds(self):
         # Same seed -> same graph
-        env1 = NetworkGraph(num_agents=5, graph_connection_distribution="uniform", seed=123)
-        env2 = NetworkGraph(num_agents=5, graph_connection_distribution="uniform", seed=123)
+        env1 = NetworkGraph(
+            num_agents=5, graph_connection_distribution="uniform", seed=123
+        )
+        env2 = NetworkGraph(
+            num_agents=5, graph_connection_distribution="uniform", seed=123
+        )
 
         np.testing.assert_array_equal(
             env1.connectivity_matrix,
             env2.connectivity_matrix,
-            err_msg="Environments with the same seed should produce identical connectivity matrices"
+            err_msg="Environments with the same seed should produce identical connectivity matrices",
         )
 
         # Different seed -> likely different graph
-        env3 = NetworkGraph(num_agents=5, graph_connection_distribution="uniform", seed=456)
+        env3 = NetworkGraph(
+            num_agents=5, graph_connection_distribution="uniform", seed=456
+        )
 
         assert not np.allclose(
             env1.connectivity_matrix, env3.connectivity_matrix
         ), "Environments with different seeds should likely produce different connectivity matrices"
-        
+
     def test_random_graph_centralities_vary(self):
         """Ensure that centralities vary in a directed random graph."""
         env = NetworkGraph(
@@ -604,11 +636,15 @@ class TestNetworkGraph:
         centralities = env.centralities
 
         # Check that centralities sum to 1 and vary across nodes
-        assert np.isclose(np.sum(centralities), 1.0), "Centralities should be normalized to sum to 1"
-        assert np.std(centralities) > 0.01, f"Centralities should vary across nodes, got std={np.std(centralities)}"
-    
+        assert np.isclose(
+            np.sum(centralities), 1.0
+        ), "Centralities should be normalized to sum to 1"
+        assert (
+            np.std(centralities) > 0.01
+        ), f"Centralities should vary across nodes, got std={np.std(centralities)}"
+
     def test_dynamics_step_zero_behavior(self):
-        """Test that compute_dynamics with step_duration=0 only applies control and no propagation."""
+        """Test that compute_dynamics with t_campaign=0 only applies control and no propagation."""
 
         num_agents = 5
         initial_opinions = np.linspace(0.1, 0.9, num_agents)
@@ -623,15 +659,23 @@ class TestNetworkGraph:
         )
         env.reset()
 
-        result = env.compute_dynamics(current_state=initial_opinions, control_action=action, step_duration=0.0)
+        result, _ = env.compute_dynamics(
+            current_state=initial_opinions, control_action=action, t_campaign=0.0
+        )
 
         # Manually compute expected outcome
         expected = initial_opinions.copy()
-        expected[1] = (1 - action[1]) * initial_opinions[1] + action[1] * env.desired_opinion
+        expected[1] = (1 - action[1]) * initial_opinions[1] + action[
+            1
+        ] * env.desired_opinion
 
-        np.testing.assert_allclose(result, expected, rtol=1e-6,
-            err_msg="Only the controlled node should be affected when step_duration=0")
-        
+        np.testing.assert_allclose(
+            result,
+            expected,
+            rtol=1e-6,
+            err_msg="Only the controlled node should be affected when step_duration=0",
+        )
+
     def test_disable_termination_flag(self):
         """Test that when terminate_when_converged is False, the environment never sets done=True."""
         num_agents = 5
@@ -646,7 +690,7 @@ class TestNetworkGraph:
             initial_opinions=initial_opinions,
             desired_opinion=desired_opinion,
             opinion_end_tolerance=tolerance,
-            terminate_when_converged=False  
+            terminate_when_converged=False,
         )
         env.reset()
 
@@ -654,30 +698,36 @@ class TestNetworkGraph:
         action = np.zeros(num_agents, dtype=np.float32)
         _, reward, done, truncated, info = env.step(action)
 
-        assert not done, "Environment should not terminate when terminate_when_converged is False"
+        assert (
+            not done
+        ), "Environment should not terminate when terminate_when_converged is False"
         assert not truncated, "Episode should not be truncated"
         assert "terminal_reward_applied" in info
-        assert info["terminal_reward_applied"] is False, "Terminal reward should not be applied"
-        
+        assert (
+            info["terminal_reward_applied"] is False
+        ), "Terminal reward should not be applied"
+
     def test_coca_dynamics_behavior(self):
         """Test that COCA dynamics run and change opinions in expected nonlinear way."""
         num_agents = 3
         initial_opinions = np.array([0.1, 0.5, 0.9])  # more asymmetrical
         desired_opinion = 1.0
-        tau = 1.0
 
         # Fully connected undirected graph
-        connectivity_matrix = np.array([
-            [0, 1, 1],
-            [1, 0, 1],
-            [1, 1, 0],
-        ])
+        connectivity_matrix = np.array(
+            [
+                [0, 1, 1],
+                [1, 0, 1],
+                [1, 1, 0],
+            ]
+        )
 
         env = NetworkGraph(
             num_agents=num_agents,
             initial_opinions=initial_opinions,
             desired_opinion=desired_opinion,
-            tau=tau,
+            t_campaign=1,
+            t_s=0.1,
             connectivity_matrix=connectivity_matrix,
             dynamics_model="coca",
         )
@@ -688,15 +738,111 @@ class TestNetworkGraph:
         state_after, _, _, _, _ = env.step(action)
 
         # Ensure opinions changed
-        assert not np.allclose(state_before, state_after), "Opinions should update under COCA dynamics"
+        assert not np.allclose(
+            state_before, state_after
+        ), "Opinions should update under COCA dynamics"
 
         # Ensure outputs remain valid
-        assert np.all((state_after >= 0) & (state_after <= 1)), "Opinions must be within [0, 1]"
+        assert np.all(
+            (state_after >= 0) & (state_after <= 1)
+        ), "Opinions must be within [0, 1]"
 
         # Ensure expected direction of movement (toward average)
         avg_before = np.mean(state_before)
         for i in range(num_agents):
             if state_before[i] < avg_before:
-                assert state_after[i] > state_before[i], f"Agent {i} should move upward toward average"
+                assert (
+                    state_after[i] > state_before[i]
+                ), f"Agent {i} should move upward toward average"
             elif state_before[i] > avg_before:
-                assert state_after[i] < state_before[i], f"Agent {i} should move downward toward average"
+                assert (
+                    state_after[i] < state_before[i]
+                ), f"Agent {i} should move downward toward average"
+
+    def test_step_returns_intermediate_states(self, default_env):
+        default_env.reset()
+        action = np.zeros(default_env.num_agents, dtype=np.float32)
+        _, _, _, _, info = default_env.step(action)
+
+        # Check that intermediate_states is in info
+        assert (
+            "intermediate_states" in info
+        ), "step() should return 'intermediate_states' in info"
+
+        intermediates = info["intermediate_states"]
+        expected_steps = (
+            int(default_env.t_campaign / default_env.t_s) + 1
+        )  # +1 for the post-control state
+        assert intermediates.shape == (
+            expected_steps,
+            default_env.num_agents,
+        ), f"Expected shape {(expected_steps, default_env.num_agents)}, got {intermediates.shape}"
+
+    def test_coca_dynamics_respects_time_step_scaling(self):
+        num_agents = 3
+        connectivity = np.ones((num_agents, num_agents)) - np.eye(num_agents)
+
+        env = NetworkGraph(
+            num_agents=num_agents,
+            initial_opinions=[0.1, 0.5, 0.9],
+            desired_opinion=1.0,
+            connectivity_matrix=connectivity,
+            dynamics_model="coca",
+            t_campaign=1.0,
+            t_s=0.5,
+        )
+        env.reset()
+
+        # No control, only propagation
+        action = np.zeros(num_agents, dtype=np.float32)
+
+        state_tiny_step, _, _, _, info_small = env.step(action, t_campaign=1.0, t_s=0.1)
+        state_big_step, _, _, _, info_big = env.step(action, t_campaign=1.0, t_s=0.5)
+
+        # Expect: more frequent sampling (smaller t_s) → slightly different results, but not wildly divergent
+        np.testing.assert_allclose(
+            state_tiny_step,
+            state_big_step,
+            atol=0.1,
+            err_msg="COCA integration with different t_s values should produce similar qualitative behavior",
+        )
+
+    def test_impulse_only_no_propagation(self):
+        num_agents = 3
+        initial_opinions = np.array([0.0, 0.5, 1.0])
+        action = np.array([0.5, 0.0, 0.0])
+
+        env = NetworkGraph(
+            num_agents=num_agents,
+            initial_opinions=initial_opinions,
+            desired_opinion=1.0,
+            t_campaign=0.0,  # No propagation
+            t_s=0.1,
+            max_u=0.5,
+        )
+        env.reset()
+
+        assert np.all(
+            env.opinions == initial_opinions
+        ), "Environment should start with initial opinions"
+
+        next_state, _, _, _, info = env.step(action, t_campaign=0.0)
+
+        expected_state = initial_opinions.copy()
+        effective_control = action[0] * (1 - env.control_resistance[0])
+        expected_state[0] = (
+            effective_control * env.desired_opinion_vector[0]
+            + (1 - effective_control) * expected_state[0]
+        )
+
+        np.testing.assert_allclose(
+            next_state,
+            expected_state,
+            atol=1e-6,
+            err_msg="Impulse-only step should only apply control, no dynamics",
+        )
+
+        # Check that intermediate_states includes only one state (the impulse result)
+        assert (
+            info["intermediate_states"].shape[0] == 1
+        ), "Impulse-only step should have exactly one intermediate state"
