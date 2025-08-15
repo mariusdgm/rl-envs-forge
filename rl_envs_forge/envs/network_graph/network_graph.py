@@ -40,6 +40,112 @@ class NetworkGraph(gym.Env):
         terminate_when_converged: bool = True,
         seed=None,
     ):
+        """Initializes the Network Opinion Dynamics environment.
+
+        This constructor sets up a Gymnasium environment for simulating the control
+        of opinions on a social network. It handles the generation of the network
+        graph, the initialization of agent opinions, and the configuration of
+        the dynamics, control, and reward systems.
+
+        The environment can be configured in two main ways:
+        1.  By providing a pre-defined `connectivity_matrix`.
+        2.  By specifying parameters to dynamically generate a graph. In this
+            case, `num_agents` and connection probabilities are used.
+
+        Args:
+            num_agents (int, optional): The number of agents in the network.
+                This parameter is ignored if `connectivity_matrix` is provided.
+                Defaults to 10.
+            connection_prob_range (tuple[float, float], optional): The lower and
+                upper bounds for sampling the connection probability when
+                generating a random graph with a 'uniform' distribution.
+                Defaults to (0.1, 0.3).
+            max_u (float | np.ndarray, optional): The maximum control effort
+                that can be applied to any single agent in one step. Can be a
+                scalar to set a uniform limit for all agents, or a numpy array
+                of shape (num_agents,) to specify per-agent limits. This defines
+                the upper bound of the action space. Defaults to 0.1.
+            desired_opinion (float | np.ndarray, optional): The target opinion
+                value. The goal of the agent is to drive all opinions towards
+                this value. Can be a scalar for a uniform target or a numpy
+                array of shape (num_agents,) for agent-specific targets.
+                Defaults to 1.0.
+            t_campaign (float, optional): The total duration of the autonomous
+                opinion propagation phase between two control actions.
+                Defaults to 1.0.
+            t_s (float, optional): The time step for the numerical integration
+                of the opinion dynamics during the propagation phase. This value
+                must evenly divide `t_campaign`. Defaults to 0.1.
+            initial_opinion_range (tuple[float, float], optional): The lower and
+                upper bounds for randomly initializing agent opinions at the
+                start of an episode. Used only if `initial_opinions` is not
+                provided. Defaults to (0.0, 1.0).
+            initial_opinions (np.ndarray | None, optional): A specific vector of
+                initial opinions for the agents. If provided, this overrides
+                `initial_opinion_range` and ensures a deterministic start.
+                Defaults to None.
+            control_resistance (np.ndarray | None, optional): A vector of shape
+                (num_agents,) where each element in [0, 1) represents an agent's
+                "stubbornness" or resistance to external control. A value of 0
+                means no resistance, while a value close to 1 means high
+                resistance. Defaults to a vector of zeros.
+            connectivity_matrix (np.ndarray | None, optional): A pre-defined
+                adjacency matrix of shape (num_agents, num_agents). If provided,
+                it overrides all other graph generation parameters like
+                `num_agents` and `connection_prob_range`. Defaults to None.
+            graph_connection_distribution (str, optional): The probability
+                distribution to use for generating graph edges. Supported values
+                are 'uniform', 'normal', and 'exponential'. Defaults to 'uniform'.
+            graph_connection_params (dict | None, optional): A dictionary of
+                parameters for the chosen `graph_connection_distribution`. For
+                'normal', this can include 'mean' and 'std'; for 'exponential',
+                it can include 'scale'. Defaults to None.
+            use_weighted_edges (bool, optional): If True, edges in the graph
+                will be assigned weights sampled uniformly from `weight_range`.
+                This affects the Laplacian matrix calculation. Defaults to False.
+            weight_range (tuple[float, float], optional): The range of possible
+                weights for graph edges if `use_weighted_edges` is True.
+                Defaults to (0.1, 1.0).
+            bidirectional_prob (float, optional): The probability that an edge
+                (i, j) will have a corresponding reverse edge (j, i). A value
+                of 1.0 creates a fully undirected graph, while 0.0 creates a
+                fully directed graph (where bidirectionality only occurs by
+                chance). Defaults to 0.5.
+            dynamics_model (str, optional): The model to use for opinion
+                propagation. Supported models are 'laplacian' (linear) and
+                'coca' (non-linear). Defaults to 'laplacian'.
+            budget (float | None, optional): An optional total budget for control
+                effort over an entire episode. The environment does not enforce
+                this budget but tracks spending against it. Defaults to None.
+            max_steps (int, optional): The maximum number of steps allowed in an
+                episode before it is truncated. Defaults to 100.
+            opinion_end_tolerance (float, optional): The tolerance for the mean
+                opinion to be considered "converged" to the `desired_opinion`.
+                If the mean opinion is within this tolerance, the episode ends.
+                Defaults to 0.01.
+            control_beta (float, optional): The weight factor (lambda) used in
+                the reward function to penalize the total control effort applied
+                in a step. Defaults to 0.4.
+            normalize_reward (bool, optional): If True, the raw reward is divided
+                by the number of agents. This can help stabilize training across
+                environments with different numbers of agents. Defaults to False.
+            terminal_reward (float, optional): A bonus reward added at the final
+                step if the episode terminates because the opinions have
+                successfully converged (i.e., not due to truncation).
+                Defaults to 0.0.
+            terminate_when_converged (bool, optional): If True, the episode ends
+                with `done=True` as soon as the mean opinion is within the
+                `opinion_end_tolerance`. If False, the episode runs until
+                `max_steps` is reached. Defaults to True.
+            seed (int | None, optional): A seed for the random number generator
+                to ensure reproducibility of graph generation and initial
+                opinion sampling. Defaults to None.
+
+        Raises:
+            ValueError: If `t_s` is not a positive value or does not evenly
+                divide `t_campaign`.
+            ValueError: If `graph_connection_distribution` is an unknown type.
+        """
         super(NetworkGraph, self).__init__()
 
         self.seed = seed
