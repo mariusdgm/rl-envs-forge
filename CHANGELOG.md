@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.18.2] - 2025.08.21
+
+### Changed
+
+- Axis label for Network Render
+
 ## [5.18.1] - 2025.08.14
 
 ### Changed
