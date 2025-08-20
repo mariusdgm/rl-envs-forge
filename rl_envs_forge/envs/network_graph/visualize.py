@@ -45,7 +45,7 @@ def plot_centralities_sorted(eigv):
     sns.barplot(x=sorted_labels, y=sorted_centralities, palette="Blues_d")
 
     # Set labels and title
-    plt.xlabel("Eigenvalue Index")
+    plt.xlabel("Node Index")
     plt.ylabel("Centrality")
     plt.title("Centralities Sorted in Decreasing Order")
     plt.xticks(rotation=45)
