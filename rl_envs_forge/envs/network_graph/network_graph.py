@@ -36,6 +36,8 @@ class NetworkGraph(gym.Env):
         opinion_end_tolerance=0.01,
         control_beta=0.4,
         normalize_reward=False,
+        use_delta_shaping: bool = False,
+        delta_lambda: float = 0.0,
         terminal_reward=0.0,
         terminate_when_converged: bool = True,
         seed=None,
@@ -199,6 +201,8 @@ class NetworkGraph(gym.Env):
         self.normalize_reward = normalize_reward
         self.terminal_reward = terminal_reward
         self.terminate_when_converged = terminate_when_converged
+        self.use_delta_shaping = use_delta_shaping
+        self.delta_lambda = float(delta_lambda)
         
         if connectivity_matrix is not None:
             self.connectivity_matrix = connectivity_matrix
@@ -397,20 +401,23 @@ class NetworkGraph(gym.Env):
 
         return current, np.array(intermediate_states)
 
-    def reward_function(self, x, u, d, beta, done: bool = False):
-        raw_reward = -np.abs(d - x).sum() - beta * np.sum(u)
+    def reward_function(self, x_prev, x_next, u_original, d, beta, done: bool = False):
+        # absolute term on resulting state
+        abs_term = -np.abs(d - x_next).sum()
 
-        if self.normalize_reward:
-            normalized_reward = raw_reward / self.num_agents
-            reward = float(normalized_reward)
+        # optional delta shaping (progress this step)
+        if self.use_delta_shaping and self.delta_lambda != 0.0:
+            delta = np.abs(d - x_prev).sum() - np.abs(d - x_next).sum()
+            shaped = abs_term + self.delta_lambda * delta
         else:
-            reward = float(raw_reward)
+            shaped = abs_term
 
-        # Add terminal bonus if we're done due to reaching target
+        raw_reward = shaped - beta * np.sum(u_original)
+
+        reward = raw_reward / self.num_agents if self.normalize_reward else float(raw_reward)
         if done:
             reward += self.terminal_reward
-
-        return reward
+        return float(reward)
 
     def step(self, action, t_campaign=None, t_s=None):
         """
@@ -431,26 +438,27 @@ class NetworkGraph(gym.Env):
         t_campaign = t_campaign if t_campaign is not None else self.t_campaign
         t_s = t_s if t_s is not None else self.t_s
 
+        x_prev = self.opinions.copy()
         original_action = np.array(action, copy=True)
         clipped_action = np.clip(original_action, 0, self.max_u)
 
-        final_state, intermediate_states = self.compute_dynamics(self.opinions, clipped_action, t_campaign, t_s)
+        x_next, intermediate_states = self.compute_dynamics(x_prev, clipped_action, t_campaign, t_s)
 
         self.total_spent += np.sum(original_action)
         self.current_step += 1
 
         done = (
             self.terminate_when_converged
-            and np.abs(np.mean(final_state) - self.desired_opinion) <= self.opinion_end_tolerance
+            and np.abs(np.mean(x_next) - self.desired_opinion) <= self.opinion_end_tolerance
         )
         truncated = self.current_step >= self.max_steps
         terminal_success = done and not truncated
 
         reward = self.reward_function(
-            self.opinions, original_action, self.desired_opinion, self.control_beta, done=terminal_success
+            x_prev, x_next, original_action, self.desired_opinion, self.control_beta, done=terminal_success
         )
         
-        self.opinions = final_state
+        self.opinions = x_next
 
         info = {
             "current_step": self.current_step,
