@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.18.3] - 2025.10.24
+
+### Changed
+- Fixed bug in NetworkGraph related to which step was used for the calcualtion of the reward
+
 ## [5.18.2] - 2025.08.21
 
 ### Changed

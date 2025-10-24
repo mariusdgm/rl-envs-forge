@@ -528,28 +528,67 @@ class TestNetworkGraph:
             info["action_applied_raw"] > info["action_applied_clipped"]
         ), "Some values should have been clipped"
 
-    def test_normalized_reward_with_exceeding_action(self):
-        """Test that normalized reward handles exceeding actions and stays in [-1, 0]."""
+    def test_normalized_reward_with_exceeding_action():
         num_agents = 6
         max_u = 0.1
+        control_beta = 0.4
+
         env = NetworkGraph(
             num_agents=num_agents,
             max_u=max_u,
             desired_opinion=1.0,
+            control_beta=control_beta,
             normalize_reward=True,
+            use_delta_shaping=False,  # keep absolute-only for predictable bound
         )
         env.reset()
 
-        # Apply action that exceeds allowed max_u
         action = np.full(num_agents, 2 * max_u, dtype=np.float32)  # double max_u
         _, reward, _, _, _ = env.step(action)
 
-        assert (
-            -1.0 <= reward <= 0.0
-        ), "Normalized reward should be within [-1, 0] even with large action"
+        # Bounds: abs-term ∈ [-1, 0], cost-term = -(beta * sum(u))/N
+        cost_per_agent = control_beta * np.sum(action) / num_agents
+        lower_bound = -1.0 - cost_per_agent
+        upper_bound = 0.0  # best case: zero distance, zero cost (not here but still an upper bound)
 
-    def test_step_reward_computed_from_previous_state(self):
-        """Test that reward is computed based on the previous state, not next."""
+        assert lower_bound - 1e-6 <= reward <= upper_bound + 1e-6, \
+            f"Normalized reward {reward} should be in [{lower_bound}, {upper_bound}]"
+
+    def test_delta_shaping_increases_reward_on_improvement():
+        num_agents = 5
+        desired_opinion = 1.0
+        initial_opinions = np.linspace(0.1, 0.5, num_agents)
+        action = np.full(num_agents, 0.2, dtype=np.float32)  # positive push toward 1.0
+
+        # Env A: no delta shaping
+        env_abs = NetworkGraph(
+            num_agents=num_agents,
+            initial_opinions=initial_opinions,
+            desired_opinion=desired_opinion,
+            control_beta=0.4,
+            normalize_reward=False,
+            use_delta_shaping=False,
+        )
+        env_abs.reset()
+        _, r_abs, _, _, _ = env_abs.step(action)
+
+        # Env B: same setup, with delta shaping
+        env_delta = NetworkGraph(
+            num_agents=num_agents,
+            initial_opinions=initial_opinions,
+            desired_opinion=desired_opinion,
+            control_beta=0.4,
+            normalize_reward=False,
+            use_delta_shaping=True,
+            delta_lambda=0.1,   # small bonus
+        )
+        env_delta.reset()
+        _, r_delta, _, _, _ = env_delta.step(action)
+
+        # Because action improves toward d, delta shaping should make reward less negative (greater)
+        assert r_delta > r_abs, f"Delta-shaped reward ({r_delta}) should exceed absolute-only ({r_abs}) when improving."
+    
+    def test_step_reward_computed_from_next_state():
         env = NetworkGraph(
             num_agents=3,
             max_steps=5,
@@ -558,33 +597,33 @@ class TestNetworkGraph:
             t_s=0.1,
             desired_opinion=1.0,
             max_u=0.4,
-            control_beta=0.5,  # some penalty on action
+            control_beta=0.5,
             normalize_reward=False,
-            terminal_reward=10.0,  # make terminal reward big if successful
+            terminal_reward=10.0,
+            # IMPORTANT: disable delta shaping for this test
+            use_delta_shaping=False,
         )
         env.reset()
 
-        # Save original opinions for manual reward calculation
-        old_opinions = env.opinions.copy()
-
-        # Define a moderate action
+        x_prev = env.opinions.copy()
         action = np.array([0.2, 0.0, 0.2], dtype=np.float32)
 
-        # Step
-        state, reward, done, truncated, info = env.step(action)
+        # Compute x_next independently
+        clipped = np.clip(action, 0, env.max_u)
+        x_next_manual, _ = env.compute_dynamics(x_prev, clipped, env.t_campaign, env.t_s)
 
-        # MANUALLY compute expected reward:
-        expected_raw_reward = -np.abs(
-            env.desired_opinion - old_opinions
-        ).sum() - env.control_beta * np.sum(action)
-        expected_terminal = False  # Not done yet
-        if expected_terminal:
+        # Step the env
+        _, reward, done, truncated, info = env.step(action)
+
+        # Expected reward uses x_next and ORIGINAL (unclipped) action for cost
+        expected_raw_reward = -np.abs(env.desired_opinion - x_next_manual).sum() \
+                            - env.control_beta * np.sum(action)
+        # Terminal bonus only if we truly terminated (rare here)
+        if done and not truncated:
             expected_raw_reward += env.terminal_reward
 
-        # Check reward
-        assert np.isclose(
-            reward, expected_raw_reward, atol=1e-5
-        ), f"Reward mismatch: {reward} vs {expected_raw_reward}"
+        assert np.isclose(reward, expected_raw_reward, atol=1e-5), \
+            f"Reward mismatch: {reward} vs {expected_raw_reward}"
 
     def test_reset_randomize_opinions(self):
         env = NetworkGraph(
