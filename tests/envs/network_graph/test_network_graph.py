@@ -528,7 +528,7 @@ class TestNetworkGraph:
             info["action_applied_raw"] > info["action_applied_clipped"]
         ), "Some values should have been clipped"
 
-    def test_normalized_reward_with_exceeding_action():
+    def test_normalized_reward_with_exceeding_action(self):
         num_agents = 6
         max_u = 0.1
         control_beta = 0.4
@@ -554,41 +554,63 @@ class TestNetworkGraph:
         assert lower_bound - 1e-6 <= reward <= upper_bound + 1e-6, \
             f"Normalized reward {reward} should be in [{lower_bound}, {upper_bound}]"
 
-    def test_delta_shaping_increases_reward_on_improvement():
+    def test_delta_shaping_increases_reward_on_improvement(self):
         num_agents = 5
         desired_opinion = 1.0
         initial_opinions = np.linspace(0.1, 0.5, num_agents)
-        action = np.full(num_agents, 0.2, dtype=np.float32)  # positive push toward 1.0
+        max_u = 0.1
+        control_beta = 0.4
+        action = np.full(num_agents, 0.05, dtype=np.float32)  # below clip, purely positive
 
         # Env A: no delta shaping
         env_abs = NetworkGraph(
             num_agents=num_agents,
             initial_opinions=initial_opinions,
             desired_opinion=desired_opinion,
-            control_beta=0.4,
+            max_u=max_u,
+            control_beta=control_beta,
             normalize_reward=False,
             use_delta_shaping=False,
         )
         env_abs.reset()
-        _, r_abs, _, _, _ = env_abs.step(action)
+        x_prev = env_abs.opinions.copy()
+
+        # Impulse-only to guarantee improvement (Δ > 0)
+        _, r_abs, _, _, _ = env_abs.step(action, t_campaign=0.0)
 
         # Env B: same setup, with delta shaping
+        lambda_delta = 0.1
         env_delta = NetworkGraph(
             num_agents=num_agents,
             initial_opinions=initial_opinions,
             desired_opinion=desired_opinion,
-            control_beta=0.4,
+            max_u=max_u,
+            control_beta=control_beta,
             normalize_reward=False,
             use_delta_shaping=True,
-            delta_lambda=0.1,   # small bonus
+            delta_lambda=lambda_delta,
         )
         env_delta.reset()
-        _, r_delta, _, _, _ = env_delta.step(action)
+        # Step identically
+        x_prev_2 = env_delta.opinions.copy()
+        x_next_2, _ = env_delta.compute_dynamics(x_prev_2, np.clip(action, 0, max_u), t_campaign=0.0, t_s=env_delta.t_s)
 
-        # Because action improves toward d, delta shaping should make reward less negative (greater)
-        assert r_delta > r_abs, f"Delta-shaped reward ({r_delta}) should exceed absolute-only ({r_abs}) when improving."
-    
-    def test_step_reward_computed_from_next_state():
+        # Compute expected Δ on the same transition
+        delta = np.abs(desired_opinion - x_prev_2).sum() - np.abs(desired_opinion - x_next_2).sum()
+        assert delta > 0, "With impulse-only and positive action, L1 distance to target should decrease."
+
+        _, r_delta, _, _, _ = env_delta.step(action, t_campaign=0.0)
+
+        # Check that r_delta matches r_abs + λ * Δ
+        np.testing.assert_allclose(
+            r_delta, r_abs + lambda_delta * delta, rtol=1e-6, atol=1e-6,
+            err_msg="Delta-shaped reward should equal abs-only reward plus λ·Δ on the same transition."
+        )
+
+        # Also confirm the intuitive inequality (now guaranteed)
+        assert r_delta > r_abs, "Delta-shaped reward should exceed absolute-only when Δ>0."
+        
+    def test_step_reward_computed_from_next_state(self):
         env = NetworkGraph(
             num_agents=3,
             max_steps=5,
