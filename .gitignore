@@ -1,5 +1,6 @@
 ### Project specific sources to ignore
 develop.ipynb
+dev_test.ipynb
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

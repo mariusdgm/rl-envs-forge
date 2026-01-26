@@ -474,24 +474,36 @@ class NetworkGraph(gym.Env):
 
         return self.opinions, reward, done, truncated, info
 
-    def render(self, mode="matplotlib"):
+    def render(self, mode="matplotlib", **kwargs):
         """
         Render the environment.
 
         Args:
-            mode (str): The mode to render with. Supported modes: "human", "matplotlib".
+            mode (str): "human", "matplotlib", "centralities"
+            **kwargs: forwarded to the plotting functions.
+
+        Examples:
+            env.render(mode="matplotlib", layout_try=0)
+            env.render(mode="matplotlib", layout_try=3)
+            env.render(mode="matplotlib", randomize_layout=True)
+
+            env.render(mode="centralities")  # kwargs ignored unless you add support there too
         """
         if mode == "matplotlib":
-            draw_network_graph(self.connectivity_matrix, self.centralities)
+            # Forward kwargs so you can do layout retries without changing the env seed/graph
+            draw_network_graph(self.connectivity_matrix, self.centralities, **kwargs)
+
         elif mode == "centralities":
-            plot_centralities_sorted(self.centralities)
+            plot_centralities_sorted(self.centralities)  # (you can also forward **kwargs if you want)
+
         elif mode == "human":
             print(
                 f"Step: {self.current_step}, Opinions: {self.opinions}, Total Spent: {self.total_spent}"
             )
+
         else:
             raise NotImplementedError(f"Render mode '{mode}' is not supported.")
-
+   
     def close(self):
         """
         Clean up the environment.
