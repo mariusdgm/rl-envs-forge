@@ -543,6 +543,7 @@ class NetworkGraph(gym.Env):
             print(
                 f"Step: {self.current_step}, Opinions: {self.opinions}, Total Spent: {self.total_spent}"
             )
+            fig = None
 
         else:
             raise NotImplementedError(f"Render mode '{mode}' is not supported.")
