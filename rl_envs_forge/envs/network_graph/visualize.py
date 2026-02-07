@@ -393,6 +393,76 @@ def draw_network_graph(
     plt.show()
     return fig
 
+    # Optional overlap resolver then refit
+    if spread and np.max(sizes) > 0:
+        max_s = float(np.max(sizes))
+        layout_r = 0.03 + 0.10 * (np.sqrt(sizes) / (np.sqrt(max_s) + 1e-12))
+        node_radii = {node: float(layout_r[i]) for i, node in enumerate(nodes)}
+        pos = _spread_positions(pos, node_radii, max_iter=350, pad=spread_pad, step=0.40)
+
+        pos = _fit_positions_to_axes_with_node_radii(
+            pos,
+            node_size_map=size_map,
+            ax=ax,
+            pad_frac=0.03,
+            extra_pts=2.0,
+            spread_factor=spread_factor,
+            safety_shrink=0.985,
+        )
+
+    # Lock bounds BEFORE drawing so everything is consistent with fitting
+    ax.set_xlim(-1.0, 1.0)
+    ax.set_ylim(-1.0, 1.0)
+
+    # --- Draw nodes (zeros => no circle) ---
+    nonzero_nodes = [node for node in nodes if size_map[node] > 0.0]
+    nonzero_sizes = [size_map[node] for node in nonzero_nodes]
+
+    if nonzero_nodes:
+        nx.draw_networkx_nodes(
+            G,
+            pos,
+            nodelist=nonzero_nodes,
+            node_size=nonzero_sizes,
+            node_color=node_color,
+            alpha=node_alpha,
+            edgecolors="black",
+            linewidths=1.0,
+            ax=ax,
+        )
+
+    # Labels for all nodes
+    nx.draw_networkx_labels(G, pos, font_size=font_size, font_weight="bold", ax=ax)
+
+    # --- Draw edges clipped to node boundaries ---
+    rad_pt = {node: _radius_points_from_area(size_map[node]) for node in nodes}
+    edge_set = set(G.edges())
+
+    for (u, v) in G.edges():
+        if u == v:
+            continue
+
+        rad = 0.0
+        if curve_bidirectional and (v, u) in edge_set and u < v:
+            rad = curve_rad
+        elif curve_bidirectional and (v, u) in edge_set and u > v:
+            rad = -curve_rad
+
+        arrow = FancyArrowPatch(
+            posA=pos[u],
+            posB=pos[v],
+            arrowstyle="-|>",
+            mutation_scale=arrowsize,
+            color=edge_color,
+            linewidth=edge_lw,
+            alpha=edge_alpha,
+            shrinkA=rad_pt.get(u, 0.0) + edge_pad_pt,
+            shrinkB=rad_pt.get(v, 0.0) + edge_pad_pt,
+            connectionstyle=f"arc3,rad={rad}",
+        )
+        ax.add_patch(arrow)
+
+    plt.show()
 
 def plot_centralities_sorted(eigv):
     indices = np.arange(len(eigv))
