@@ -19,8 +19,8 @@ class NetworkGraph(gym.Env):
         connection_prob_range=(0.1, 0.3),
         max_u=0.1,
         desired_opinion=1.0,
-        t_campaign=1.0,              
-        t_s=0.1,                     
+        t_campaign=1.0,
+        t_s=0.1,
         initial_opinion_range=(0.0, 1.0),
         initial_opinions=None,
         control_resistance=None,
@@ -30,7 +30,7 @@ class NetworkGraph(gym.Env):
         use_weighted_edges=False,
         weight_range=(0.1, 1.0),
         bidirectional_prob: float = 0.5,  # 1.0 = fully undirected, 0.0 = fully directed
-        dynamics_model="laplacian", # "laplacian" or "coca"
+        dynamics_model="laplacian",  # "laplacian" or "coca"
         budget=None,
         max_steps=100,
         opinion_end_tolerance=0.01,
@@ -152,12 +152,12 @@ class NetworkGraph(gym.Env):
 
         self.seed = seed
         self._rng = np.random.default_rng(seed)
-        
+
         if connectivity_matrix is not None:
             self.num_agents = connectivity_matrix.shape[0]
         else:
             self.num_agents = num_agents
-            
+
         self.connection_prob_range = connection_prob_range
         self.use_weighted_edges = use_weighted_edges
         self.weight_range = weight_range
@@ -165,7 +165,9 @@ class NetworkGraph(gym.Env):
         if np.isscalar(max_u):
             self.max_u = np.full(self.num_agents, max_u, dtype=np.float32)
         else:
-            assert len(max_u) == self.num_agents, "max_u vector must match number of agents"
+            assert (
+                len(max_u) == self.num_agents
+            ), "max_u vector must match number of agents"
             self.max_u = np.array(max_u, dtype=np.float32)
 
         self.desired_opinion = desired_opinion
@@ -173,10 +175,14 @@ class NetworkGraph(gym.Env):
             self.desired_opinion = desired_opinion
             self.desired_opinion_vector = np.full(self.num_agents, desired_opinion)
         else:
-            assert len(desired_opinion) == self.num_agents, "desired_opinion vector must match number of agents"
-            self.desired_opinion = np.mean(desired_opinion)  # or any meaningful aggregate
+            assert (
+                len(desired_opinion) == self.num_agents
+            ), "desired_opinion vector must match number of agents"
+            self.desired_opinion = np.mean(
+                desired_opinion
+            )  # or any meaningful aggregate
             self.desired_opinion_vector = np.array(desired_opinion)
-    
+
         # Store time parameters and validate
         self.t_campaign = t_campaign
         self.t_s = t_s
@@ -186,8 +192,10 @@ class NetworkGraph(gym.Env):
         if self.t_s <= 0:
             raise ValueError(f"t_s must be positive, got {self.t_s}")
         if abs(self.t_campaign / self.t_s - round(self.t_campaign / self.t_s)) > 1e-8:
-            raise ValueError(f"t_s = {self.t_s} must evenly divide t_campaign = {self.t_campaign}")
-        
+            raise ValueError(
+                f"t_s = {self.t_s} must evenly divide t_campaign = {self.t_campaign}"
+            )
+
         self.initial_opinion_range = initial_opinion_range
         self.initial_opinions = initial_opinions
         self.control_resistance = control_resistance
@@ -203,7 +211,7 @@ class NetworkGraph(gym.Env):
         self.terminate_when_converged = terminate_when_converged
         self.use_delta_shaping = use_delta_shaping
         self.delta_lambda = float(delta_lambda)
-        
+
         if connectivity_matrix is not None:
             self.connectivity_matrix = connectivity_matrix
             if self.use_weighted_edges:
@@ -223,15 +231,21 @@ class NetworkGraph(gym.Env):
                 mean = graph_connection_params.get("mean", 0.2)
                 std = graph_connection_params.get("std", 0.05)
                 probs = np.clip(
-                    self._rng.normal(mean, std, (self.num_agents, self.num_agents)), 0, 1
+                    self._rng.normal(mean, std, (self.num_agents, self.num_agents)),
+                    0,
+                    1,
                 )
             elif graph_connection_distribution == "exponential":
                 scale = graph_connection_params.get("scale", 0.2)
                 probs = np.clip(
-                    self._rng.exponential(scale, (self.num_agents, self.num_agents)), 0, 1
+                    self._rng.exponential(scale, (self.num_agents, self.num_agents)),
+                    0,
+                    1,
                 )
             else:
-                raise ValueError(f"Unknown graph_connection_distribution: {graph_connection_distribution}")
+                raise ValueError(
+                    f"Unknown graph_connection_distribution: {graph_connection_distribution}"
+                )
 
             # Build directed graph with probabilistic bidirectionality
             if self.bidirectional_prob >= 1.0:
@@ -264,21 +278,25 @@ class NetworkGraph(gym.Env):
                 G = nx.Graph(self.connectivity_matrix)
 
             for node in range(self.num_agents):
-                if (G.in_degree(node) + G.out_degree(node)) if isinstance(G, nx.DiGraph) else G.degree(node) == 0:
+                if (
+                    (G.in_degree(node) + G.out_degree(node))
+                    if isinstance(G, nx.DiGraph)
+                    else G.degree(node) == 0
+                ):
                     candidates = list(range(self.num_agents))
                     candidates.remove(node)
                     neighbor = self._rng.choice(candidates)
                     G.add_edge(node, neighbor)
 
             self.connectivity_matrix = nx.to_numpy_array(G)
-        
+
         if not nx.is_connected(nx.from_numpy_array(self.connectivity_matrix)):
             print("Warning: The generated graph is not fully connected.")
-            
+
         # Laplacian and centrality
         self.L = compute_laplacian(self.connectivity_matrix)
         self.centralities = compute_eigenvector_centrality(self.L)
-        
+
         # Precompute neighbor indices for COCA dynamics
         self.neighbor_lists = []
         for i in range(self.num_agents):
@@ -288,7 +306,9 @@ class NetworkGraph(gym.Env):
         if initial_opinions is not None:
             self.opinions = np.array(initial_opinions)
         else:
-            self.opinions = self._rng.uniform(*self.initial_opinion_range, size=self.num_agents)
+            self.opinions = self._rng.uniform(
+                *self.initial_opinion_range, size=self.num_agents
+            )
 
         if control_resistance is not None:
             self.control_resistance = np.array(control_resistance)
@@ -321,7 +341,7 @@ class NetworkGraph(gym.Env):
         Setter for opinions, allowing assignment via self.state.
         """
         self.opinions = np.array(value)
-        
+
     def reset(self, randomize_opinions=False):
         """
         Reset the environment to its initial state.
@@ -330,7 +350,9 @@ class NetworkGraph(gym.Env):
             randomize_opinions (bool): If True, ignore self.initial_opinions and use random initialization instead.
         """
         if randomize_opinions or self.initial_opinions is None:
-            self.opinions = self._rng.uniform(*self.initial_opinion_range, size=self.num_agents)
+            self.opinions = self._rng.uniform(
+                *self.initial_opinion_range, size=self.num_agents
+            )
             info = {"random_opinions": True}
         else:
             self.opinions = np.array(self.initial_opinions)
@@ -340,7 +362,9 @@ class NetworkGraph(gym.Env):
         self.total_spent = 0.0
         return self.opinions, info
 
-    def compute_dynamics(self, current_state, control_action, t_campaign=None, t_s=None):
+    def compute_dynamics(
+        self, current_state, control_action, t_campaign=None, t_s=None
+    ):
         """
         Compute the new state of the network given the current state, control action, and simulate over t_campaign.
 
@@ -358,17 +382,22 @@ class NetworkGraph(gym.Env):
             t_campaign = self.t_campaign
         if t_s is None:
             t_s = self.t_s
-        
+
         if t_campaign < 0 or t_s <= 0:
             raise ValueError("Both t_campaign and t_s must be positive.")
 
         if abs(t_campaign / t_s - round(t_campaign / t_s)) > 1e-8:
-            raise ValueError(f"t_s = {t_s} must evenly divide t_campaign = {t_campaign}")
+            raise ValueError(
+                f"t_s = {t_s} must evenly divide t_campaign = {t_campaign}"
+            )
 
         # --- Apply impulse control (instantaneous) ---
         effective_control = control_action * (1 - self.control_resistance)
-        controlled_state = effective_control * self.desired_opinion_vector + (1 - effective_control) * current_state
-        
+        controlled_state = (
+            effective_control * self.desired_opinion_vector
+            + (1 - effective_control) * current_state
+        )
+
         # Store trajectory: initial controlled state
         intermediate_states = [controlled_state.copy()]
 
@@ -414,7 +443,9 @@ class NetworkGraph(gym.Env):
 
         raw_reward = shaped - beta * np.sum(u_original)
 
-        reward = raw_reward / self.num_agents if self.normalize_reward else float(raw_reward)
+        reward = (
+            raw_reward / self.num_agents if self.normalize_reward else float(raw_reward)
+        )
         if done:
             reward += self.terminal_reward
         return float(reward)
@@ -442,22 +473,30 @@ class NetworkGraph(gym.Env):
         original_action = np.array(action, copy=True)
         clipped_action = np.clip(original_action, 0, self.max_u)
 
-        x_next, intermediate_states = self.compute_dynamics(x_prev, clipped_action, t_campaign, t_s)
+        x_next, intermediate_states = self.compute_dynamics(
+            x_prev, clipped_action, t_campaign, t_s
+        )
 
         self.total_spent += np.sum(original_action)
         self.current_step += 1
 
         done = (
             self.terminate_when_converged
-            and np.abs(np.mean(x_next) - self.desired_opinion) <= self.opinion_end_tolerance
+            and np.abs(np.mean(x_next) - self.desired_opinion)
+            <= self.opinion_end_tolerance
         )
         truncated = self.current_step >= self.max_steps
         terminal_success = done and not truncated
 
         reward = self.reward_function(
-            x_prev, x_next, original_action, self.desired_opinion, self.control_beta, done=terminal_success
+            x_prev,
+            x_next,
+            original_action,
+            self.desired_opinion,
+            self.control_beta,
+            done=terminal_success,
         )
-        
+
         self.opinions = x_next
 
         info = {
@@ -466,7 +505,7 @@ class NetworkGraph(gym.Env):
             "action_applied_raw": original_action,
             "action_applied_clipped": clipped_action,
             "terminal_reward_applied": terminal_success,
-            "intermediate_states": intermediate_states  # Shape: (num_substeps+1, num_agents)
+            "intermediate_states": intermediate_states,  # Shape: (num_substeps+1, num_agents)
         }
 
         if self.budget is not None:
@@ -491,10 +530,14 @@ class NetworkGraph(gym.Env):
         """
         if mode == "matplotlib":
             # Forward kwargs so you can do layout retries without changing the env seed/graph
-            draw_network_graph(self.connectivity_matrix, self.centralities, **kwargs)
+            fig = draw_network_graph(
+                self.connectivity_matrix, self.centralities, **kwargs
+            )
 
         elif mode == "centralities":
-            plot_centralities_sorted(self.centralities)  # (you can also forward **kwargs if you want)
+            fig = plot_centralities_sorted(
+                self.centralities
+            )  # (you can also forward **kwargs if you want)
 
         elif mode == "human":
             print(
@@ -503,7 +546,9 @@ class NetworkGraph(gym.Env):
 
         else:
             raise NotImplementedError(f"Render mode '{mode}' is not supported.")
-   
+
+        return fig
+
     def close(self):
         """
         Clean up the environment.
