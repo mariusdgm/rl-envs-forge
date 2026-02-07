@@ -209,7 +209,7 @@ def draw_network_graph(
     edge_pad_pt=2.0,
     curve_bidirectional=True,
     curve_rad=0.18,
-    title="Network Graph",
+    # title="Network Graph",
 ):
     """
     Draw a directed network graph with:
@@ -239,10 +239,10 @@ def draw_network_graph(
     size_map = {node: float(sizes[i]) for i, node in enumerate(nodes)}
 
     # --- Figure/Axes FIRST (so fitting uses final axes geometry) ---
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=(6, 5), dpi=2000)
     ax.set_axis_off()
-    ax.set_title(title)
-    fig.subplots_adjust(left=0.02, right=0.98, bottom=0.02, top=0.92)
+    # ax.set_title(title)
+    fig.subplots_adjust(left=0, right=1, bottom=0, top=1)
 
     # --- Layout: stronger repulsion for fewer crowded arrows ---
     n = max(len(G), 2)
@@ -386,7 +386,12 @@ def draw_network_graph(
         )
         ax.add_patch(arrow)
 
+    # fig.tight_layout(pad=0)
+    # ax.set_axis_off()
+    # ax.set_position([0, 0, 1, 1])
+
     plt.show()
+    return fig
 
 
 def plot_centralities_sorted(eigv):
@@ -395,10 +400,12 @@ def plot_centralities_sorted(eigv):
     sorted_centralities = eigv[sorted_indices]
     sorted_labels = [str(i) for i in indices[sorted_indices]]
 
-    plt.figure(figsize=(10, 6))
+    fig = plt.figure(figsize=(10, 6))
     sns.barplot(x=sorted_labels, y=sorted_centralities, palette="Blues_d")
     plt.xlabel("Node Index")
     plt.ylabel("Centrality")
     plt.title("Centralities Sorted in Decreasing Order")
     plt.xticks(rotation=45)
     plt.show()
+    
+    return fig
