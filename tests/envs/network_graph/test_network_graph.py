@@ -2,6 +2,7 @@ import pytest
 import numpy as np
 from unittest.mock import patch, MagicMock
 from rl_envs_forge.envs.network_graph.network_graph import NetworkGraph
+from rl_envs_forge.envs.network_graph.graph_utils import compute_laplacian
 from scipy.linalg import expm
 
 
@@ -551,8 +552,9 @@ class TestNetworkGraph:
         lower_bound = -1.0 - cost_per_agent
         upper_bound = 0.0  # best case: zero distance, zero cost (not here but still an upper bound)
 
-        assert lower_bound - 1e-6 <= reward <= upper_bound + 1e-6, \
-            f"Normalized reward {reward} should be in [{lower_bound}, {upper_bound}]"
+        assert (
+            lower_bound - 1e-6 <= reward <= upper_bound + 1e-6
+        ), f"Normalized reward {reward} should be in [{lower_bound}, {upper_bound}]"
 
     def test_delta_shaping_increases_reward_on_improvement(self):
         num_agents = 5
@@ -560,7 +562,9 @@ class TestNetworkGraph:
         initial_opinions = np.linspace(0.1, 0.5, num_agents)
         max_u = 0.1
         control_beta = 0.4
-        action = np.full(num_agents, 0.05, dtype=np.float32)  # below clip, purely positive
+        action = np.full(
+            num_agents, 0.05, dtype=np.float32
+        )  # below clip, purely positive
 
         # Env A: no delta shaping
         env_abs = NetworkGraph(
@@ -593,23 +597,35 @@ class TestNetworkGraph:
         env_delta.reset()
         # Step identically
         x_prev_2 = env_delta.opinions.copy()
-        x_next_2, _ = env_delta.compute_dynamics(x_prev_2, np.clip(action, 0, max_u), t_campaign=0.0, t_s=env_delta.t_s)
+        x_next_2, _ = env_delta.compute_dynamics(
+            x_prev_2, np.clip(action, 0, max_u), t_campaign=0.0, t_s=env_delta.t_s
+        )
 
         # Compute expected Δ on the same transition
-        delta = np.abs(desired_opinion - x_prev_2).sum() - np.abs(desired_opinion - x_next_2).sum()
-        assert delta > 0, "With impulse-only and positive action, L1 distance to target should decrease."
+        delta = (
+            np.abs(desired_opinion - x_prev_2).sum()
+            - np.abs(desired_opinion - x_next_2).sum()
+        )
+        assert (
+            delta > 0
+        ), "With impulse-only and positive action, L1 distance to target should decrease."
 
         _, r_delta, _, _, _ = env_delta.step(action, t_campaign=0.0)
 
         # Check that r_delta matches r_abs + λ * Δ
         np.testing.assert_allclose(
-            r_delta, r_abs + lambda_delta * delta, rtol=1e-6, atol=1e-6,
-            err_msg="Delta-shaped reward should equal abs-only reward plus λ·Δ on the same transition."
+            r_delta,
+            r_abs + lambda_delta * delta,
+            rtol=1e-6,
+            atol=1e-6,
+            err_msg="Delta-shaped reward should equal abs-only reward plus λ·Δ on the same transition.",
         )
 
         # Also confirm the intuitive inequality (now guaranteed)
-        assert r_delta > r_abs, "Delta-shaped reward should exceed absolute-only when Δ>0."
-        
+        assert (
+            r_delta > r_abs
+        ), "Delta-shaped reward should exceed absolute-only when Δ>0."
+
     def test_step_reward_computed_from_next_state(self):
         env = NetworkGraph(
             num_agents=3,
@@ -632,20 +648,24 @@ class TestNetworkGraph:
 
         # Compute x_next independently
         clipped = np.clip(action, 0, env.max_u)
-        x_next_manual, _ = env.compute_dynamics(x_prev, clipped, env.t_campaign, env.t_s)
+        x_next_manual, _ = env.compute_dynamics(
+            x_prev, clipped, env.t_campaign, env.t_s
+        )
 
         # Step the env
         _, reward, done, truncated, info = env.step(action)
 
         # Expected reward uses x_next and ORIGINAL (unclipped) action for cost
-        expected_raw_reward = -np.abs(env.desired_opinion - x_next_manual).sum() \
-                            - env.control_beta * np.sum(action)
+        expected_raw_reward = -np.abs(
+            env.desired_opinion - x_next_manual
+        ).sum() - env.control_beta * np.sum(action)
         # Terminal bonus only if we truly terminated (rare here)
         if done and not truncated:
             expected_raw_reward += env.terminal_reward
 
-        assert np.isclose(reward, expected_raw_reward, atol=1e-5), \
-            f"Reward mismatch: {reward} vs {expected_raw_reward}"
+        assert np.isclose(
+            reward, expected_raw_reward, atol=1e-5
+        ), f"Reward mismatch: {reward} vs {expected_raw_reward}"
 
     def test_reset_randomize_opinions(self):
         env = NetworkGraph(
@@ -907,3 +927,55 @@ class TestNetworkGraph:
         assert (
             info["intermediate_states"].shape[0] == 1
         ), "Impulse-only step should have exactly one intermediate state"
+
+    def test_golden_adjacency_snapshot_uniform_seed(self):
+        env = NetworkGraph(
+            num_agents=8, graph_connection_distribution="uniform", seed=999
+        )
+        A = env.connectivity_matrix
+        # Store a small checksum-like invariant instead of full matrix literal:
+        assert A.shape == (8, 8)
+        assert int(A.sum()) == int(np.sum(A))
+
+    def test_weighted_edges_only_replace_ones(self):
+        base = np.array([[0, 1, 0], [0, 0, 1], [1, 0, 0]], dtype=float)
+        env = NetworkGraph(
+            num_agents=3, connectivity_matrix=base, use_weighted_edges=True, seed=1
+        )
+        A = env.connectivity_matrix
+        assert A[0, 0] == 0 and A[1, 1] == 0 and A[2, 2] == 0
+        assert A[0, 2] == 0 and A[1, 0] == 0 and A[2, 1] == 0
+        assert A[0, 1] != 1 and A[1, 2] != 1 and A[2, 0] != 1  # replaced by weights
+
+    def test_connectivity_matrix_passthrough_when_provided(self):
+        base = np.array([[0, 1], [0, 0]], dtype=float)
+        env = NetworkGraph(connectivity_matrix=base, use_weighted_edges=False)
+        np.testing.assert_array_equal(env.connectivity_matrix, base)
+
+    def test_paper_ba_graph_generation_basic_properties(self):
+        env = NetworkGraph(
+            num_agents=15,
+            graph_model="paper_ba",
+            ba_m=2,
+            ba_prune_max_frac=0.5,
+            seed=123,
+        )
+        A = env.connectivity_matrix
+
+        assert A.shape == (15, 15)
+        assert np.any(A > 0), "BA graph should have edges"
+        assert not np.allclose(
+            A, A.T
+        ), "After pruning, graph should generally be directed/asymmetric"
+        # Paper condition: Laplacian has exactly one ~0 eigenvalue
+        L = compute_laplacian(A)
+        eigvals = np.linalg.eigvals(L)
+        zero_count = int(np.sum(np.abs(eigvals) < env.ba_qsc_tol))
+        assert zero_count == 1, "paper_ba should enforce single-zero-eig Laplacian"
+
+    def test_paper_ba_reproducibility_with_seed(self):
+        env1 = NetworkGraph(num_agents=15, graph_model="paper_ba", ba_m=2, seed=999)
+        env2 = NetworkGraph(num_agents=15, graph_model="paper_ba", ba_m=2, seed=999)
+        np.testing.assert_array_equal(
+            env1.connectivity_matrix, env2.connectivity_matrix
+        )

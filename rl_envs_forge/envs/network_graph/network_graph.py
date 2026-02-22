@@ -31,6 +31,11 @@ class NetworkGraph(gym.Env):
         weight_range=(0.1, 1.0),
         bidirectional_prob: float = 0.5,  # 1.0 = fully undirected, 0.0 = fully directed
         dynamics_model="laplacian",  # "laplacian" or "coca"
+        graph_model: str = "random",   # aliases: "random", "erdos_renyi", "barabasi_albert"
+        ba_m: int = 2,
+        ba_prune_max_frac: float = 0.5,
+        ba_qsc_tol: float = 1e-8,
+        ba_max_tries: int = 200,
         budget=None,
         max_steps=100,
         opinion_end_tolerance=0.01,
@@ -201,6 +206,12 @@ class NetworkGraph(gym.Env):
         self.control_resistance = control_resistance
         self.bidirectional_prob = bidirectional_prob
         self.dynamics_model = dynamics_model
+        
+        self.graph_model = graph_model
+        self.ba_m = int(ba_m)
+        self.ba_prune_max_frac = float(ba_prune_max_frac)
+        self.ba_qsc_tol = float(ba_qsc_tol)
+        self.ba_max_tries = int(ba_max_tries)
 
         self.budget = budget
         self.max_steps = max_steps
@@ -212,84 +223,12 @@ class NetworkGraph(gym.Env):
         self.use_delta_shaping = use_delta_shaping
         self.delta_lambda = float(delta_lambda)
 
-        if connectivity_matrix is not None:
-            self.connectivity_matrix = connectivity_matrix
-            if self.use_weighted_edges:
-                for i in range(self.num_agents):
-                    for j in range(self.num_agents):
-                        if self.connectivity_matrix[i, j] == 1:
-                            weight = self._rng.uniform(*self.weight_range)
-                            self.connectivity_matrix[i, j] = weight
-        else:
-            graph_connection_params = graph_connection_params or {}
-
-            # Generate probability matrix if needed
-            if graph_connection_distribution == "uniform":
-                prob = self._rng.uniform(*connection_prob_range)
-                probs = np.full((self.num_agents, self.num_agents), prob)
-            elif graph_connection_distribution == "normal":
-                mean = graph_connection_params.get("mean", 0.2)
-                std = graph_connection_params.get("std", 0.05)
-                probs = np.clip(
-                    self._rng.normal(mean, std, (self.num_agents, self.num_agents)),
-                    0,
-                    1,
-                )
-            elif graph_connection_distribution == "exponential":
-                scale = graph_connection_params.get("scale", 0.2)
-                probs = np.clip(
-                    self._rng.exponential(scale, (self.num_agents, self.num_agents)),
-                    0,
-                    1,
-                )
-            else:
-                raise ValueError(
-                    f"Unknown graph_connection_distribution: {graph_connection_distribution}"
-                )
-
-            # Build directed graph with probabilistic bidirectionality
-            if self.bidirectional_prob >= 1.0:
-                # Fully undirected
-                self.graph = nx.Graph()
-                self.graph.add_nodes_from(range(self.num_agents))
-                for i in range(self.num_agents):
-                    for j in range(i + 1, self.num_agents):
-                        if self._rng.random() < probs[i, j]:
-                            self.graph.add_edge(i, j)
-            else:
-                # Directed graph with probabilistic bidirectionality
-                self.graph = nx.DiGraph()
-                self.graph.add_nodes_from(range(self.num_agents))
-                for i in range(self.num_agents):
-                    for j in range(self.num_agents):
-                        if i == j:
-                            continue
-                        if self._rng.random() < probs[i, j]:
-                            self.graph.add_edge(i, j)
-                            if self._rng.random() < self.bidirectional_prob:
-                                self.graph.add_edge(j, i)
-
-            self.connectivity_matrix = nx.to_numpy_array(self.graph)
-
-            # Ensure at least weak connectivity
-            if isinstance(self.graph, nx.DiGraph):
-                G = nx.DiGraph(self.connectivity_matrix)
-            else:
-                G = nx.Graph(self.connectivity_matrix)
-
-            for node in range(self.num_agents):
-                if (
-                    (G.in_degree(node) + G.out_degree(node))
-                    if isinstance(G, nx.DiGraph)
-                    else G.degree(node) == 0
-                ):
-                    candidates = list(range(self.num_agents))
-                    candidates.remove(node)
-                    neighbor = self._rng.choice(candidates)
-                    G.add_edge(node, neighbor)
-
-            self.connectivity_matrix = nx.to_numpy_array(G)
-
+        self.connectivity_matrix = self._init_connectivity_matrix(
+            connectivity_matrix=connectivity_matrix,
+            graph_connection_distribution=graph_connection_distribution,
+            graph_connection_params=graph_connection_params,
+        )
+        
         if not nx.is_connected(nx.from_numpy_array(self.connectivity_matrix)):
             print("Warning: The generated graph is not fully connected.")
 
@@ -328,6 +267,194 @@ class NetworkGraph(gym.Env):
         self.current_step = 0
         self.total_spent = 0.0
 
+    def _apply_weights_to_binary_connectivity(self, connectivity_matrix: np.ndarray) -> np.ndarray:
+        """If use_weighted_edges=True, replace 1-entries with sampled weights. Otherwise return unchanged."""
+        A = np.array(connectivity_matrix, copy=True)
+        if not self.use_weighted_edges:
+            return A
+        # Preserve existing semantics: only replace entries equal to 1
+        for i in range(A.shape[0]):
+            for j in range(A.shape[1]):
+                if A[i, j] == 1:
+                    A[i, j] = self._rng.uniform(*self.weight_range)
+        return A
+
+
+    def _generate_probability_matrix(self, graph_connection_distribution: str, graph_connection_params: dict | None) -> np.ndarray:
+        """Generate the probs[i,j] matrix (exactly as current logic)."""
+        graph_connection_params = graph_connection_params or {}
+
+        if graph_connection_distribution == "uniform":
+            prob = self._rng.uniform(*self.connection_prob_range)
+            probs = np.full((self.num_agents, self.num_agents), prob)
+
+        elif graph_connection_distribution == "normal":
+            mean = graph_connection_params.get("mean", 0.2)
+            std = graph_connection_params.get("std", 0.05)
+            probs = np.clip(self._rng.normal(mean, std, (self.num_agents, self.num_agents)), 0, 1)
+
+        elif graph_connection_distribution == "exponential":
+            scale = graph_connection_params.get("scale", 0.2)
+            probs = np.clip(self._rng.exponential(scale, (self.num_agents, self.num_agents)), 0, 1)
+
+        else:
+            raise ValueError(f"Unknown graph_connection_distribution: {graph_connection_distribution}")
+
+        return probs
+
+
+    def _build_graph_from_probs(self, probs: np.ndarray) -> nx.Graph:
+        """Build nx.Graph or nx.DiGraph from probs and bidirectional_prob (exact current behavior)."""
+        if self.bidirectional_prob >= 1.0:
+            G = nx.Graph()
+            G.add_nodes_from(range(self.num_agents))
+            for i in range(self.num_agents):
+                for j in range(i + 1, self.num_agents):
+                    if self._rng.random() < probs[i, j]:
+                        G.add_edge(i, j)
+            return G
+
+        G = nx.DiGraph()
+        G.add_nodes_from(range(self.num_agents))
+        for i in range(self.num_agents):
+            for j in range(self.num_agents):
+                if i == j:
+                    continue
+                if self._rng.random() < probs[i, j]:
+                    G.add_edge(i, j)
+                    if self._rng.random() < self.bidirectional_prob:
+                        G.add_edge(j, i)
+        return G
+
+
+    def _ensure_no_isolated_nodes(self, G: nx.Graph) -> nx.Graph:
+        """Ensure each node has at least one incident edge (exactly as current behavior)."""
+        # Recreate the exact current semantics:
+        # - for DiGraph: check in_degree + out_degree == 0
+        # - for Graph: check degree == 0
+        for node in range(self.num_agents):
+            if isinstance(G, nx.DiGraph):
+                deg = G.in_degree(node) + G.out_degree(node)
+                isolated = (deg == 0)
+            else:
+                isolated = (G.degree(node) == 0)
+
+            if isolated:
+                candidates = list(range(self.num_agents))
+                candidates.remove(node)
+                neighbor = self._rng.choice(candidates)
+                G.add_edge(node, neighbor)
+        return G
+
+
+    def _generate_connectivity_matrix_random(self, graph_connection_distribution: str, graph_connection_params: dict | None) -> np.ndarray:
+        """The full current random-graph path, unchanged."""
+        probs = self._generate_probability_matrix(graph_connection_distribution, graph_connection_params)
+        G = self._build_graph_from_probs(probs)
+        A = nx.to_numpy_array(G)
+
+        # Ensure at least weak connectivity (actually: no isolated nodes)
+        if isinstance(G, nx.DiGraph):
+            G2 = nx.DiGraph(A)
+        else:
+            G2 = nx.Graph(A)
+
+        G2 = self._ensure_no_isolated_nodes(G2)
+        A2 = nx.to_numpy_array(G2)
+        return A2
+
+
+    def _init_connectivity_matrix(
+        self,
+        connectivity_matrix: np.ndarray | None,
+        graph_connection_distribution: str,
+        graph_connection_params: dict | None,
+    ) -> np.ndarray:
+        """Top-level graph init: either user-provided matrix or generated."""
+        if connectivity_matrix is not None:
+            return self._apply_weights_to_binary_connectivity(connectivity_matrix)
+
+        if self.graph_model == "random":
+            return self._generate_connectivity_matrix_random(graph_connection_distribution, graph_connection_params)
+
+        if self.graph_model == "paper_ba":
+            A = self._generate_connectivity_matrix_paper_ba()
+            # Optional: keep your existing 'no isolated nodes' fix (but the paper doesn't do this).
+            # I'd leave it OFF by default to match paper strictly. If you want it, do:
+            # A = nx.to_numpy_array(self._ensure_no_isolated_nodes(nx.DiGraph(A)))
+            return A
+
+        raise ValueError(f"Unknown graph_model: {self.graph_model}")
+
+    def _laplacian_has_single_zero_eig(self, A: np.ndarray, tol: float) -> bool:
+        """Paper-style check: Laplacian has exactly one eigenvalue at 0 (within tol)."""
+        L = compute_laplacian(A)
+        eigvals = np.linalg.eigvals(L)  # may be complex
+        zero_count = int(np.sum(np.abs(eigvals) < tol))
+        return zero_count == 1
+
+
+    def _generate_connectivity_matrix_paper_ba(self) -> np.ndarray:
+        """
+        Paper experimental generator:
+        1) BA undirected graph (N, m=ba_m)
+        2) make bidirected (two directed edges for each undirected edge)
+        3) prune randomly up to half of directed edges
+        4) accept only if Laplacian has exactly one eigenvalue at 0 (quasi-strongly connected)
+        """
+        if self.num_agents < 2:
+            return np.zeros((self.num_agents, self.num_agents), dtype=float)
+
+        if self.ba_m < 1:
+            raise ValueError(f"ba_m must be >= 1, got {self.ba_m}")
+        if self.ba_m >= self.num_agents:
+            raise ValueError(f"ba_m must be < num_agents, got ba_m={self.ba_m}, num_agents={self.num_agents}")
+
+        if not (0.0 <= self.ba_prune_max_frac <= 1.0):
+            raise ValueError(f"ba_prune_max_frac must be in [0,1], got {self.ba_prune_max_frac}")
+
+        last_A = None
+        for _ in range(self.ba_max_tries):
+            # 1) Undirected BA graph.
+            # Use numpy RNG to derive a deterministic seed for networkx without consuming randomness elsewhere.
+            nx_seed = int(self._rng.integers(0, 2**32 - 1))
+            G_und = nx.barabasi_albert_graph(self.num_agents, self.ba_m, seed=nx_seed)
+
+            # 2) Make it bidirected.
+            G_dir = nx.DiGraph()
+            G_dir.add_nodes_from(range(self.num_agents))
+            for u, v in G_und.edges():
+                G_dir.add_edge(u, v)
+                G_dir.add_edge(v, u)
+
+            # 3) Prune randomly up to half of directed edges (paper: "up to half").
+            edges = list(G_dir.edges())
+            m_dir = len(edges)
+            # remove up to prune_max_frac of edges; paper uses 0.5
+            max_remove = int(np.floor(self.ba_prune_max_frac * m_dir))
+            if max_remove > 0:
+                n_remove = int(self._rng.integers(0, max_remove + 1))  # inclusive
+                if n_remove > 0:
+                    idx = self._rng.choice(m_dir, size=n_remove, replace=False)
+                    for k in idx:
+                        G_dir.remove_edge(*edges[int(k)])
+
+            A = nx.to_numpy_array(G_dir, dtype=float)
+
+            # 4) Filter by quasi-strong connectivity check (single zero eigenvalue of Laplacian)
+            last_A = A
+            if self._laplacian_has_single_zero_eig(A, tol=self.ba_qsc_tol):
+                return A
+
+        # If we failed to satisfy the condition within ba_max_tries, return last sample with a warning.
+        # (Better to not hard-fail and "break nothing".)
+        if last_A is None:
+            last_A = np.zeros((self.num_agents, self.num_agents), dtype=float)
+        print(
+            f"Warning: paper_ba generator failed to find single-zero-eig Laplacian in {self.ba_max_tries} tries; using last sample."
+        )
+        return last_A
+    
     @property
     def state(self):
         """
