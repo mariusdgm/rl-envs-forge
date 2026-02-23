@@ -952,10 +952,10 @@ class TestNetworkGraph:
         env = NetworkGraph(connectivity_matrix=base, use_weighted_edges=False)
         np.testing.assert_array_equal(env.connectivity_matrix, base)
 
-    def test_paper_ba_graph_generation_basic_properties(self):
+    def test_paper_barabasi_albert_graph_generation_basic_properties(self):
         env = NetworkGraph(
             num_agents=15,
-            graph_model="paper_ba",
+            graph_model="barabasi_albert",
             ba_m=2,
             ba_prune_max_frac=0.5,
             seed=123,
@@ -971,11 +971,11 @@ class TestNetworkGraph:
         L = compute_laplacian(A)
         eigvals = np.linalg.eigvals(L)
         zero_count = int(np.sum(np.abs(eigvals) < env.ba_qsc_tol))
-        assert zero_count == 1, "paper_ba should enforce single-zero-eig Laplacian"
+        assert zero_count == 1, "barabasi_albert should enforce single-zero-eig Laplacian"
 
-    def test_paper_ba_reproducibility_with_seed(self):
-        env1 = NetworkGraph(num_agents=15, graph_model="paper_ba", ba_m=2, seed=999)
-        env2 = NetworkGraph(num_agents=15, graph_model="paper_ba", ba_m=2, seed=999)
+    def test_paper_barabasi_albert_reproducibility_with_seed(self):
+        env1 = NetworkGraph(num_agents=15, graph_model="barabasi_albert", ba_m=2, seed=999)
+        env2 = NetworkGraph(num_agents=15, graph_model="barabasi_albert", ba_m=2, seed=999)
         np.testing.assert_array_equal(
             env1.connectivity_matrix, env2.connectivity_matrix
         )

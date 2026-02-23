@@ -31,11 +31,12 @@ class NetworkGraph(gym.Env):
         weight_range=(0.1, 1.0),
         bidirectional_prob: float = 0.5,  # 1.0 = fully undirected, 0.0 = fully directed
         dynamics_model="laplacian",  # "laplacian" or "coca"
-        graph_model: str = "random",   # aliases: "random", "erdos_renyi", "barabasi_albert"
+        graph_model: str = "random",  # aliases: "random", "erdos_renyi", "barabasi_albert"
         ba_m: int = 2,
         ba_prune_max_frac: float = 0.5,
         ba_qsc_tol: float = 1e-8,
         ba_max_tries: int = 200,
+        ba_connectivity: str = "no_singleton_sink",  # "paper" | "no_singleton_sink" | "strong"
         budget=None,
         max_steps=100,
         opinion_end_tolerance=0.01,
@@ -206,12 +207,13 @@ class NetworkGraph(gym.Env):
         self.control_resistance = control_resistance
         self.bidirectional_prob = bidirectional_prob
         self.dynamics_model = dynamics_model
-        
+
         self.graph_model = graph_model
         self.ba_m = int(ba_m)
         self.ba_prune_max_frac = float(ba_prune_max_frac)
         self.ba_qsc_tol = float(ba_qsc_tol)
         self.ba_max_tries = int(ba_max_tries)
+        self.ba_connectivity = str(ba_connectivity)
 
         self.budget = budget
         self.max_steps = max_steps
@@ -228,7 +230,7 @@ class NetworkGraph(gym.Env):
             graph_connection_distribution=graph_connection_distribution,
             graph_connection_params=graph_connection_params,
         )
-        
+
         if not nx.is_connected(nx.from_numpy_array(self.connectivity_matrix)):
             print("Warning: The generated graph is not fully connected.")
 
@@ -267,7 +269,9 @@ class NetworkGraph(gym.Env):
         self.current_step = 0
         self.total_spent = 0.0
 
-    def _apply_weights_to_binary_connectivity(self, connectivity_matrix: np.ndarray) -> np.ndarray:
+    def _apply_weights_to_binary_connectivity(
+        self, connectivity_matrix: np.ndarray
+    ) -> np.ndarray:
         """If use_weighted_edges=True, replace 1-entries with sampled weights. Otherwise return unchanged."""
         A = np.array(connectivity_matrix, copy=True)
         if not self.use_weighted_edges:
@@ -279,8 +283,9 @@ class NetworkGraph(gym.Env):
                     A[i, j] = self._rng.uniform(*self.weight_range)
         return A
 
-
-    def _generate_probability_matrix(self, graph_connection_distribution: str, graph_connection_params: dict | None) -> np.ndarray:
+    def _generate_probability_matrix(
+        self, graph_connection_distribution: str, graph_connection_params: dict | None
+    ) -> np.ndarray:
         """Generate the probs[i,j] matrix (exactly as current logic)."""
         graph_connection_params = graph_connection_params or {}
 
@@ -291,17 +296,22 @@ class NetworkGraph(gym.Env):
         elif graph_connection_distribution == "normal":
             mean = graph_connection_params.get("mean", 0.2)
             std = graph_connection_params.get("std", 0.05)
-            probs = np.clip(self._rng.normal(mean, std, (self.num_agents, self.num_agents)), 0, 1)
+            probs = np.clip(
+                self._rng.normal(mean, std, (self.num_agents, self.num_agents)), 0, 1
+            )
 
         elif graph_connection_distribution == "exponential":
             scale = graph_connection_params.get("scale", 0.2)
-            probs = np.clip(self._rng.exponential(scale, (self.num_agents, self.num_agents)), 0, 1)
+            probs = np.clip(
+                self._rng.exponential(scale, (self.num_agents, self.num_agents)), 0, 1
+            )
 
         else:
-            raise ValueError(f"Unknown graph_connection_distribution: {graph_connection_distribution}")
+            raise ValueError(
+                f"Unknown graph_connection_distribution: {graph_connection_distribution}"
+            )
 
         return probs
-
 
     def _build_graph_from_probs(self, probs: np.ndarray) -> nx.Graph:
         """Build nx.Graph or nx.DiGraph from probs and bidirectional_prob (exact current behavior)."""
@@ -326,7 +336,6 @@ class NetworkGraph(gym.Env):
                         G.add_edge(j, i)
         return G
 
-
     def _ensure_no_isolated_nodes(self, G: nx.Graph) -> nx.Graph:
         """Ensure each node has at least one incident edge (exactly as current behavior)."""
         # Recreate the exact current semantics:
@@ -335,9 +344,9 @@ class NetworkGraph(gym.Env):
         for node in range(self.num_agents):
             if isinstance(G, nx.DiGraph):
                 deg = G.in_degree(node) + G.out_degree(node)
-                isolated = (deg == 0)
+                isolated = deg == 0
             else:
-                isolated = (G.degree(node) == 0)
+                isolated = G.degree(node) == 0
 
             if isolated:
                 candidates = list(range(self.num_agents))
@@ -346,10 +355,13 @@ class NetworkGraph(gym.Env):
                 G.add_edge(node, neighbor)
         return G
 
-
-    def _generate_connectivity_matrix_random(self, graph_connection_distribution: str, graph_connection_params: dict | None) -> np.ndarray:
+    def _generate_connectivity_matrix_random(
+        self, graph_connection_distribution: str, graph_connection_params: dict | None
+    ) -> np.ndarray:
         """The full current random-graph path, unchanged."""
-        probs = self._generate_probability_matrix(graph_connection_distribution, graph_connection_params)
+        probs = self._generate_probability_matrix(
+            graph_connection_distribution, graph_connection_params
+        )
         G = self._build_graph_from_probs(probs)
         A = nx.to_numpy_array(G)
 
@@ -363,7 +375,6 @@ class NetworkGraph(gym.Env):
         A2 = nx.to_numpy_array(G2)
         return A2
 
-
     def _init_connectivity_matrix(
         self,
         connectivity_matrix: np.ndarray | None,
@@ -375,10 +386,12 @@ class NetworkGraph(gym.Env):
             return self._apply_weights_to_binary_connectivity(connectivity_matrix)
 
         if self.graph_model == "random":
-            return self._generate_connectivity_matrix_random(graph_connection_distribution, graph_connection_params)
+            return self._generate_connectivity_matrix_random(
+                graph_connection_distribution, graph_connection_params
+            )
 
-        if self.graph_model == "paper_ba":
-            A = self._generate_connectivity_matrix_paper_ba()
+        if self.graph_model == "barabasi_albert":
+            A = self._generate_connectivity_matrix_paper_barabasi_albert()
             # Optional: keep your existing 'no isolated nodes' fix (but the paper doesn't do this).
             # I'd leave it OFF by default to match paper strictly. If you want it, do:
             # A = nx.to_numpy_array(self._ensure_no_isolated_nodes(nx.DiGraph(A)))
@@ -393,8 +406,42 @@ class NetworkGraph(gym.Env):
         zero_count = int(np.sum(np.abs(eigvals) < tol))
         return zero_count == 1
 
+    def _sink_scc_sizes(self, G: nx.DiGraph) -> list[int]:
+        sccs = list(nx.strongly_connected_components(G))
+        sink_sizes = []
+        nodes_all = set(G.nodes())
+        for S in sccs:
+            is_sink = True
+            for u in S:
+                for v in G.successors(u):
+                    if v not in S:
+                        is_sink = False
+                        break
+                if not is_sink:
+                    break
+            if is_sink:
+                sink_sizes.append(len(S))
+        return sink_sizes
 
-    def _generate_connectivity_matrix_paper_ba(self) -> np.ndarray:
+    def _passes_ba_connectivity_filter(self, G_dir: nx.DiGraph, A: np.ndarray) -> bool:
+        mode = (self.ba_connectivity or "paper").lower()
+
+        if mode == "paper":
+            return self._laplacian_has_single_zero_eig(A, tol=self.ba_qsc_tol)
+
+        if mode == "no_singleton_sink":
+            if not self._laplacian_has_single_zero_eig(A, tol=self.ba_qsc_tol):
+                return False
+            sink_sizes = self._sink_scc_sizes(G_dir)
+            # reject if any sink SCC is a singleton (covers the delta-centrality case)
+            return all(sz >= 2 for sz in sink_sizes)
+
+        if mode in ("strong", "strongly_connected"):
+            return nx.is_strongly_connected(G_dir)
+
+        raise ValueError(f"Unknown ba_connectivity mode: {self.ba_connectivity}")
+
+    def _generate_connectivity_matrix_paper_barabasi_albert(self) -> np.ndarray:
         """
         Paper experimental generator:
         1) BA undirected graph (N, m=ba_m)
@@ -408,10 +455,14 @@ class NetworkGraph(gym.Env):
         if self.ba_m < 1:
             raise ValueError(f"ba_m must be >= 1, got {self.ba_m}")
         if self.ba_m >= self.num_agents:
-            raise ValueError(f"ba_m must be < num_agents, got ba_m={self.ba_m}, num_agents={self.num_agents}")
+            raise ValueError(
+                f"ba_m must be < num_agents, got ba_m={self.ba_m}, num_agents={self.num_agents}"
+            )
 
         if not (0.0 <= self.ba_prune_max_frac <= 1.0):
-            raise ValueError(f"ba_prune_max_frac must be in [0,1], got {self.ba_prune_max_frac}")
+            raise ValueError(
+                f"ba_prune_max_frac must be in [0,1], got {self.ba_prune_max_frac}"
+            )
 
         last_A = None
         for _ in range(self.ba_max_tries):
@@ -442,8 +493,13 @@ class NetworkGraph(gym.Env):
             A = nx.to_numpy_array(G_dir, dtype=float)
 
             # 4) Filter by quasi-strong connectivity check (single zero eigenvalue of Laplacian)
+            # last_A = A
+            # if self._laplacian_has_single_zero_eig(A, tol=self.ba_qsc_tol):
+            #     return A
+
+            # 4) Stronger condition to avoid single sink SCCs
             last_A = A
-            if self._laplacian_has_single_zero_eig(A, tol=self.ba_qsc_tol):
+            if self._passes_ba_connectivity_filter(G_dir, A):
                 return A
 
         # If we failed to satisfy the condition within ba_max_tries, return last sample with a warning.
@@ -454,7 +510,7 @@ class NetworkGraph(gym.Env):
             f"Warning: paper_ba generator failed to find single-zero-eig Laplacian in {self.ba_max_tries} tries; using last sample."
         )
         return last_A
-    
+
     @property
     def state(self):
         """
