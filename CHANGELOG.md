@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.20.0] - 2026.02.23
+
+### Added
+- New graph generation method
+
+
 ## [5.19.2] - 2026.02.07
 
 ### Changed
