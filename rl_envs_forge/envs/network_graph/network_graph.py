@@ -392,9 +392,7 @@ class NetworkGraph(gym.Env):
 
         if self.graph_model == "barabasi_albert":
             A = self._generate_connectivity_matrix_paper_barabasi_albert()
-            # Optional: keep your existing 'no isolated nodes' fix (but the paper doesn't do this).
-            # I'd leave it OFF by default to match paper strictly. If you want it, do:
-            # A = nx.to_numpy_array(self._ensure_no_isolated_nodes(nx.DiGraph(A)))
+            A = self._to_paper_row_stochastic(A)
             return A
 
         raise ValueError(f"Unknown graph_model: {self.graph_model}")
@@ -510,6 +508,30 @@ class NetworkGraph(gym.Env):
             f"Warning: paper_ba generator failed to find single-zero-eig Laplacian in {self.ba_max_tries} tries; using last sample."
         )
         return last_A
+
+    def _to_paper_row_stochastic(self, A: np.ndarray) -> np.ndarray:
+        """
+        Convert a 0/1 adjacency matrix into a paper-style row-stochastic influence matrix.
+        - optional random weights on existing edges if use_weighted_edges=True
+        - force zero diagonal
+        - row-normalize
+        """
+        A = np.array(A, dtype=float, copy=True)
+
+        # optional: random weights on existing edges
+        if self.use_weighted_edges:
+            mask = (A != 0)
+            A[mask] = self._rng.uniform(self.weight_range[0], self.weight_range[1], size=mask.sum())
+
+        # no self-loops
+        np.fill_diagonal(A, 0.0)
+
+        # row-normalize (avoid divide-by-zero)
+        rs = A.sum(axis=1, keepdims=True)
+        rs[rs == 0] = 1.0
+        A = A / rs
+
+        return A
 
     @property
     def state(self):
