@@ -236,6 +236,7 @@ class NetworkGraph(gym.Env):
 
         # Laplacian and centrality
         self.L = compute_laplacian(self.connectivity_matrix)
+        self.expL_ts = expm(-self.L * self.t_s)
         self.centralities = compute_eigenvector_centrality(self.L)
 
         # Precompute neighbor indices for COCA dynamics
@@ -611,22 +612,26 @@ class NetworkGraph(gym.Env):
 
         for _ in range(num_steps):
             if self.dynamics_model == "laplacian":
-                expL = expm(-self.L * t_s)
-                current = expL @ current
-                current = np.clip(current, 0, 1)
+                if t_s == self.t_s:
+                    current = self.expL_ts @ current
+                else:
+                    current = expm(-self.L * t_s) @ current
 
             elif self.dynamics_model == "coca":
-                next_state = np.copy(current)
-                for i in range(self.num_agents):
-                    neighbors = self.neighbor_lists[i]
-                    if len(neighbors) == 0:
-                        continue
-                    pi = current[i]
-                    neighbor_opinions = current[neighbors]
-                    sum_diff = np.sum(neighbor_opinions - pi)
-                    delta = t_s * (pi * (1 - pi) / len(neighbors)) * sum_diff
-                    next_state[i] = np.clip(pi + delta, 0, 1)
-                current = next_state
+                A = self.connectivity_matrix  # (N,N) 0/1 or weighted
+                deg = A.sum(axis=1)           # (N,)
+                # avoid divide-by-zero
+                inv_deg = np.zeros_like(deg)
+                mask = deg > 0
+                inv_deg[mask] = 1.0 / deg[mask]
+
+                # vectorized COCA update
+                x = current
+                neighbor_sum = A @ x
+                sum_diff = neighbor_sum - deg * x
+                gain = x * (1.0 - x) * inv_deg
+                x_next = x + t_s * gain * sum_diff
+                current = np.clip(x_next, 0.0, 1.0)
 
             else:
                 raise ValueError(f"Unknown dynamics model: {self.dynamics_model}")
