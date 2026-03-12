@@ -5,6 +5,44 @@ from rl_envs_forge.envs.network_graph.network_graph import NetworkGraph
 from rl_envs_forge.envs.network_graph.graph_utils import compute_laplacian
 from scipy.linalg import expm
 
+def coca_one_step_vectorized(A: np.ndarray, x: np.ndarray, t_s: float) -> np.ndarray:
+    """
+    Vectorized COCA one substep:
+      x_next = x + t_s * (x*(1-x)/deg) * (A @ x - deg*x)
+    matches your intended COCA.
+    """
+    A = np.asarray(A, dtype=float)
+    x = np.asarray(x, dtype=float)
+
+    deg = A.sum(axis=1)  # (N,)
+    inv_deg = np.zeros_like(deg)
+    mask = deg > 0
+    inv_deg[mask] = 1.0 / deg[mask]
+
+    neighbor_sum = A @ x
+    sum_diff = neighbor_sum - deg * x
+    gain = x * (1.0 - x) * inv_deg
+    x_next = x + t_s * gain * sum_diff
+    return np.clip(x_next, 0.0, 1.0)
+
+
+def coca_one_step_loop(neighbor_lists, x: np.ndarray, t_s: float) -> np.ndarray:
+    """
+    Reference COCA one substep using your old Python-loop semantics:
+      delta_i = t_s * (x_i(1-x_i)/deg_i) * sum_{j in N(i)} (x_j - x_i)
+    """
+    x = np.asarray(x, dtype=float)
+    N = x.shape[0]
+    x_next = x.copy()
+    for i in range(N):
+        neigh = neighbor_lists[i]
+        if len(neigh) == 0:
+            continue
+        pi = x[i]
+        sum_diff = np.sum(x[neigh] - pi)
+        delta = t_s * (pi * (1.0 - pi) / len(neigh)) * sum_diff
+        x_next[i] = np.clip(pi + delta, 0.0, 1.0)
+    return x_next
 
 @pytest.fixture
 def default_env():
@@ -789,56 +827,55 @@ class TestNetworkGraph:
         ), "Terminal reward should not be applied"
 
     def test_coca_dynamics_behavior(self):
-        """Test that COCA dynamics run and change opinions in expected nonlinear way."""
+        """step() should apply COCA dynamics (and match reference)"""
         num_agents = 3
-        initial_opinions = np.array([0.1, 0.5, 0.9])  # more asymmetrical
-        desired_opinion = 1.0
-
-        # Fully connected undirected graph
+        initial_opinions = np.array([0.1, 0.5, 0.9])
         connectivity_matrix = np.array(
             [
                 [0, 1, 1],
                 [1, 0, 1],
                 [1, 1, 0],
-            ]
+            ],
+            dtype=float,
         )
 
+        t_s = 0.1
         env = NetworkGraph(
             num_agents=num_agents,
             initial_opinions=initial_opinions,
-            desired_opinion=desired_opinion,
-            t_campaign=1,
-            t_s=0.1,
+            desired_opinion=1.0,
+            t_campaign=1.0,
+            t_s=t_s,
             connectivity_matrix=connectivity_matrix,
             dynamics_model="coca",
         )
         env.reset()
 
+        assert env.dynamics_model == "coca"
+
         action = np.zeros(num_agents, dtype=np.float32)
-        state_before = env.opinions.copy()
-        state_after, _, _, _, _ = env.step(action)
+        x0 = env.opinions.copy()
 
-        # Ensure opinions changed
-        assert not np.allclose(
-            state_before, state_after
-        ), "Opinions should update under COCA dynamics"
+        # Force exactly ONE substep (impulse + one coca update)
+        x1, _, _, _, _ = env.step(action, t_campaign=t_s, t_s=t_s)
 
-        # Ensure outputs remain valid
-        assert np.all(
-            (state_after >= 0) & (state_after <= 1)
-        ), "Opinions must be within [0, 1]"
+        # Must change under COCA for this setup
+        assert not np.allclose(x0, x1), "Opinions should update under COCA dynamics"
 
-        # Ensure expected direction of movement (toward average)
-        avg_before = np.mean(state_before)
+        # Must match reference one-step update
+        x_ref = coca_one_step_vectorized(connectivity_matrix, x0, t_s)
+        np.testing.assert_allclose(
+            x1, x_ref, rtol=1e-8, atol=1e-8,
+            err_msg="env.step(COCA) must match reference COCA one-step update."
+        )
+
+        # Also check direction (toward avg) for this symmetric graph
+        avg0 = x0.mean()
         for i in range(num_agents):
-            if state_before[i] < avg_before:
-                assert (
-                    state_after[i] > state_before[i]
-                ), f"Agent {i} should move upward toward average"
-            elif state_before[i] > avg_before:
-                assert (
-                    state_after[i] < state_before[i]
-                ), f"Agent {i} should move downward toward average"
+            if x0[i] < avg0:
+                assert x1[i] > x0[i]
+            elif x0[i] > avg0:
+                assert x1[i] < x0[i]
 
     def test_step_returns_intermediate_states(self, default_env):
         default_env.reset()
@@ -979,3 +1016,107 @@ class TestNetworkGraph:
         np.testing.assert_array_equal(
             env1.connectivity_matrix, env2.connectivity_matrix
         )
+
+    def test_coca_vectorized_matches_loop_one_step(self):
+        """
+        Ensures COCA implementation is mathematically consistent:
+        vectorized update == old loop update for one substep.
+        """
+        num_agents = 6
+        # directed-ish graph with varying degrees
+        A = np.array(
+            [
+                [0, 1, 1, 0, 0, 0],
+                [0, 0, 1, 1, 0, 0],
+                [1, 0, 0, 1, 1, 0],
+                [0, 0, 0, 0, 1, 1],
+                [1, 0, 0, 0, 0, 1],
+                [0, 1, 0, 0, 0, 0],
+            ],
+            dtype=float,
+        )
+        t_s = 0.05
+        x0 = np.linspace(0.1, 0.9, num_agents)
+
+        # Neighbor lists (same semantics as env precompute)
+        neighbor_lists = [np.nonzero(A[i])[0] for i in range(num_agents)]
+
+        x_loop = coca_one_step_loop(neighbor_lists, x0, t_s)
+        x_vec = coca_one_step_vectorized(A, x0, t_s)
+
+        np.testing.assert_allclose(
+            x_vec, x_loop, rtol=1e-10, atol=1e-10,
+            err_msg="Vectorized COCA step must match loop COCA step."
+        )
+        
+    def test_coca_compute_dynamics_matches_reference_multi_substeps(self):
+        """
+        Ensures env.compute_dynamics() COCA branch matches the reference
+        vectorized update over multiple substeps.
+        """
+        num_agents = 5
+        A = np.ones((num_agents, num_agents)) - np.eye(num_agents)  # fully connected
+        t_s = 0.1
+        t_campaign = 0.5  # 5 substeps
+
+        env = NetworkGraph(
+            num_agents=num_agents,
+            connectivity_matrix=A,
+            dynamics_model="coca",
+            t_s=t_s,
+            t_campaign=t_campaign,
+            initial_opinions=np.linspace(0.1, 0.9, num_agents),
+            desired_opinion=1.0,
+        )
+        x0, _ = env.reset()
+        u0 = np.zeros(num_agents, dtype=float)
+
+        # run env
+        x_env, inter = env.compute_dynamics(x0, u0, t_campaign=t_campaign, t_s=t_s)
+
+        # reference: apply impulse first (here u0=0 => no change), then K substeps
+        K = int(round(t_campaign / t_s))
+        x_ref = x0.copy()
+        for _ in range(K):
+            x_ref = coca_one_step_vectorized(A, x_ref, t_s)
+
+        np.testing.assert_allclose(
+            x_env, x_ref, rtol=1e-8, atol=1e-8,
+            err_msg="COCA compute_dynamics should match reference vectorized simulation."
+        )
+
+        # intermediate_states shape sanity
+        assert inter.shape == (K + 1, num_agents)
+        
+    def test_laplacian_does_not_recompute_expm_each_substep(self):
+        """
+        After caching expm(-L*t_s) in __init__, the step() / compute_dynamics()
+        must NOT call expm repeatedly inside the substep loop.
+
+        This test patches the expm symbol *as imported in network_graph.py*.
+        """
+        num_agents = 8
+        env = NetworkGraph(
+            num_agents=num_agents,
+            dynamics_model="laplacian",
+            t_campaign=1.0,
+            t_s=0.1,
+            seed=123,
+        )
+        env.reset()
+        action = np.zeros(num_agents, dtype=np.float32)
+
+        # Patch the expm used by the module (because it is imported as: from scipy.linalg import expm)
+        with patch("rl_envs_forge.envs.network_graph.network_graph.expm") as mock_expm:
+            # Make mock_expm call the real expm so behavior is unchanged
+            real_expm = expm
+            mock_expm.side_effect = lambda M: real_expm(M)
+
+            # One environment step
+            env.step(action)
+
+            # If caching is correct, expm should NOT be called during step().
+            # (It should have been called once in __init__ to precompute expL_ts.)
+            assert mock_expm.call_count == 0, (
+                "expm() was called during step(); expected 0 calls if expm is cached in __init__."
+            )

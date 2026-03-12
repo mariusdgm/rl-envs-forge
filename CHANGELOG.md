@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.21.0] - 2026.03.12
+
+### Changed
+- More efficient coca and laplacian dynamics
+
 ## [5.20.1] - 2026.03.02
 
 ### Changed
