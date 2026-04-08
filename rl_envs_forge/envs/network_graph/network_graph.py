@@ -8,6 +8,7 @@ from .graph_utils import (
     compute_laplacian,
     compute_eigenvector_centrality,
 )
+from .dynamics import rollout_dynamics
 
 
 class NetworkGraph(gym.Env):
@@ -30,7 +31,11 @@ class NetworkGraph(gym.Env):
         use_weighted_edges=False,
         weight_range=(0.1, 1.0),
         bidirectional_prob: float = 0.5,  # 1.0 = fully undirected, 0.0 = fully directed
-        dynamics_model="laplacian",  # "laplacian" or "coca"
+        dynamics_model="laplacian",  # aliases: "laplacian"/"degroot", "coca", "friedkinjohnsen", "hegselmannkrause"
+        fj_lambda=0.9,
+        fj_prejudice=None,
+        hk_epsilon=0.25,
+        hk_include_self: bool = True,
         graph_model: str = "random",  # aliases: "random", "erdos_renyi", "barabasi_albert"
         ba_m: int = 2,
         ba_prune_max_frac: float = 0.5,
@@ -120,8 +125,7 @@ class NetworkGraph(gym.Env):
                 fully directed graph (where bidirectionality only occurs by
                 chance). Defaults to 0.5.
             dynamics_model (str, optional): The model to use for opinion
-                propagation. Supported models are 'laplacian' (linear) and
-                'coca' (non-linear). Defaults to 'laplacian'.
+                propagation. Supported models are 'laplacian' (linear), 'coca' (non-linear), 'friedkin_johnsen' (anchored averaging), and 'hegselmann_krause' (bounded confidence). Defaults to 'laplacian'.
             budget (float | None, optional): An optional total budget for control
                 effort over an entire episode. The environment does not enforce
                 this budget but tracks spending against it. Defaults to None.
@@ -207,6 +211,11 @@ class NetworkGraph(gym.Env):
         self.control_resistance = control_resistance
         self.bidirectional_prob = bidirectional_prob
         self.dynamics_model = dynamics_model
+        self.fj_lambda = fj_lambda
+        self.fj_prejudice = fj_prejudice
+        self._fj_prejudice_user_provided = fj_prejudice is not None
+        self.hk_epsilon = float(hk_epsilon)
+        self.hk_include_self = bool(hk_include_self)
 
         self.graph_model = graph_model
         self.ba_m = int(ba_m)
@@ -239,18 +248,23 @@ class NetworkGraph(gym.Env):
         self.expL_ts = expm(-self.L * self.t_s)
         self.centralities = compute_eigenvector_centrality(self.L)
 
-        # Precompute neighbor indices for COCA dynamics
+        # Precompute neighbor indices for neighbor-based dynamics
         self.neighbor_lists = []
         for i in range(self.num_agents):
             neighbors = np.nonzero(self.connectivity_matrix[i])[0]
             self.neighbor_lists.append(neighbors)
 
         if initial_opinions is not None:
-            self.opinions = np.array(initial_opinions)
+            self.opinions = np.array(initial_opinions, dtype=float)
         else:
             self.opinions = self._rng.uniform(
                 *self.initial_opinion_range, size=self.num_agents
             )
+
+        if self.fj_prejudice is None:
+            self.fj_prejudice = self.opinions.copy()
+        else:
+            self.fj_prejudice = np.array(self.fj_prejudice, dtype=float)
 
         if control_resistance is not None:
             self.control_resistance = np.array(control_resistance)
@@ -561,8 +575,12 @@ class NetworkGraph(gym.Env):
             )
             info = {"random_opinions": True}
         else:
-            self.opinions = np.array(self.initial_opinions)
+            self.opinions = np.array(self.initial_opinions, dtype=float)
             info = {"random_opinions": False}
+
+        if not self._fj_prejudice_user_provided:
+            # Default FJ prejudice tracks the episode's initial opinions.
+            self.fj_prejudice = self.opinions.copy()
 
         self.current_step = 0
         self.total_spent = 0.0
@@ -597,48 +615,25 @@ class NetworkGraph(gym.Env):
                 f"t_s = {t_s} must evenly divide t_campaign = {t_campaign}"
             )
 
-        # --- Apply impulse control (instantaneous) ---
-        effective_control = control_action * (1 - self.control_resistance)
-        controlled_state = (
-            effective_control * self.desired_opinion_vector
-            + (1 - effective_control) * current_state
+        final_state, intermediate_states = rollout_dynamics(
+            current_state=current_state,
+            control_action=control_action,
+            dynamics_model=self.dynamics_model,
+            adjacency_matrix=self.connectivity_matrix,
+            L=self.L,
+            t_campaign=t_campaign,
+            t_s=t_s,
+            desired_opinion_vector=self.desired_opinion_vector,
+            control_resistance=self.control_resistance,
+            expL_ts=self.expL_ts,
+            default_t_s=self.t_s,
+            fj_lambda=self.fj_lambda,
+            prejudice=self.fj_prejudice,
+            hk_epsilon=self.hk_epsilon,
+            hk_include_self=self.hk_include_self,
         )
 
-        # Store trajectory: initial controlled state
-        intermediate_states = [controlled_state.copy()]
-
-        num_steps = int(round(t_campaign / t_s))
-        current = controlled_state.copy()
-
-        for _ in range(num_steps):
-            if self.dynamics_model == "laplacian":
-                if t_s == self.t_s:
-                    current = self.expL_ts @ current
-                else:
-                    current = expm(-self.L * t_s) @ current
-
-            elif self.dynamics_model == "coca":
-                A = self.connectivity_matrix  # (N,N) 0/1 or weighted
-                deg = A.sum(axis=1)           # (N,)
-                # avoid divide-by-zero
-                inv_deg = np.zeros_like(deg)
-                mask = deg > 0
-                inv_deg[mask] = 1.0 / deg[mask]
-
-                # vectorized COCA update
-                x = current
-                neighbor_sum = A @ x
-                sum_diff = neighbor_sum - deg * x
-                gain = x * (1.0 - x) * inv_deg
-                x_next = x + t_s * gain * sum_diff
-                current = np.clip(x_next, 0.0, 1.0)
-
-            else:
-                raise ValueError(f"Unknown dynamics model: {self.dynamics_model}")
-
-            intermediate_states.append(current.copy())
-
-        return current, np.array(intermediate_states)
+        return final_state, intermediate_states
 
     def reward_function(self, x_prev, x_next, u_original, d, beta, done: bool = False):
         # absolute term on resulting state
