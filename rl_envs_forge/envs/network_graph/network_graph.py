@@ -31,11 +31,14 @@ class NetworkGraph(gym.Env):
         use_weighted_edges=False,
         weight_range=(0.1, 1.0),
         bidirectional_prob: float = 0.5,  # 1.0 = fully undirected, 0.0 = fully directed
-        dynamics_model="laplacian",  # aliases: "laplacian"/"degroot", "coca", "friedkinjohnsen", "hegselmannkrause"
+        dynamics_model="laplacian",  # aliases: "laplacian"/"degroot", "coca", "friedkinjohnsen", "hegselmannkrause", "nonlinearinfluence", "repulsion"
         fj_lambda=0.9,
         fj_prejudice=None,
         hk_epsilon=0.25,
         hk_include_self: bool = True,
+        nonlinear_beta=2.0,
+        repulsion_epsilon=0.25,
+        repulsion_strength=0.5,
         graph_model: str = "random",  # aliases: "random", "erdos_renyi", "barabasi_albert"
         ba_m: int = 2,
         ba_prune_max_frac: float = 0.5,
@@ -125,7 +128,12 @@ class NetworkGraph(gym.Env):
                 fully directed graph (where bidirectionality only occurs by
                 chance). Defaults to 0.5.
             dynamics_model (str, optional): The model to use for opinion
-                propagation. Supported models are 'laplacian' (linear), 'coca' (non-linear), 'friedkin_johnsen' (anchored averaging), and 'hegselmann_krause' (bounded confidence). Defaults to 'laplacian'.
+                propagation. Supported models are 'laplacian'/'degroot' (linear),
+                'coca' (non-linear CODA-style), 'friedkinjohnsen' (anchored
+                averaging), 'hegselmannkrause' (bounded confidence),
+                'nonlinearinfluence' (saturating pairwise influence), and
+                'repulsion' (attractive for small disagreement, repulsive for
+                large disagreement). Defaults to 'laplacian'.
             budget (float | None, optional): An optional total budget for control
                 effort over an entire episode. The environment does not enforce
                 this budget but tracks spending against it. Defaults to None.
@@ -216,6 +224,9 @@ class NetworkGraph(gym.Env):
         self._fj_prejudice_user_provided = fj_prejudice is not None
         self.hk_epsilon = float(hk_epsilon)
         self.hk_include_self = bool(hk_include_self)
+        self.nonlinear_beta = float(nonlinear_beta)
+        self.repulsion_epsilon = float(repulsion_epsilon)
+        self.repulsion_strength = float(repulsion_strength)
 
         self.graph_model = graph_model
         self.ba_m = int(ba_m)
@@ -535,8 +546,10 @@ class NetworkGraph(gym.Env):
 
         # optional: random weights on existing edges
         if self.use_weighted_edges:
-            mask = (A != 0)
-            A[mask] = self._rng.uniform(self.weight_range[0], self.weight_range[1], size=mask.sum())
+            mask = A != 0
+            A[mask] = self._rng.uniform(
+                self.weight_range[0], self.weight_range[1], size=mask.sum()
+            )
 
         # no self-loops
         np.fill_diagonal(A, 0.0)
@@ -631,6 +644,9 @@ class NetworkGraph(gym.Env):
             prejudice=self.fj_prejudice,
             hk_epsilon=self.hk_epsilon,
             hk_include_self=self.hk_include_self,
+            nonlinear_beta=self.nonlinear_beta,
+            repulsion_epsilon=self.repulsion_epsilon,
+            repulsion_strength=self.repulsion_strength,
         )
 
         return final_state, intermediate_states

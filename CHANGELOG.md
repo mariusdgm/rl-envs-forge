@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [5.22.0] - 2026.04.08
 
 ### Added
-- Added new propagation method for opinion dynamics in NetworkGraph
+- Added new propagation methods for opinion dynamics in NetworkGraph
 
 ## [5.21.0] - 2026.03.12
 
