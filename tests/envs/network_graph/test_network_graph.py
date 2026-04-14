@@ -1177,3 +1177,140 @@ class TestNetworkGraph:
         assert env.nonlinear_beta == 3.0
         assert env.repulsion_epsilon == 0.15
         assert env.repulsion_strength == 0.8
+
+    @pytest.mark.parametrize(
+        "dynamics_model,extra_kwargs",
+        [
+            ("degroot", {}),
+            ("friedkinjohnsen", {"fj_lambda": 0.8}),
+            ("hegselmannkrause", {"hk_epsilon": 0.2}),
+            ("nonlinearinfluence", {"nonlinear_beta": 2.0}),
+            ("repulsion", {"repulsion_epsilon": 0.2, "repulsion_strength": 0.5}),
+        ],
+    )
+    def test_can_initialize_supported_dynamics_variants(self, dynamics_model, extra_kwargs):
+        env = NetworkGraph(
+            num_agents=4,
+            connectivity_matrix=np.array(
+                [
+                    [0.0, 1.0, 0.0, 0.0],
+                    [1.0, 0.0, 1.0, 0.0],
+                    [0.0, 1.0, 0.0, 1.0],
+                    [0.0, 0.0, 1.0, 0.0],
+                ],
+                dtype=float,
+            ),
+            initial_opinions=np.array([0.1, 0.3, 0.7, 0.9]),
+            dynamics_model=dynamics_model,
+            **extra_kwargs,
+        )
+        state, _ = env.reset()
+        assert state.shape == (4,)
+
+        next_state, _, _, _, info = env.step(np.zeros(4, dtype=np.float32))
+        assert next_state.shape == (4,)
+        assert "intermediate_states" in info
+
+    def test_fj_default_prejudice_tracks_episode_initial_state(self):
+        env = NetworkGraph(
+            num_agents=3,
+            initial_opinions=None,
+            dynamics_model="friedkinjohnsen",
+            fj_lambda=np.zeros(3),
+            seed=321,
+        )
+
+        opinions_a, _ = env.reset(randomize_opinions=True)
+        np.testing.assert_allclose(
+            env.fj_prejudice,
+            opinions_a,
+            atol=1e-12,
+            rtol=1e-12,
+        )
+
+        opinions_b, _ = env.reset(randomize_opinions=True)
+        np.testing.assert_allclose(
+            env.fj_prejudice,
+            opinions_b,
+            atol=1e-12,
+            rtol=1e-12,
+        )
+
+    def test_fj_user_prejudice_is_not_overwritten_on_reset(self):
+        prejudice = np.array([0.9, 0.1, 0.4], dtype=float)
+
+        env = NetworkGraph(
+            num_agents=3,
+            initial_opinions=None,
+            dynamics_model="friedkinjohnsen",
+            fj_lambda=np.zeros(3),
+            fj_prejudice=prejudice,
+            seed=123,
+        )
+
+        env.reset(randomize_opinions=True)
+        np.testing.assert_allclose(env.fj_prejudice, prejudice, atol=1e-12, rtol=1e-12)
+
+        env.reset(randomize_opinions=True)
+        np.testing.assert_allclose(env.fj_prejudice, prejudice, atol=1e-12, rtol=1e-12)
+
+    def test_nonlinearinfluence_and_repulsion_parameters_are_stored(self):
+        env = NetworkGraph(
+            dynamics_model="repulsion",
+            nonlinear_beta=3.0,
+            repulsion_epsilon=0.15,
+            repulsion_strength=0.8,
+        )
+
+        assert env.nonlinear_beta == 3.0
+        assert env.repulsion_epsilon == 0.15
+        assert env.repulsion_strength == 0.8
+
+    def test_repulsion_step_runs_and_returns_intermediates(self):
+        env = NetworkGraph(
+            num_agents=3,
+            connectivity_matrix=np.array(
+                [
+                    [0.0, 1.0, 1.0],
+                    [1.0, 0.0, 1.0],
+                    [1.0, 1.0, 0.0],
+                ],
+                dtype=float,
+            ),
+            initial_opinions=np.array([0.1, 0.5, 0.9]),
+            dynamics_model="repulsion",
+            repulsion_epsilon=0.2,
+            repulsion_strength=0.5,
+            t_campaign=1.0,
+            t_s=0.1,
+        )
+        env.reset()
+
+        state, reward, done, truncated, info = env.step(np.zeros(3, dtype=np.float32))
+        assert state.shape == (3,)
+        assert isinstance(reward, float)
+        assert "intermediate_states" in info
+
+    def test_nonlinearinfluence_step_runs_and_returns_intermediates(self):
+        env = NetworkGraph(
+            num_agents=3,
+            connectivity_matrix=np.array(
+                [
+                    [0.0, 1.0, 1.0],
+                    [1.0, 0.0, 1.0],
+                    [1.0, 1.0, 0.0],
+                ],
+                dtype=float,
+            ),
+            initial_opinions=np.array([0.1, 0.5, 0.9]),
+            dynamics_model="nonlinearinfluence",
+            nonlinear_beta=2.0,
+            t_campaign=1.0,
+            t_s=0.1,
+        )
+        env.reset()
+
+        state, reward, done, truncated, info = env.step(np.zeros(3, dtype=np.float32))
+        assert state.shape == (3,)
+        assert isinstance(reward, float)
+        assert "intermediate_states" in info
