@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.23.0] - 2026.10.20
+
+### Added
+
+- Support for `seed` and `options` in every environment's reset method, preserving environment-specific reset arguments.
+- Regression tests for reproducible resets, independent random streams, and NetworkGraph behavior across graph types and dynamics models.
+
+### Changed
+
+- KArmedBandit uses NumPy's Generator instead of RandomState, so fixed-seed reward sequences differ from earlier versions. Unseeded resets continue the random stream.
+- Reworked the package READMEs with clearer usage examples, reset guidance, and descriptions of actions, rewards, and episode endings.
+- Added a NetworkGraph trajectory plot comparing uniform and near-optimal control.
+
+### Fixed
+
+- Pendulum initial states, car-rental requests and returns, and gambler outcomes use each environment's own random generator.
+- Labyrinth accepts `seed=0`, seeds predetermined layouts consistently, and copies its random generator independently when deep-copied.
+- KArmedBandit resets its timestep along with its arms, restarting parameter schedules.
+- GridWorld's transition helper samples from the existing MDP instead of referencing undefined attributes and a matrix.
+
 ## [5.22.0] - 2026.04.08
 
 ### Added
