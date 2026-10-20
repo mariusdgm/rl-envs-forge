@@ -1,42 +1,104 @@
 # Labyrinth
 
-The Labyrinth environment consists in a 2D grid-world where an agent is tasked with reaching the target position.
+Navigate a generated maze from the start cell to the target. Rooms and corridors
+can vary between episodes, or you can keep a maze fixed while comparing policies.
 
-The mazes are randomized using various parameters, presented in section [Usage](#usage).
+## Table of contents
 
-📖 **Detailed Documentation** [Click here to read more about the Maze and Rooms components](https://github.com/mariusdgm/rl-envs-forge/blob/main/rl_envs_forge/envs/labyrinth/maze/README.md)
+- [Getting started](#getting-started)
+- [Observations and actions](#observations-and-actions)
+- [Choosing a maze](#choosing-a-maze)
+- [Playing manually](#playing-manually)
+- [Maze examples](#maze-examples)
+- [How corridor settings affect the layout](#how-corridor-settings-affect-the-layout)
+- [UML diagrams](#uml-diagrams)
+  - [Packages](#packages)
+  - [Classes](#classes)
 
-## Usage
-
-Code example for getting started with the environment:
+## Getting started
 
 ```python
-from time import sleep
 from rl_envs_forge.envs.labyrinth.labyrinth import Labyrinth
 
 env = Labyrinth(20, 20, seed=0)
+observation, info = env.reset(seed=0)
+env.action_space.seed(0)
 
-done = False
-quit_event = False
-while not done and not quit_event:
-    action = env.action_space.sample()  
-    observation, reward, done, _, info = env.step(action)
-    quit_event, _ = env.render()
-    sleep(0.1)
+for _ in range(1000):
+    action = env.action_space.sample()
+    observation, reward, terminated, truncated, info = env.step(action)
+    quit_requested, _ = env.render()
+    if terminated or truncated or quit_requested:
+        break
+
+env.close()
 ```
 
-![Labyrinth render GIF](../../../docs/figures/labyrinth/auto_play_demo.gif)
+Leave out `env.render()` and the quit flag when running without a window.
+Labyrinth has no built-in episode length limit, so choose a horizon for your
+experiment if a policy might never reach the target.
 
-<br>
+![Labyrinth with a random policy](../../../docs/figures/labyrinth/auto_play_demo.gif)
 
-There is also a manual mode which allows you can interact using the arrow keys:
+## Observations and actions
+
+Actions are up (`0`), right (`1`), down (`2`), and left (`3`), also available
+through `Action` in `labyrinth.constants`. An invalid move leaves the player
+in place. The default reward is `-0.01` for a move, `-1` for a collision, and
+`10` for reaching the target, which terminates the episode.
+
+The observation is a grid with cell values defined in `constants.py`:
+
+| Value | Cell |
+| --- | --- |
+| `0` | Wall |
+| `1` | Path |
+| `2` | Target |
+| `3` | Start marker, when present |
+| `4` | Player |
+
+By default, the full maze is visible. Set `state_vision_range=n` for a square
+observation centered on the player with shape `(2*n + 1, 2*n + 1)`. Cells beyond
+the maze boundary appear as walls.
+
+## Choosing a maze
+
+Generated layouts need at least 10 rows and 10 columns. You can choose the room
+count, room shapes, amount of space devoted to rooms, and corridor algorithm:
+
+```python
+env = Labyrinth(
+    30,
+    30,
+    maze_nr_desired_rooms=5,
+    maze_global_room_ratio=0.4,
+    room_types=["rectangle", "oval"],
+    maze_corridor_algorithm="prim",
+    seed=0,
+)
+```
+
+For more variation, use `maze_nr_desired_rooms_range`,
+`maze_global_room_ratio_range`, and `room_access_points_range` instead of fixed
+values. The [maze README](maze/README.md) explains the room shapes and corridor
+settings illustrated below.
+
+`reset(seed=0)` regenerates the maze for that seed. `reset()` advances the maze
+seed to generate another layout. To start again on the current layout, use
+`reset(same_seed=True)` or `reset(options={"same_seed": True})`.
+
+## Playing manually
 
 ```python
 from rl_envs_forge.envs.labyrinth.labyrinth import Labyrinth
 
-env = Labyrinth(20, 20)
+env = Labyrinth(20, 20, seed=0)
 env.human_play(print_info=True, animate=True)
+env.close()
 ```
+
+Use the arrow keys to move and Escape to leave. The [display](display/README.md)
+and [entities](entities/README.md) READMEs describe the renderer and player.
 
 ## Maze examples
 
@@ -87,7 +149,7 @@ env.human_play(print_info=True, animate=True)
 </tr>
 </table>
 
-## Settings effect on output
+## How corridor settings affect the layout
 
 <table>
 <tr>

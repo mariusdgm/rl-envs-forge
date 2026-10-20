@@ -1,38 +1,39 @@
+# Labyrinth display
 
-# Labyrinth Display
-
-This folder contains the code for displaying and rendering the Labyrinth environment.
-
-## Introduction
-
-The Labyrinth Display module provides functionality for visualizing the maze environment and rendering it on a graphical interface using Pygame.
+The display package draws Labyrinth with Pygame. The environment creates its
+`EnvDisplay` when you first render, so you can run simulations without a window
+by leaving out rendering calls.
 
 ## Contents
 
-- [EnvDisplay](#envdisplay)
-- [PlayerDisplayer](#playerdisplayer)
+- [Rendering through the environment](#rendering-through-the-environment)
+- [Components](#components)
 
-## EnvDisplay
+## Rendering through the environment
 
-The `EnvDisplay` class is responsible for displaying the maze environment and rendering it on a graphical interface. It provides methods for rendering the maze state and updating the display.
+```python
+from rl_envs_forge.envs.labyrinth.labyrinth import Labyrinth
 
-### Rendering the Maze State
+env = Labyrinth(20, 20, seed=0)
+quit_requested, action = env.render(window_size=(800, 800), animate=False)
+env.close()
+```
 
-Rendering the maze state involves the following steps, as implemented in the `draw_state` method:
+`render()` returns a quit flag and an optional arrow-key action. Set
+`process_arrow_keys=True` to read arrow keys, or use `env.human_play()` to run
+the interactive movement loop. `animate=True` interpolates the player's sprite
+between cells; `sleep_time` sets the delay between animation frames.
 
-1. **Clear Display**: The display surface is cleared to prepare for rendering the new maze state.
+## Components
 
-2. **Render Maze**: The walls and paths of the maze are rendered onto the display surface.
+`EnvDisplay.draw_state()` draws the maze, target flag, grid, and player, then
+updates the window. It also scales cells and sprites when the window is resized.
 
-3. **Render Target**: The corridors of the maze are rendered onto the display surface.
+`EntityDisplayer` defines the `get_sprite()` interface. `PlayerDisplayer` loads
+the player sprite sheet, selects an idle or moving frame, and flips it to match
+the player's facing direction. The target and player images are stored in
+`sprites/`.
 
-4. **Render Grid Lines**: Display grid lines to help differentiate cells.
-
-4. **Render Entities**: The entities, such as the player and enemies, are rendered onto the display surface.
-
-6. **Update Display**: The display is updated to show the current maze state.
-
-### PlayerDisplayer
-
-The `PlayerDisplayer` class is responsible for rendering the player entity on the maze display. It provides methods for updating the player's position and rendering the player's image on the display.
-
+To change the appearance, start with `EnvDisplay` for colors and layout or
+`PlayerDisplayer` for sprite selection. See the [entities README](../entities/README.md)
+for the position and animation state used by the renderer.

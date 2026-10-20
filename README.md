@@ -1,167 +1,153 @@
 # rl-envs-forge
-<!-- Badges -->
+
 [![GitHub](https://img.shields.io/badge/-GitHub-black?logo=github)](https://github.com/mariusdgm/rl-envs-forge)
 [![PyPI version](https://img.shields.io/pypi/v/rl-envs-forge.svg)](https://pypi.org/project/rl-envs-forge/)
 ![License: MIT](https://img.shields.io/github/license/mariusdgm/rl-envs-forge)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-<!--  -->
 
-Lightweight environments for reinforcement learning applications.
+A collection of small, configurable environments for reinforcement learning.
+Use them to try learning and planning algorithms, compare control policies, or
+study how changes to an environment affect a problem.
 
-## Table of Contents
+## Table of contents
 
-- [rl-envs-forge](#rl-envs-forge)
-  - [Table of Contents](#table-of-contents)
-  - [Installation](#installation)
-  - [Environments](#environments)
-    - [Labyrinth](#labyrinth)
-      - [Labyrinth rendered example](#labyrinth-rendered-example)
-    - [KArmedBandit](#karmedbandit)
-      - [KArmedBandit rendered example](#karmedbandit-rendered-example)
-    - [GridWorld](#gridworld)
-      - [GridWorld rendered example](#gridworld-rendered-example)
-    - [ACML](#acml)
-    - [InvertedPendulum](#invertedpendulum)
-    - [NetworkGraph](#networkgraph)
-  - [Usage](#usage)
-  - [Tests](#tests)
-  - [License](#license)
-  - [Contact \& Support](#contact--support)
+- [Installation](#installation)
+- [Environments](#environments)
+  - [Labyrinth](#labyrinth)
+  - [KArmedBandit](#karmedbandit)
+  - [GridWorld](#gridworld)
+  - [ACML](#acml)
+  - [Inverted pendulums](#inverted-pendulums)
+  - [NetworkGraph](#networkgraph)
+- [Usage](#usage)
+  - [Repeating a run](#repeating-a-run)
+- [Tests](#tests)
+- [License](#license)
+- [Contact](#contact)
 
 ## Installation
+
+Requires Python 3.10 or later.
 
 ```bash
 pip install rl-envs-forge
 ```
 
+For development from a checkout, use `poetry install` and run commands with
+`poetry run`.
+
 ## Environments
 
 ### Labyrinth
 
-Labyrinth is a classic maze-solving environment, where the goal is to navigate from a start point to a target. The maze layout is randomly generated based on a set of parametrizable arguments.
+Navigate mazes built from rooms and corridors. Choose the maze generator,
+room shapes, and how much of the maze the agent can see.
 
-<!-- Use github paths for these figures so they will show up in the pypi page -->
-📖 **Detailed Documentation**: [Click here to read more about the Labyrinth environment](https://github.com/mariusdgm/rl-envs-forge/blob/main/rl_envs_forge/envs/labyrinth/README.md)
+[Labyrinth usage and settings](https://github.com/mariusdgm/rl-envs-forge/blob/main/rl_envs_forge/envs/labyrinth/README.md)
 
-#### Labyrinth rendered example
-
-![Labyrinth render GIF](https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/docs/figures/labyrinth/auto_play_demo.gif)
-
+![Labyrinth with a random policy](https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/docs/figures/labyrinth/auto_play_demo.gif)
 
 ### KArmedBandit
 
-KArmedBandit is a bandit environment, which returns a reward from a distribution associated with the chosen arm at each timestep. This implementation includes multiple distributions, and the possibility to shift the distribution parameters during sampling.
+Sample rewards from configurable arm distributions. Parameters can shift over
+time to model a nonstationary bandit.
 
-📖 **Detailed Documentation**: [Click here to read more about the KArmedBandit environment](https://github.com/mariusdgm/rl-envs-forge/blob/main/rl_envs_forge/envs/k_armed_bandit/README.md)
+[KArmedBandit usage and settings](https://github.com/mariusdgm/rl-envs-forge/blob/main/rl_envs_forge/envs/k_armed_bandit/README.md)
 
-#### KArmedBandit rendered example
-
-![KArmedBandit render](https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/docs/figures/k_armed_bandit/different_distributions.png)
+![Bandit reward distributions](https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/docs/figures/k_armed_bandit/different_distributions.png)
 
 ### GridWorld
 
-GridWorld is a customizable grid-based environment for reinforcement learning, featuring adjustable grid size, start and terminal states, walls, and special transitions. Each action taken by the agent results in a transition within the grid, adhering to the defined rules and probabilities. 
+Move through a grid with walls, terminal cells, and special transitions.
+Movement can be deterministic or include slippage.
 
-📖 **Detailed Documentation**: [Click here to read more about the GridWorld environment](https://github.com/mariusdgm/rl-envs-forge/blob/main/rl_envs_forge/envs/grid_world/README.md)
+[GridWorld usage and settings](https://github.com/mariusdgm/rl-envs-forge/blob/main/rl_envs_forge/envs/grid_world/README.md)
 
-#### GridWorld rendered example
-
-![GridWorld render](https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/docs/figures/grid_world/default.png)
+![GridWorld](https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/docs/figures/grid_world/default.png)
 
 ### ACML
 
-The Adaptive Computation and Machine Learning (ACML) environments are toy environments proposed in Reinforcement Learning: An Introduction* (2nd ed.).
+Jack's Car Rental and the Gambler's Problem from Sutton and Barto's
+*Reinforcement Learning: An Introduction* (2nd edition).
 
-📖 **Detailed Documentation**: [Click here to read more about the ACML environments](https://github.com/mariusdgm/rl-envs-forge/blob/main/rl_envs_forge/envs/acml/README.md)
+[ACML usage and settings](https://github.com/mariusdgm/rl-envs-forge/blob/main/rl_envs_forge/envs/acml/README.MD)
 
-### Inverted pendulum environments
+### Inverted pendulums
 
-Inverted pendulum environments where the objective is to apply forces to maintain the pendulum upright despite disturbances and the natural tendency to fall.
+Balance a pole on a cart or control a weighted disk. Both environments accept
+continuous actions and offer configurable starting states and rewards.
 
-📖 **Detailed Documentation**: [Click here to read more about the inverted pendulum envs](https://github.com/mariusdgm/rl-envs-forge/blob/main/rl_envs_forge/envs/inverted_pendulum/README.md)
-
-#### Inverted pendulums rendered examples
+[Inverted pendulum usage and settings](https://github.com/mariusdgm/rl-envs-forge/blob/main/rl_envs_forge/envs/inverted_pendulum/README.md)
 
 <table>
-
+<tr><th>CartPole</th><th>PendulumDisk</th></tr>
 <tr>
-    <th colspan="1">CartPole</th>
-    <th colspan="1">PendulumDisk</th>
+<td><img src="https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/docs/figures/inverted_pendulum/cart_pole/render.png" alt="CartPole" width="300"></td>
+<td><img src="https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/docs/figures/inverted_pendulum/pendulum_disk/render.png" alt="PendulumDisk" width="300"></td>
 </tr>
-<tr>
-<td>
-<img src="https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/docs/figures/inverted_pendulum/cart_pole/render.png" alt="CartPole" width="300">
-</td>
-<td>
-<img src="https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/docs/figures/inverted_pendulum/pendulum_disk/render.png" alt="PendulumDisk" width="300">
-</td>
-</tr>
-
 </table>
 
 ### NetworkGraph
 
-NetworkGraph is an environment simulating the current opinion in a social network.
+Influence opinions in a network using per-node controls. Choose the network
+structure and opinion dynamics, then compare progress toward a target against
+the cost of control.
 
-📖 **Detailed Documentation**: [Click here to read more about the NetworkGraph environment](https://github.com/mariusdgm/rl-envs-forge/blob/main/rl_envs_forge/envs/network_graph/README.md)
+[NetworkGraph usage and settings](https://github.com/mariusdgm/rl-envs-forge/blob/main/rl_envs_forge/envs/network_graph/README.md)
 
-#### NetworkGraph rendered example
-
-![NetworkGraph render](https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/docs/figures/network_graph/example.png)
+![NetworkGraph](https://raw.githubusercontent.com/mariusdgm/rl-envs-forge/main/docs/figures/network_graph/example.png)
 
 ## Usage
 
-Example code on setting up and testing the Labyrinth environment.
-
-Note, this code snippet produced the render visible in section [Labyrinth](#labyrinth)
+Import an environment class directly, reset it, and pass actions to `step()`:
 
 ```python
-from time import sleep
 from rl_envs_forge.envs.labyrinth.labyrinth import Labyrinth
 
 env = Labyrinth(20, 20, seed=0)
+observation, info = env.reset(seed=0)
+env.action_space.seed(0)
 
-done = False
-quit_event = False
-while not done and not quit_event:
-    action = env.action_space.sample()  
-    observation, reward, done, truncated, info = env.step(action)
-    quit_event, _ = env.render()
-    sleep(0.1)
+for _ in range(1000):
+    action = env.action_space.sample()
+    observation, reward, terminated, truncated, info = env.step(action)
+    if terminated or truncated:
+        break
+
+env.close()
 ```
 
-### Reproducible resets
+The package READMEs describe each environment's actions, observations, episode
+endings, and rendering options.
 
-All environments accept `env.reset(seed=0, options={})` and return
-`(observation, info)`. An explicit seed restarts the environment's random stream;
-omitting it continues the stream. Seed action sampling separately with
-`env.action_space.seed(0)` when needed.
+### Repeating a run
 
-Existing environment-specific reset arguments remain available. They can also be
-passed through `options`: `initial_state` for the pendulums, `new_start_state` for
-GridWorld, `option` (`"random"` or `"equal"`) for Jack's Car Rental, `same_seed`
-for Labyrinth, and `randomize_opinions` for NetworkGraph. NetworkGraph retains its
-topology across resets. Labyrinth retains its existing behavior of advancing the
-maze seed on an unseeded reset unless `same_seed=True` is requested.
+Pass a seed to `reset()` when you want to repeat an episode. Calling `reset()`
+without a seed continues the environment's random stream. Seed the action
+space separately, as above, if your policy uses `action_space.sample()`.
 
-KArmedBandit now uses NumPy's Generator instead of RandomState, so fixed-seed
-sequences differ from earlier versions. Its resets restart the arm parameter
-schedule and sample new arms; pass a seed explicitly to replay an episode.
+Resets also depend on the task. NetworkGraph keeps its graph and resets the
+opinions. Labyrinth generates another maze unless you pass `same_seed=True`.
+KArmedBandit rebuilds its arms and starts its parameter schedules from zero.
+See each environment's README for fixed starting states and other reset options.
 
 ## Tests
 
-Requirements: pytest and pytest-cov
-
-Run the tests in the root folder with:
+From a development checkout:
 
 ```bash
-pytest tests
+poetry run pytest tests
 ```
+
+Use `poetry run pytest tests -m "not slow"` for a shorter run.
+[Testing instructions](tests/README.md) cover running individual groups.
 
 ## License
 
-This project is licensed under the [MIT License](./LICENSE).
+[MIT](LICENSE).
 
-## Contact & Support
+## Contact
 
-For any queries or support, or if you would like to contribute to this project, reach out at [marius.dragomir.dgm@gmail.com](mailto:marius.dragomir.dgm@gmail.com) or raise an issue on our GitHub repository.
+For questions or contributions, open an issue on
+[GitHub](https://github.com/mariusdgm/rl-envs-forge) or contact
+[marius.dragomir.dgm@gmail.com](mailto:marius.dragomir.dgm@gmail.com).

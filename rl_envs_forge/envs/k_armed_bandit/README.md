@@ -1,142 +1,115 @@
-# KArmedBandit environment 
+# KArmedBandit
 
-The k-armed bandit problem is a classic dilemma in probability theory and statistics which models the decision-making process of choosing between multiple strategies (or actions) with uncertain outcomes. Imagine standing in front of a slot machine with k levers (or "arms"). Each lever provides a reward drawn from an unknown probability distribution specific to that lever. The challenge is to determine a strategy to maximize your total reward over a series of trials, without knowledge of the underlying distributions.
+Choose an arm and receive a reward from its distribution. Arms can use different
+distributions, and their parameters can change over time to model a
+nonstationary bandit.
 
-The Arms can be customized as presented in section [Usage](#usage).
-
-## Usage
-
-Code example for getting started with the environment:
+## Getting started
 
 ```python
 from rl_envs_forge.envs.k_armed_bandit.k_armed_bandit import KArmedBandit
 
-bandit = KArmedBandit(k=10, seed=0)
-bandit.step(1)
+bandit = KArmedBandit(k=10)
+observation, info = bandit.reset(seed=0)
+action, reward, terminated, truncated, info = bandit.step(1)
 ```
 
-```output
-(1, 0.5442007795281013, True, False, {})
-```
+Actions are arm indices from `0` to `k - 1`. By default, every arm has a normal
+reward distribution with a randomly sampled mean and standard deviation one.
+`step()` returns the chosen arm as its first value, while `reset()` returns zero.
+The reward is the useful feedback for a bandit policy.
+
+Each pull returns `terminated=True` and `truncated=False`. For a sequence of
+pulls from the same bandit, keep calling `step()` without resetting. A reset
+rebuilds the arms and restarts the timestep used by parameter schedules.
+
+## Choosing distributions
+
+Pass an `arm_params` dictionary keyed by arm index. Any arms you leave out use
+the default normal distribution.
 
 ```python
-bandit.render()
+bandit = KArmedBandit(
+    k=3,
+    arm_params={
+        0: {"distribution": "normal", "mean": 5, "std": 1},
+        1: {"distribution": "uniform", "low": 4, "high": 6},
+        2: {"distribution": "exponential", "scale": 1.5},
+    },
+)
+bandit.reset(seed=0)
 ```
 
-![KArmedBandit render default](../../../docs/figures/k_armed_bandit/default.png)
+| Distribution | Parameters |
+| --- | --- |
+| `normal` | `mean`, `std` |
+| `uniform` | `low`, `high` |
+| `exponential` | `scale` |
+| `gamma` | `shape`, `scale` |
+| `beta` | `a`, `b` |
+| `logistic` | `loc`, `scale` |
+| `weibull` | `a` |
+| `lognormal` | `mean`, `sigma` |
 
+Gamma and beta require both parameters shown; Weibull requires `a`. For the
+lognormal distribution, `mean` and `sigma` describe the underlying normal
+distribution.
+
+![Arms with different reward distributions](../../../docs/figures/k_armed_bandit/different_distributions.png)
+
+## Changing parameters over time
+
+A parameter function returns an offset from the arm's initial value. After
+each pull, every arm updates its scheduled parameters using the total number
+of pulls, even if that arm was not selected. The updated values apply to the
+next pull.
+
+```python
+def mean_shift(timestep):
+    return 0.1 * timestep
+
+
+bandit = KArmedBandit(
+    k=2,
+    arm_params={
+        0: {
+            "distribution": "normal",
+            "mean": 0,
+            "std": 1,
+            "param_functions": [
+                {"function": mean_shift, "target_param": "mean"},
+            ],
+        },
+    },
+)
+bandit.reset(seed=0)
+
+for _ in range(20):
+    action, reward, terminated, truncated, info = bandit.step(0)
+```
+
+Choose functions that keep distribution parameters valid, such as a
+nonnegative standard deviation.
+
+## Resets and rendering
+
+Use `reset(seed=0)` to repeat a reward sequence for the same sequence of arms.
+Calling `reset()` without a seed continues sampling from the current random
+stream, so the default arm means are sampled again.
 
 ```python
 bandit.render(mode="print")
+bandit.render(mode="violin_plot")
 ```
 
-```output
-Arm 0:
-	Distribution: Normal
-	Mean: 1.57
-	Std: 1.00
-------------------------------
-Arm 1:
-	Distribution: Normal
-	Mean: -0.95
-	Std: 1.00
-------------------------------
-Arm 2:
-	Distribution: Normal
-	Mean: -1.59
-	Std: 1.00
+The default render mode is `"violin_plot"`. It samples each arm to draw its
+distribution, which also advances the reward RNG. To repeat an experiment,
+render at the same points in each run or reset with a seed before collecting
+rewards.
 
-etc...
-```
+![Default bandit reward distributions](../../../docs/figures/k_armed_bandit/default.png)
 
+## Diagrams
 
-
-## Customizing an arm
-You can customize the distribution of an arm by passing a dictionary that describes the distribution.
-
-
-```python
-custom_bandit = KArmedBandit(k=10, arm_params={1: {"distribution": "normal", "mean": 5, "std": 1}})
-custom_bandit.render()
-```
-
-![KArmedBandit render single_custom](../../../docs/figures/k_armed_bandit/single_custom.png)
-
-
-## Shifting parameters
-You can define how a parameter changes during sampling for an arm:
-
-```python
-def linear_increase(timestep):
-    return 0.1 * timestep  # Increase by 0.1 every timestep
-
-
-def linear_decrease(timestep):
-    return - 0.01 * timestep  # Decrease by 0.01 every timestep, starting from 1
-
-
-arm_params = {
-    0: {
-        "distribution": "normal",
-        "mean": 0,
-        "std": 1,
-        "param_functions": [
-            {"function": linear_increase, "target_param": "mean"},
-            {"function": linear_decrease, "target_param": "std"},
-        ],
-    }
-}
-
-custom_bandit = KArmedBandit(k=2, arm_params=arm_params)
-custom_bandit.render()
-
-for timestep in range(20):
-    custom_bandit.step(1)
-    
-custom_bandit.render()
-```
-
-<table>
-<tr>
-    <th colspan="1">Initial distributions</th>
-    <th colspan="1">After extracting 10 samples</th>
-</tr>
-<tr>
-<td>
-<img src="../../../docs/figures/k_armed_bandit/changing_init.png" alt="changing_init 1" width="300">
-</td>
-<td>
-<img src="../../../docs/figures/k_armed_bandit/changing_after.png" alt="changing_after 2" width="300">
-</td>
-</tr>
-
-</table>
-
-## Different distributions
-Several distribution types can be used for the arm distribution:
-
-```python
-arm_params = {
-    0: {"distribution": "normal", "mean": 5, "std": 1},
-    1: {"distribution": "uniform", "low": 4, "high": 6},
-    2: {"distribution": "exponential", "scale": 1.5},  # Adjusted scale for a mean closer to 5.
-    3: {"distribution": "gamma", "shape": 9, "scale": 0.55},  # Adjusted to have a mean around 5.
-    4: {"distribution": "logistic", "loc": 5, "scale": 0.3},
-    5: {"distribution": "lognormal", "mean": 1.6, "sigma": 0.3},  # Adjusted for a mean close to 5.
-}
-
-custom_bandit = KArmedBandit(k=6, arm_params=arm_params)
-custom_bandit.render(mode="violin_plot")
-```
-
-![KArmedBandit render different_distributions](../../../docs/figures/k_armed_bandit/different_distributions.png)
-
-## UML diagrams
-
-### Packages
-
-<img src="../../../docs/diagrams/k_armed_bandit/packages_k_armed_bandit.png" alt="Packages UML" width="300">
-
-### Classes
-
-<img src="../../../docs/diagrams/k_armed_bandit/classes_k_armed_bandit.png" alt="Classes UML" width="300">
+![Package diagram](../../../docs/diagrams/k_armed_bandit/packages_k_armed_bandit.png)
+![Class diagram](../../../docs/diagrams/k_armed_bandit/classes_k_armed_bandit.png)
