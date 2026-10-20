@@ -130,6 +130,24 @@ while not done and not quit_event:
     sleep(0.1)
 ```
 
+### Reproducible resets
+
+All environments accept `env.reset(seed=0, options={})` and return
+`(observation, info)`. An explicit seed restarts the environment's random stream;
+omitting it continues the stream. Seed action sampling separately with
+`env.action_space.seed(0)` when needed.
+
+Existing environment-specific reset arguments remain available. They can also be
+passed through `options`: `initial_state` for the pendulums, `new_start_state` for
+GridWorld, `option` (`"random"` or `"equal"`) for Jack's Car Rental, `same_seed`
+for Labyrinth, and `randomize_opinions` for NetworkGraph. NetworkGraph retains its
+topology across resets. Labyrinth retains its existing behavior of advancing the
+maze seed on an unseeded reset unless `same_seed=True` is requested.
+
+KArmedBandit now uses NumPy's Generator instead of RandomState, so fixed-seed
+sequences differ from earlier versions. Its resets restart the arm parameter
+schedule and sample new arms; pass a seed explicitly to replay an episode.
+
 ## Tests
 
 Requirements: pytest and pytest-cov

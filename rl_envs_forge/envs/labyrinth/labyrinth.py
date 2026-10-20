@@ -83,12 +83,10 @@ class Labyrinth(gym.Env):
         self._state = np.ones((rows, cols), dtype=np.uint8) * WALL
         self.state_vision_range = state_vision_range
 
-        self.seed = seed
-        if self.seed is None:
-            self.seed = random.randint(0, 1e6)
+        super().reset(seed=seed)
+        self.seed = seed if seed is not None else int(self.np_random.integers(0, 1_000_001))
 
         self.py_random = random.Random(self.seed)
-        self.np_random = np.random.RandomState(self.seed)
 
         # Define action and observation spaces
         self.action_space = gym.spaces.Discrete(4)  # Up, Right, Down, Left
@@ -160,6 +158,7 @@ class Labyrinth(gym.Env):
                 rows=self.maze_layout_predetermined.shape[0],
                 cols=self.maze_layout_predetermined.shape[1],
                 layout=self.maze_layout_predetermined,
+                seed=self.seed,
             )
         else:
             self.maze = self.maze_factory.create_maze()
@@ -339,25 +338,29 @@ class Labyrinth(gym.Env):
         new_position = self.player.potential_next_position(action)
         self.player.position = new_position
 
-    def reset(self, seed: int = None, same_seed: bool = False) -> np.ndarray:
+    def reset(
+        self, seed: int = None, same_seed: bool = False, *, options=None
+    ) -> Tuple[np.ndarray, dict]:
         """Reset and regenerate another labyrinth. If the same seed as the one at the initialization is provided,
         then the same labyrinth should be regenerated.
 
         Args:
             seed (int, optional): External seed if a user wants to provide one. Defaults to None.
+            same_seed (bool, optional): Regenerate the current maze without advancing its seed.
+            options (dict, optional): May contain ``same_seed``.
 
         Returns:
             tuple: state as ndarray, info
 
         """
-        if seed:
+        super().reset(seed=seed)
+        same_seed = (options or {}).get("same_seed", same_seed)
+        if seed is not None:
             self.seed = seed
-        else:
-            if same_seed:
-                self.seed = self.seed
-            else:
-                self.seed += 1
+        elif not same_seed:
+            self.seed += 1
 
+        self.py_random.seed(self.seed)
         self.setup_labyrinth()
 
         return self.state, {}
@@ -514,8 +517,7 @@ class Labyrinth(gym.Env):
         new_env.py_random = copy.deepcopy(self.py_random, memo)
 
         # Manually deep copy the _np_random attribute
-        new_env._np_random = np.random.RandomState()
-        new_env._np_random.set_state(self._np_random.get_state())
+        new_env._np_random = copy.deepcopy(self._np_random, memo)
         new_env.reward_schema = copy.deepcopy(self.reward_schema, memo)
         new_env.player = copy.deepcopy(self.player, memo)
         new_env.maze = copy.deepcopy(self.maze, memo)

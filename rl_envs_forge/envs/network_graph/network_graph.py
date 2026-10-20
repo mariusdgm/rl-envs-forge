@@ -169,7 +169,7 @@ class NetworkGraph(gym.Env):
         super(NetworkGraph, self).__init__()
 
         self.seed = seed
-        self._rng = np.random.default_rng(seed)
+        super().reset(seed=seed)
 
         if connectivity_matrix is not None:
             self.num_agents = connectivity_matrix.shape[0]
@@ -268,7 +268,7 @@ class NetworkGraph(gym.Env):
         if initial_opinions is not None:
             self.opinions = np.array(initial_opinions, dtype=float)
         else:
-            self.opinions = self._rng.uniform(
+            self.opinions = self.np_random.uniform(
                 *self.initial_opinion_range, size=self.num_agents
             )
 
@@ -306,7 +306,7 @@ class NetworkGraph(gym.Env):
         for i in range(A.shape[0]):
             for j in range(A.shape[1]):
                 if A[i, j] == 1:
-                    A[i, j] = self._rng.uniform(*self.weight_range)
+                    A[i, j] = self.np_random.uniform(*self.weight_range)
         return A
 
     def _generate_probability_matrix(
@@ -316,20 +316,20 @@ class NetworkGraph(gym.Env):
         graph_connection_params = graph_connection_params or {}
 
         if graph_connection_distribution == "uniform":
-            prob = self._rng.uniform(*self.connection_prob_range)
+            prob = self.np_random.uniform(*self.connection_prob_range)
             probs = np.full((self.num_agents, self.num_agents), prob)
 
         elif graph_connection_distribution == "normal":
             mean = graph_connection_params.get("mean", 0.2)
             std = graph_connection_params.get("std", 0.05)
             probs = np.clip(
-                self._rng.normal(mean, std, (self.num_agents, self.num_agents)), 0, 1
+                self.np_random.normal(mean, std, (self.num_agents, self.num_agents)), 0, 1
             )
 
         elif graph_connection_distribution == "exponential":
             scale = graph_connection_params.get("scale", 0.2)
             probs = np.clip(
-                self._rng.exponential(scale, (self.num_agents, self.num_agents)), 0, 1
+                self.np_random.exponential(scale, (self.num_agents, self.num_agents)), 0, 1
             )
 
         else:
@@ -346,7 +346,7 @@ class NetworkGraph(gym.Env):
             G.add_nodes_from(range(self.num_agents))
             for i in range(self.num_agents):
                 for j in range(i + 1, self.num_agents):
-                    if self._rng.random() < probs[i, j]:
+                    if self.np_random.random() < probs[i, j]:
                         G.add_edge(i, j)
             return G
 
@@ -356,9 +356,9 @@ class NetworkGraph(gym.Env):
             for j in range(self.num_agents):
                 if i == j:
                     continue
-                if self._rng.random() < probs[i, j]:
+                if self.np_random.random() < probs[i, j]:
                     G.add_edge(i, j)
-                    if self._rng.random() < self.bidirectional_prob:
+                    if self.np_random.random() < self.bidirectional_prob:
                         G.add_edge(j, i)
         return G
 
@@ -377,7 +377,7 @@ class NetworkGraph(gym.Env):
             if isolated:
                 candidates = list(range(self.num_agents))
                 candidates.remove(node)
-                neighbor = self._rng.choice(candidates)
+                neighbor = self.np_random.choice(candidates)
                 G.add_edge(node, neighbor)
         return G
 
@@ -492,7 +492,7 @@ class NetworkGraph(gym.Env):
         for _ in range(self.ba_max_tries):
             # 1) Undirected BA graph.
             # Use numpy RNG to derive a deterministic seed for networkx without consuming randomness elsewhere.
-            nx_seed = int(self._rng.integers(0, 2**32 - 1))
+            nx_seed = int(self.np_random.integers(0, 2**32 - 1))
             G_und = nx.barabasi_albert_graph(self.num_agents, self.ba_m, seed=nx_seed)
 
             # 2) Make it bidirected.
@@ -508,9 +508,9 @@ class NetworkGraph(gym.Env):
             # remove up to prune_max_frac of edges; paper uses 0.5
             max_remove = int(np.floor(self.ba_prune_max_frac * m_dir))
             if max_remove > 0:
-                n_remove = int(self._rng.integers(0, max_remove + 1))  # inclusive
+                n_remove = int(self.np_random.integers(0, max_remove + 1))  # inclusive
                 if n_remove > 0:
-                    idx = self._rng.choice(m_dir, size=n_remove, replace=False)
+                    idx = self.np_random.choice(m_dir, size=n_remove, replace=False)
                     for k in idx:
                         G_dir.remove_edge(*edges[int(k)])
 
@@ -547,7 +547,7 @@ class NetworkGraph(gym.Env):
         # optional: random weights on existing edges
         if self.use_weighted_edges:
             mask = A != 0
-            A[mask] = self._rng.uniform(
+            A[mask] = self.np_random.uniform(
                 self.weight_range[0], self.weight_range[1], size=mask.sum()
             )
 
@@ -575,15 +575,26 @@ class NetworkGraph(gym.Env):
         """
         self.opinions = np.array(value)
 
-    def reset(self, randomize_opinions=False):
+    def reset(self, randomize_opinions=False, *, seed=None, options=None):
         """
         Reset the environment to its initial state.
 
+        The graph and its cached matrices are retained. An explicit seed restarts
+        opinion sampling without replaying the random draws used to construct
+        the graph, so it need not reproduce the constructor's initial opinions.
+        Without a seed, sampling continues from the current RNG state.
+
         Args:
             randomize_opinions (bool): If True, ignore self.initial_opinions and use random initialization instead.
+            seed (int, optional): Reseed opinion sampling; the graph remains fixed.
+            options (dict, optional): May contain ``randomize_opinions``.
         """
+        super().reset(seed=seed)
+        if seed is not None:
+            self.seed = seed
+        randomize_opinions = (options or {}).get("randomize_opinions", randomize_opinions)
         if randomize_opinions or self.initial_opinions is None:
-            self.opinions = self._rng.uniform(
+            self.opinions = self.np_random.uniform(
                 *self.initial_opinion_range, size=self.num_agents
             )
             info = {"random_opinions": True}

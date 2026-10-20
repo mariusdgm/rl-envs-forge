@@ -86,10 +86,10 @@ class JacksCarRental(gym.Env):
             tuple: A tuple containing the updated number of cars at location A and location B after the rentals and returns, and the reward earned from the rentals.
         """
         cars_at_A, cars_at_B = state
-        requests_A = poisson.rvs(self.request_lambda[0])
-        requests_B = poisson.rvs(self.request_lambda[1])
-        returns_A = poisson.rvs(self.return_lambda[0])
-        returns_B = poisson.rvs(self.return_lambda[1])
+        requests_A = poisson.rvs(self.request_lambda[0], random_state=self.np_random)
+        requests_B = poisson.rvs(self.request_lambda[1], random_state=self.np_random)
+        returns_A = poisson.rvs(self.return_lambda[0], random_state=self.np_random)
+        returns_B = poisson.rvs(self.return_lambda[1], random_state=self.np_random)
 
         rentals_A = min(cars_at_A, requests_A)
         rentals_B = min(cars_at_B, requests_B)
@@ -118,25 +118,31 @@ class JacksCarRental(gym.Env):
         self.state = new_state
         return new_state, reward, False, False, {}
 
-    def reset(self, option: str = "random"):
+    def reset(self, option: str = "random", *, seed=None, options=None):
         """
         Resets the state of the environment.
 
         Parameters:
             option (str, optional): The reset option. Can be "random" or "equal". Defaults to "random".
+            seed (int, optional): Reseed the environment's random stream.
+            options (dict, optional): May contain ``option`` to select the reset mode.
 
         Returns:
             tuple: The new state of the environment after the reset and a dictionary containing the reset option.
         """
 
+        super().reset(seed=seed)
+        option = (options or {}).get("option", option)
         if option == "random":
             self.state = (
-                np.random.randint(0, self.max_cars + 1),
-                np.random.randint(0, self.max_cars + 1),
+                int(self.np_random.integers(0, self.max_cars + 1)),
+                int(self.np_random.integers(0, self.max_cars + 1)),
             )
         elif option == "equal":
             initial_cars = self.max_cars // 2
             self.state = (initial_cars, initial_cars)
+        else:
+            raise ValueError("option must be 'random' or 'equal'")
         return self.state, {"Reset Option": option}
 
     def render(self, mode: str = "human") -> str:
