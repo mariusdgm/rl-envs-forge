@@ -1,4 +1,4 @@
-from typing import Optional, List, Dict, Any, Union, Callable
+from typing import Optional, List, Dict, Any, Union, Callable, Tuple
 import numpy as np
 import gymnasium as gym
 
@@ -142,7 +142,7 @@ class KArmedBandit(gym.Env):
 
         self.k = k
         self.seed = seed
-        self.np_random = np.random.RandomState(self.seed)
+        super().reset(seed=seed)
         self.timestep = 0
         self.arm_params = arm_params
 
@@ -159,7 +159,7 @@ class KArmedBandit(gym.Env):
 
     def _create_default_arms(self):
         """By default instantiate normal distribution arms."""
-        default_means = self.np_random.randn(self.k)
+        default_means = self.np_random.standard_normal(self.k)
         self.arms = [
             Arm(distribution="normal", mean=mean, std=1) for mean in default_means
         ]
@@ -199,20 +199,22 @@ class KArmedBandit(gym.Env):
         truncated = False
         return action, reward, done, truncated, {}
 
-    def reset(self, seed: int = None) -> int:
+    def reset(self, seed: int = None, options=None) -> Tuple[int, dict]:
         """
         Reset the environment.
 
-        For k-armed bandit, the environment state remains unchanged between resets.
+        Reinitialize the arms and timestep. Without a seed, continue the RNG stream.
 
         Args:
             seed (int, optional): Seed for reproducibility.
+            options (dict, optional): Reserved for reset options.
         Returns:
-            int: An initial observation, which is always 0.
+            tuple: An initial observation (always 0) and an info dictionary.
         """
+        super().reset(seed=seed)
         if seed is not None:
             self.seed = seed
-        self.np_random = np.random.RandomState(self.seed)
+        self.timestep = 0
         self._init_arms()
         return 0, {}
 

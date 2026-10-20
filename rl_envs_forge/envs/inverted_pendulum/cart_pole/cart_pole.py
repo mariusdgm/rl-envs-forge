@@ -79,7 +79,7 @@ class CartPole(gym.Env):
         if self.initial_state is not None:
             return np.array(self.initial_state, dtype=np.float64)
         else:
-            return np.random.uniform(low=-0.01, high=0.01, size=(4,))
+            return self.np_random.uniform(low=-0.01, high=0.01, size=(4,))
 
     def normalize_angle(self, angle):
         """Normalize the angle to be within the range [-pi, pi]."""
@@ -90,8 +90,9 @@ class CartPole(gym.Env):
 
     def reset(self, seed=None, options=None, initial_state=None):
 
-        if seed is not None:
-            self.np_random, seed = gym.utils.seeding.np_random(seed)
+        super().reset(seed=seed)
+        if initial_state is None:
+            initial_state = (options or {}).get("initial_state")
 
         # Start state
         if initial_state is not None:

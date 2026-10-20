@@ -66,7 +66,7 @@ class GridWorld(gym.Env):
         )
 
         super().__init__()
-        self.np_random, _ = gym.utils.seeding.np_random(seed)
+        super().reset(seed=seed)
         self.rows, self.cols = rows, cols
         self.start_state = start_state
         self.terminal_states = terminal_states
@@ -300,29 +300,14 @@ class GridWorld(gym.Env):
         return P
 
     def make_transition(self, state, action):
-        if self.np_random.rand() < self.random_move_frequency:
-            action = self.np_random.choice(list(Action))
-
-        # Check for a special transition first
-        if (state, action) in self.special_transitions:
-            return self.special_transitions[(state, action)][0]
-
-        for state in [(r, c) for r in range(self.rows) for c in range(self.cols)]:
-            state_index = state[0] * self.cols + state[1]
-
-            if state in self.terminal_states or state in self.walls:
-                # For terminal states or walls, set the transition probability to stay in the same state
-                for action in Action:
-                    P[state_index, state_index, action] = 1.0
-            else:
-                for action in Action:
-                    outcomes = self.mdp.get((state, action), [])
-                    for outcome in outcomes:
-                        next_state, _, _, prob = outcome
-                        next_state_index = next_state[0] * self.cols + next_state[1]
-                        P[state_index, next_state_index, action] += prob
-
-        return P
+        """Sample a next state from the MDP without changing the current state."""
+        action = Action(action)
+        outcomes = self.mdp.get((state, action), [])
+        if not outcomes:
+            raise ValueError(f"No outcomes defined for state {state} and action {action}")
+        probabilities = [outcome[3] for outcome in outcomes]
+        selected_index = self.np_random.choice(len(outcomes), p=probabilities)
+        return outcomes[selected_index][0]
 
     def calculate_outcomes(self, state, action):
         """
@@ -527,16 +512,25 @@ class GridWorld(gym.Env):
 
         return self.state, reward, done, truncated, {}
 
-    def reset(self, new_start_state: Optional[Tuple[int, int]] = None):
+    def reset(
+        self, new_start_state: Optional[Tuple[int, int]] = None, *, seed=None, options=None
+    ):
         """
         Reset the environment to the starting state or a new starting state if provided.
 
         Args:
             new_start_state (Optional[Tuple[int, int]], optional): A new starting state for the agent. Defaults to None.
+            seed (int, optional): Reseed transition sampling.
+            options (dict, optional): May contain ``new_start_state``.
 
         Returns:
-            Tuple[int, int]: The initial observation and reward.
+            tuple: The initial observation and an info dictionary.
         """
+        super().reset(seed=seed)
+        if seed is not None:
+            self.seed = seed
+        if new_start_state is None:
+            new_start_state = (options or {}).get("new_start_state")
         if new_start_state is not None:
             if (
                 not isinstance(new_start_state, tuple)

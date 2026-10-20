@@ -1,89 +1,88 @@
-# Labyrinth Maze and Room
+# Maze generation
 
-## Introduction
-
-The Labyrinth Maze module provides functionality for generating and manipulating maze layouts. It consists of two main components: the `Maze` class and the `Room` class.
-
-The `Maze` class represents a maze layout and provides various methods for generating and manipulating mazes. `Maze` also uses a `CorridorBuilder` component to handle the path generation.
-
-The `Room` class represents a room in the maze and provides methods for generating and manipulating rooms.
-
-To instantiate a maze or a room, you can make use of the corresponding factory classes: `MazeFactory` and `RoomFactory`. These factory classes provide a convenient way to create instances of `Maze` and `Room` with different configurations and settings.
+This package builds the layouts used by [Labyrinth](../README.md). A maze
+starts with rooms, then adds corridors and chooses start and target positions.
+You can use the generators directly when you only need a layout.
 
 ## Contents
 
-- [Maze](#maze)
-- [Room](#room)
-- [CorridorBuilder](#corridorbuilder)
+- [Creating a maze](#creating-a-maze)
+- [Rooms](#rooms)
+- [Corridors](#corridors)
 
-## Maze
+## Creating a maze
 
-The `Maze` class represents a maze layout and provides various methods for generating and manipulating mazes.
+```python
+from rl_envs_forge.envs.labyrinth.maze.maze import MazeFactory
 
-### Maze Generation
+factory = MazeFactory(
+    rows=30,
+    cols=30,
+    nr_desired_rooms=5,
+    global_room_ratio=0.4,
+    room_types=["rectangle", "oval"],
+    corridor_algorithm="prim",
+    seed=0,
+)
+maze = factory.create_maze()
+layout = maze.grid
+start = maze.start_position
+target = maze.target_position
+```
 
-The maze generation process involves the following steps:
+Generated mazes need at least 10 rows and 10 columns. `grid` stores walls as
+zero and paths as one; start and target positions are separate attributes.
+The requested room count is a placement target: `nr_placed_rooms` records how
+many rooms fit.
 
-1. **Initialize Maze**: The maze dimensions are specified, and the initial walls are set up.
+`global_room_ratio` sets the share of the maze reserved for rooms. For variable
+layouts, leave `nr_desired_rooms` or `global_room_ratio` unset and use their
+corresponding `_range` arguments. `room_ratio` controls room proportions,
+while `access_points_per_room` controls corridor entrances.
 
-2. **Place Rooms**: Rooms are randomly placed in the maze based on the desired number of rooms and the global room ratio.
+## Rooms
 
-3. **Place Start and End Positions**: The start and end positions are randomly placed in the maze.
+`RoomFactory` creates individual rooms:
 
-4. **Generate Corridor Maze**: Corridors are generated to connect the rooms and create a connected maze structure.
+```python
+from rl_envs_forge.envs.labyrinth.maze.room import RoomFactory
 
-## Room
+room_factory = RoomFactory(room_types=["rectangle", "oval"], seed=0)
+room = room_factory.create_room(rows=8, cols=10)
+layout = room.grid
+entrances = room.access_points
+```
 
-The `Room` class represents a room in the maze and provides methods for generating and manipulating rooms.
+Available `room_types` are `rectangle`, `oval`, `donut`, `t_shape`, `l_shape`,
+and `triangle`. You can pass dimensions or a `desired_area`; an area takes
+precedence over dimensions. Set `access_points_nr` for a fixed number of
+entrances, or use `access_points_range` to sample it.
 
-### Room Types
+To add a room shape, implement a `Room` subclass, add a creation method to
+`RoomFactory`, and register its name in the factory's available types and
+creation dispatch.
 
-The `Room` class allows for the implementation of different room types. Currently, the following room types are available:
+## Corridors
 
-- **Rectangle Room**: A basic rectangular room.
-- **Oval Room**: A basic oval room.
-- **Donut Room**: A donut shaped room, built with an outer and an inner shape. These can be either rectangular or oval
-- **T Shape Room**: A T shaped room.
-- **L Shape Room**: An L shaped room.
-- **Triangle Room**: A triangle shaped room.
+`CorridorBuilder` works on the `Maze` that owns it and writes to its corridor
+grid. The factory selects an algorithm through `corridor_algorithm`:
 
+| Value | Layout |
+| --- | --- |
+| `prim` | Branching, maze-like corridors. |
+| `astar` | Connects access points using A* search. |
+| `gbfs` | Connects access points using greedy best-first search. |
+| `random` | Chooses one of the three algorithms. |
 
-To add new room types, simply create a new class that inherits from the `Room` class and implements the necessary methods, and create a build method in the room factory class (and also add this room shape in the allowed shapes).
+For Prim, `corridor_grid_connect_option` controls how neighboring corridors
+can connect. `corridor_post_process_option=True` extends paths near borders
+and rooms where the local layout allows it.
 
-## CorridorBuilder
+For A* and GBFS, `corridor_sort_access_points_option=True` orders entrances
+by proximity before connecting them; `False` shuffles them. Grid connection
+and access-point sorting also accept `"random"`.
 
-Because the `Maze` starts by being populated with rooms, the maze generation is done with constraints defined by the room layouts.
-
-`CorridorBuilder` encapsulates the functions relevant to corridor generation, and is a strongly coupled component of `Maze`.
-
-A `CorridorBuilder` object is instantiated at `Maze` instantiation, and the functions have access to the internals of `Maze` and may modify them.
-
-### Maze Corridor Algorithms
-
-The following algorithms are available for generating the corridors in the maze:
-
-- Prim's (prim): generates maze like corridors
-- A* (astar): generates more direct corridors, should find the shortest paths
-- Greedy Best First Search (gbfs): Unoptimal A*, much faster. Generates very direct paths.
-
-Warning:
-A* is ~ 100 times slower than Prim's
-GBFS is ~ 4.5 times slower than Prim's
-
-When the corridor generation algorithm is Prim, the corridor layout is also affected by the following parameters:
-
-corridor_grid_connect_option:
-
-- **True**: Corridors are grid-connected, ensuring a strict grid structure.
-- **False**: Corridors are not grid-connected, allowing for more organic and irregular corridor paths.
-
-post_process_option:
-
-- **True**: An extra post-processing step is done after the corridor generation. This step randomly adds some extra walls in available spaces.
-
-For A* and GBFS, the following parameters affect the layout:
-
-maze_sort_access_points_option:
-
-- **True**: Sorts the access points in a way that orders them so they are closer to each other (should lead to direct paths)
-- **False**: The access points list is shuffled, leading to longer corridors on average.
+When configuring a `Labyrinth` environment rather than a `MazeFactory`, use
+the corresponding `maze_` arguments, such as `maze_corridor_algorithm` and
+`maze_corridor_sort_access_points_option`. The environment calls the factory
+for you.

@@ -49,7 +49,7 @@ class GamblersProblem(gym.Env):
         reward = 0
 
         # Win case
-        if np.random.rand() < self.win_probability:
+        if self.np_random.random() < self.win_probability:
             self.state += action
             if self.state >= self.goal_amount:
                 self.state = self.goal_amount
@@ -65,13 +65,18 @@ class GamblersProblem(gym.Env):
         truncated = False
         return self.state, reward, done, truncated, {}
 
-    def reset(self) -> int:
+    def reset(self, *, seed=None, options=None) -> Tuple[int, dict]:
         """
         Reset the environment to an initial state.
+
+        Args:
+            seed (int, optional): Reseed the environment's random stream.
+            options (dict, optional): Reserved for reset options.
 
         Returns:
             The initial state and additional info.
         """
+        super().reset(seed=seed)
         self.state = self.start_capital
         return self.state, {}
 
