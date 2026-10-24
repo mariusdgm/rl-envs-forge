@@ -80,7 +80,7 @@ class Labyrinth(gym.Env):
         if self.maze_layout_predetermined is not None:
             self.rows, self.cols = self.maze_layout_predetermined.shape
 
-        self._state = np.ones((rows, cols), dtype=np.uint8) * WALL
+        self._state = np.ones((self.rows, self.cols), dtype=np.uint8) * WALL
         self.state_vision_range = state_vision_range
 
         super().reset(seed=seed)
@@ -93,7 +93,7 @@ class Labyrinth(gym.Env):
 
         if state_vision_range is None:
             self.observation_space = gym.spaces.Box(
-                low=0, high=4, shape=(rows, cols), dtype=np.uint8
+                low=0, high=4, shape=(self.rows, self.cols), dtype=np.uint8
             )
         else:
             assert (
@@ -110,6 +110,8 @@ class Labyrinth(gym.Env):
                 "wall_collision_reward": -1,
                 "target_reached_reward": 10,
             }
+        else:
+            self.reward_schema = reward_schema.copy()
 
         #### Setup maze factory settings ####
         self.maze_nr_desired_rooms = maze_nr_desired_rooms
@@ -206,7 +208,7 @@ class Labyrinth(gym.Env):
 
     def build_state_matrix(self) -> np.ndarray:
         """Sequentially build the state matrix."""
-        self._state = self.maze.grid.copy()
+        self._state = self.maze.grid.astype(np.uint8, copy=True)
         self._state[self.maze.target_position] = TARGET
         self._state[self.player.position] = PLAYER
         return self._state

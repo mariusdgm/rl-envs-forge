@@ -289,7 +289,7 @@ class NetworkGraph(gym.Env):
             dtype=np.float32,
         )
         self.observation_space = spaces.Box(
-            low=0, high=1, shape=(self.num_agents,), dtype=np.float32
+            low=0, high=1, shape=(self.num_agents,), dtype=np.float64
         )
 
         self.current_step = 0
@@ -302,6 +302,9 @@ class NetworkGraph(gym.Env):
         A = np.array(connectivity_matrix, copy=True)
         if not self.use_weighted_edges:
             return A
+        # Integer and boolean storage cannot retain the sampled fractional weights.
+        if np.issubdtype(A.dtype, np.integer) or np.issubdtype(A.dtype, np.bool_):
+            A = A.astype(float)
         # Preserve existing semantics: only replace entries equal to 1
         for i in range(A.shape[0]):
             for j in range(A.shape[1]):

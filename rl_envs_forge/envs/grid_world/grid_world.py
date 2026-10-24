@@ -468,6 +468,8 @@ class GridWorld(gym.Env):
 
         # If the action leads to staying in place due to a wall or the boundary, return the 'wall_collision' or 'out_of_bounds' reward
         if next_state == current_state:
+            if self.default_transition(current_state, action) in self.walls:
+                return self.rewards.get("wall_collision", -1)
             return self.rewards.get("out_of_bounds", -1)
 
         # If moving into a wall, specifically
