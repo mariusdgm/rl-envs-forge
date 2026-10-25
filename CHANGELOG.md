@@ -7,8 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Proposed next version: `6.0.0rc1`, followed by `6.0.0` after validation. The
+existing `v5.23.0` tag must not be reused. Version metadata remains `5.23.0`
+until the release version is approved. A major version acknowledges the
+intentional observation-space, validation, and stochastic-model changes below.
+
 ### Changed
 
+- Declare Python 3.10–3.12 support, matching the NumPy 1.x dependency range. Python 3.13 is excluded pending a separately validated numerical-stack update.
+- Declare Matplotlib directly and require versions below 3.10, which removed the RGB canvas method used by the existing GridWorld renderer.
+- Install Sphinx and its theme through the optional `docs` extra, and expose a `test` extra. Remove unused Python Graphviz, TOML, and external Napoleon dependencies; the diagram regeneration script still needs the external Graphviz application.
+- Replace automatic tagging and publishing with validation-only CI for Python 3.10, 3.11, and 3.12 on Linux and Windows, plus documentation, citation, source-archive, and isolated-install checks.
 - NetworkGraph FJ observations declare a nonnegative, unbounded space. Propagated states require finite real values rather than an arbitrary endpoint tolerance, while initial/reset opinions stay in `[0,1]`. The raw FJ recurrence and coefficients are preserved; numerical overflow raises instead of returning a nonfinite state.
 - GridWorld rejects out-of-grid constructor/reset starts, and GamblersProblem rejects starting capital outside its discrete observation space. Rejected resets preserve episode state and RNG state.
 - NetworkGraph validates Friedkin-Johnsen adjacency, lambda, prejudice, and bounded control/initial-state parameters without normalizing matrices or clipping invalid lambda values. Previously accepted configurations outside these assumptions now raise `ValueError`; the FJ formula and valid trajectories are preserved.
@@ -20,6 +29,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Labyrinth full observations use the declared uint8 dtype and supplied-layout dimensions, and custom reward schemas are assigned correctly.
+- KArmedBandit's observation space includes its returned arm indices. NetworkGraph's observation dtype matches its float64 dynamics, and integer adjacency inputs retain sampled fractional weights.
+- GridWorld distinguishes configured wall-collision rewards from boundary-collision rewards.
 - Strict Sphinx documentation builds resolve inherited physical-step docstrings, the Barabasi-Albert list indentation, and ambiguous Labyrinth action references without changing simulation behavior.
 - Supplied Labyrinth layouts retain manual initialization, report missing positions clearly, and avoid applying unset markers to the entire full observation.
 - PendulumDisk declares unbounded angular velocity observations, including failure-step overshoot, without clipping or changing physical dynamics.
@@ -32,6 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Include tests, test configuration, the dependency lock, documentation sources, citation metadata, and CI configuration in source distributions. Add an isolated artifact validation command and a repository-based `CITATION.cff` without an invented archival identifier.
 - NetworkGraph offers opt-in `strict_connectivity` and an additional `connectivity_requirement`, preserving default generation distributions, retry behavior, and random draw order.
 - GamblersProblem exposes state-feasible stakes through `feasible_actions()` and `action_mask()`, with optional `strict_actions` validation. Its default action space and permissive behavior remain unchanged.
 - Jack's Car Rental `build_transition_model()` returns a lazy snapshot of complete transition probabilities and conditional mean rewards, keyed by Gymnasium action indices, without allocating a full transition tensor.

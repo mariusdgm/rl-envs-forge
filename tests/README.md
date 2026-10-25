@@ -9,6 +9,11 @@ Install the development environment from the repository root:
 poetry install
 ```
 
+Without Poetry, use `python -m pip install ".[test]"`. The compatibility workflow
+tests Python 3.10, 3.11, and 3.12 on Linux and Windows with freshly resolved
+dependencies. A configured CI job is not evidence that a version passed; see
+[release validation](../docs/release_candidate_validation.md) for local results.
+
 Run the tests in the root folder with:
 
 ```bash
@@ -43,3 +48,16 @@ The corresponding shell variables on Linux/macOS are `SDL_VIDEODRIVER=dummy`,
 `SDL_AUDIODRIVER=dummy`, and `MPLBACKEND=Agg`. Gymnasium checks omit the legacy
 rendering API; rendering tests run separately. README smokes execute Python
 blocks in order and omit rendering and manual input.
+
+For release artifacts, run:
+
+```bash
+python tests/release_candidate_checks.py --artifacts dist --output docs/_build/release-check --install
+```
+
+Use a directory containing exactly one candidate wheel and one candidate sdist,
+and choose a new output directory for each run. The checker inspects archive
+contents and creates separate virtual environments for the two installs. It
+resolves dependencies independently of `poetry.lock` and runs the non-slow tests
+against each installed artifact. This command accesses public PyPI; use
+`--offline-links /path/to/wheelhouse` to restrict it to local distributions.

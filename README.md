@@ -22,19 +22,28 @@ study how changes to an environment affect a problem.
 - [Usage](#usage)
   - [Repeating a run](#repeating-a-run)
 - [Tests](#tests)
+- [Documentation](#documentation)
+- [Citation](#citation)
 - [License](#license)
 - [Contact](#contact)
 
 ## Installation
 
-Requires Python 3.10 or later.
+Supports Python 3.10, 3.11, and 3.12. Python 3.13 requires a future dependency
+update; the current numerical stack uses NumPy 1.x.
 
 ```bash
 pip install rl-envs-forge
 ```
 
 For development from a checkout, use `poetry install` and run commands with
-`poetry run`.
+`poetry run`. Alternatively, use pip:
+
+```bash
+python -m pip install ".[test]"
+```
+
+The `docs` extra installs the Sphinx documentation tools.
 
 ## Environments
 
@@ -141,6 +150,18 @@ poetry run pytest tests
 
 Use `poetry run pytest tests -m "not slow"` for a shorter run.
 [Testing instructions](tests/README.md) cover running individual groups.
+
+## Documentation
+
+The linked package READMEs contain usage examples and configuration details.
+To build the API documentation locally, install `poetry install --extras docs`
+and follow the [documentation instructions](docs/README.md).
+
+## Citation
+
+If you use this software in research, the author and repository information are
+available in [CITATION.cff](CITATION.cff). No archived release or DOI is currently
+specified there.
 
 ## License
 
