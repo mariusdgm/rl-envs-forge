@@ -26,6 +26,10 @@ The observation is a vector of `num_agents` opinions. The action is a vector of
 the same length, with each entry between zero and that node's `max_u`. You can
 set `max_u` and `desired_opinion` per node by passing arrays instead of scalars.
 `control_resistance` takes an array or `None`.
+Observations use `float64` and actions use `float32`. Observations returned by
+`reset()` and `step()` are independent copies; changing them does not change
+the simulation. Use `env.state` or `env.opinions` to inspect or explicitly edit
+the live state.
 
 ## Choosing a network
 
@@ -119,8 +123,8 @@ Choose a model with `dynamics_model`:
 | `laplacian` (also `degroot`) | Continuous consensus using the graph Laplacian. | `t_s` |
 | `coca` | Neighbor influence varies with the node's current opinion. | `t_s` |
 | `friedkinjohnsen` (also `friedkin_johnsen`, `fj`) | Mixes social influence with a fixed prejudice vector. | `fj_lambda`, `fj_prejudice` |
-| `hegselmannkrause` | Averages neighbors whose opinions are close enough. | `hk_epsilon`, `hk_include_self` |
-| `nonlinearinfluence` | Uses a saturating influence function. | `nonlinear_beta`, `t_s` |
+| `hegselmannkrause` (also `hegselmann_krause`, `hk`) | Averages neighbors whose opinions are close enough. | `hk_epsilon`, `hk_include_self` |
+| `nonlinearinfluence` (also `nonlinear_influence`) | Uses a saturating influence function. | `nonlinear_beta`, `t_s` |
 | `repulsion` | Attracts similar opinions and pushes distant ones apart. | `repulsion_epsilon`, `repulsion_strength`, `t_s` |
 
 Each environment step applies control once, then runs propagation for
@@ -133,9 +137,12 @@ Friedkin-Johnsen uses the discrete update
 interval. Its assumptions are checked explicitly:
 
 - `A` must be a finite, real, nonnegative square matrix. Rows must sum to one,
-  checked in float64 with absolute tolerance `1e-12` and zero relative tolerance.
-  Zero rows are invalid. Rounded float32 rows can fail this tolerance; prepare
-  the intended stochastic matrix in float64 when needed.
+  checked by summing in float64 with zero relative tolerance. The absolute
+  tolerance is `4 * np.finfo(np.float32).eps` (about `4.77e-7`) for float32
+  matrices and `1e-12` for other dtypes. This admits small normalization errors
+  in single precision, including normalized and softmax-generated rows. Zero
+  rows and substantive row-sum errors remain invalid. Validation never changes
+  the supplied entries.
 - `fj_lambda` must be a scalar or a vector of shape `(num_agents,)`, with finite
   values in `[0,1]`. `fj_prejudice` must be a vector of that shape in `[0,1]`.
 - Initial opinions, targets, `max_u`, and control resistance must be finite and
@@ -152,6 +159,15 @@ invalid matrices raise instead of being normalized. You may explicitly prepare
 a matrix with `normalize_adjacency_matrix` from `graph_utils`, checking that no
 zero rows remain.
 
+The declared observation space is exactly `[0,1]`. An endpoint update can
+exceed it by roundoff even with a float64 matrix. With float32 rows and
+`fj_lambda=1`, positive row-sum errors can accumulate; the next update can
+then fail the state validation above. The row-sum tolerance is an acceptance
+criterion, not a promise of exact boundedness for an approximately stochastic
+matrix. For endpoint-sensitive experiments, prepare and inspect the matrix
+in float64 and check the observations. No normalization or clipping is applied
+to hide this numerical limitation.
+
 Every generated graph is checked against the FJ requirements too. In particular,
 the default random graph is generally unnormalized and can be rejected. Choose
 a valid supplied matrix or a Barabasi-Albert configuration with no zero rows;
@@ -167,6 +183,16 @@ env = NetworkGraph(
 Generated matrices are validated without automatic repair for FJ. If
 `fj_prejudice` is omitted, it is set to the initial opinions of
 each episode; a supplied prejudice vector stays fixed across resets.
+
+For bounded-opinion experiments with any model, use finite nonnegative adjacency
+weights, initial opinions and targets in `[0,1]`, and controls and resistance in
+`[0,1]`. Laplacian consensus preserves this interval in exact arithmetic under
+these assumptions. COCA, HK, nonlinear influence, and repulsion retain their
+existing output clipping to `[0,1]`. Use nonnegative confidence radii
+(`hk_epsilon`, `repulsion_epsilon`), `nonlinear_beta`, and `repulsion_strength`
+for their usual interpretations. These are modeling assumptions; outside FJ,
+the constructor does not enforce all of them. For the Euler-based models,
+choose `t_s` small enough for the accuracy of the experiment.
 
 ## Rewards and episode endings
 

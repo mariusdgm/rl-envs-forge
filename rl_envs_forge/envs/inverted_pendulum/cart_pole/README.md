@@ -43,6 +43,10 @@ state, info = env.reset(
 
 You can also pass `initial_state` to the constructor to use it on every reset,
 or directly to `reset(initial_state=...)` for one episode.
+Use finite four-component states and a positive `tau`. Observations use
+`float64` with unbounded space limits, so a failure-step observation is still
+representable. Large timesteps can make Euler integration inaccurate or
+unstable.
 
 ## Rewards and episode endings
 
@@ -50,6 +54,9 @@ By default, the reward is one when the angle is inside `reward_angle_range`
 (default `(-0.1, 0.1)`) and zero otherwise. Set `continuous_reward=True` for a
 reward that decreases linearly with the absolute pole angle. Adding
 `nonlinear_reward=True` uses an exponential curve shaped by `reward_decay_rate`.
+Use a positive decay rate with nonlinear rewards; zero makes its denominator
+zero. Both reward modes expect an ordered finite `reward_angle_range` and a
+positive integer episode limit.
 
 The episode terminates if the cart leaves `[-2.4, 2.4]` or the pole angle
 leaves `[-0.2, 0.2]`. `angle_termination` can impose a tighter angle limit.

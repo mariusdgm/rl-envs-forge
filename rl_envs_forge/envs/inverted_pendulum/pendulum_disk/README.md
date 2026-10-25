@@ -26,6 +26,11 @@ env.close()
 between `-3` and `3`, supplied as `float32` NumPy arrays with shape `(1,)`.
 For example, `np.array([0.5], dtype=np.float32)` supplies `0.5` volts.
 
+Observations use `float64`. The angle lies in `[-pi, pi]`; angular velocity
+has no declared finite bound. The failure threshold is checked after the Euler
+update, so the observation on a failing step can exceed `15*pi` in magnitude.
+The environment reports that velocity without clipping it.
+
 ## Starting states
 
 Reset samples both state components uniformly from `[-0.01, 0.01]` unless you
@@ -43,6 +48,10 @@ state, info = env.reset(
 
 Set `initial_state` in the constructor for a fixed start on every reset, or
 use `reset(initial_state=...)` to choose the start of one episode.
+Use a finite two-component state with an angle in `[-pi, pi]`, and a positive
+`tau`. Reset preserves a supplied state, including velocities already beyond
+the failure threshold. A large timestep can make Euler integration unstable;
+choose it for the accuracy your experiment needs.
 
 ## Rewards and episode endings
 
@@ -50,6 +59,9 @@ The default reward is one inside `reward_angle_range` (default `(-0.2, 0.2)`)
 and zero outside it. With `continuous_reward=True`, the reward decreases
 linearly from one at upright to zero at an absolute angle of pi. Adding
 `nonlinear_reward=True` uses an exponential curve shaped by `reward_decay_rate`.
+Use a positive decay rate with nonlinear rewards; zero makes its denominator
+zero. Use an ordered finite reward angle range and a positive integer episode
+limit.
 
 Angles are wrapped to `[-pi, pi]`. The episode terminates if angular velocity
 leaves `[-15*pi, 15*pi]`, or if the absolute angle exceeds a supplied

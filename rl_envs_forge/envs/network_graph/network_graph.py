@@ -715,7 +715,7 @@ class NetworkGraph(gym.Env):
             self._validate_fj_configuration()
         self.current_step = 0
         self.total_spent = 0.0
-        return self.opinions, info
+        return self.opinions.copy(), info
 
     def compute_dynamics(
         self, current_state, control_action, t_campaign=None, t_s=None
@@ -850,7 +850,7 @@ class NetworkGraph(gym.Env):
         if self.budget is not None:
             info["remaining_budget"] = self.budget - self.total_spent
 
-        return self.opinions, reward, done, truncated, info
+        return self.opinions.copy(), reward, done, truncated, info
 
     def render(self, mode="matplotlib", **kwargs):
         """

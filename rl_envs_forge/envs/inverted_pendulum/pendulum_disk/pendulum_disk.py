@@ -48,8 +48,10 @@ class PendulumDisk(gym.Env):
         # Define action and observation space
         self.action_space = spaces.Box(low=-3.0, high=3.0, shape=(1,), dtype=np.float32)
         self.observation_space = spaces.Box(
-            low=np.array([-np.pi, -15 * np.pi]),
-            high=np.array([np.pi, 15 * np.pi]),
+            # Failure is reported after the Euler update, so its velocity can
+            # overshoot the failure threshold. Starting velocity is configurable.
+            low=np.array([-np.pi, -np.inf]),
+            high=np.array([np.pi, np.inf]),
             shape=(2,),
             dtype=np.float64,
         )

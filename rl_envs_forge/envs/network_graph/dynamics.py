@@ -28,8 +28,15 @@ def validate_fj_adjacency(adjacency_matrix, size):
         and np.all(matrix >= 0)
     ):
         raise ValueError('FJ adjacency must be a square, finite, real, nonnegative matrix')
-    if not np.allclose(matrix.sum(axis=1, dtype=np.float64), 1.0, rtol=0, atol=1e-12):
-        raise ValueError('FJ adjacency must be row-stochastic (row sums 1, atol=1e-12); no automatic normalization is performed')
+    # Float64 accumulation exposes rounding already present in float32 entries.
+    # Allow a small single-precision normalization error, retaining the existing
+    # tolerance for float64 and other storage types. Never change the entries.
+    row_atol = 4 * np.finfo(np.float32).eps if matrix.dtype == np.float32 else 1e-12
+    if not np.allclose(matrix.sum(axis=1, dtype=np.float64), 1.0, rtol=0, atol=row_atol):
+        raise ValueError(
+            f'FJ adjacency must be row-stochastic (row sums 1, atol={row_atol:g}); '
+            'no automatic normalization is performed'
+        )
 
 
 def validate_fj_inputs(state, adjacency_matrix, fj_lambda, prejudice):

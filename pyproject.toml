@@ -5,7 +5,10 @@ description = "Environments for reinforcement learning"
 authors = ["mariusdgm <marius.dragomir.dgm@gmail.com>"]
 license = "MIT"
 readme = "README.md"
-include = ["pyproject.toml", "assets/labyrinth/sprites/*.png"]
+include = [
+    "pyproject.toml",
+    { path = "rl_envs_forge/envs/labyrinth/display/sprites/*.png", format = ["sdist", "wheel"] },
+]
 
 [tool.poetry.dependencies]
 python = ">=3.10,<4.0"

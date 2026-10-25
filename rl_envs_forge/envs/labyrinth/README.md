@@ -87,6 +87,25 @@ settings illustrated below.
 seed to generate another layout. To start again on the current layout, use
 `reset(same_seed=True)` or `reset(options={"same_seed": True})`.
 
+You can supply `maze_layout_predetermined` instead of generating a layout.
+Its shape determines the full observation shape. Start and target positions
+are set manually after each reset; cell markers are not interpreted for you:
+
+```python
+import numpy as np
+
+env = Labyrinth(maze_layout_predetermined=np.ones((10, 12), dtype=np.uint8), seed=0)
+env.reset(seed=0)
+env.maze.target_position = (1, 3)
+env.set_state((1, 1))
+observation = env.state
+observation, reward, terminated, truncated, info = env.step(1)
+```
+
+Choose distinct traversable cells inside the layout. Set both positions before
+reading local observations or taking actions. The layout remains available as
+`env.maze.grid`; copy your input first if you plan to edit that grid separately.
+
 ## Playing manually
 
 ```python

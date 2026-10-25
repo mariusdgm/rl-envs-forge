@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- PendulumDisk declares unbounded angular velocity observations, including failure-step overshoot, without clipping or changing physical dynamics.
+- NetworkGraph returns independent reset/step observations and accepts float32 FJ row-sum roundoff within four machine epsilons. Float64 validation and all existing dynamics equations are unchanged; endpoint roundoff remains a documented limitation.
+- Maze and room generation use integer random bounds for Python versions that reject integral floats, preserving the random draws and their order.
+- The package-data rule names the actual Labyrinth sprite directory for both wheels and source distributions.
 - NetworkGraph diagnostics distinguish graph connectivity criteria, identify the actual Barabasi-Albert retry filter and fallback, and no longer advertise the unimplemented `erdos_renyi` graph alias.
 - Jack's Car Rental aggregates saturated Poisson request/return tails, including zero rates, and builds the default legacy model without a support-index error.
 - GridWorld uses the same reward-bearing outcomes for simulation, `mdp`, `transition_probs`, and `P`. Special transitions execute only on intended-action success; slips use ordinary movement. Adding or replacing a special transition refreshes every model without consuming random draws.

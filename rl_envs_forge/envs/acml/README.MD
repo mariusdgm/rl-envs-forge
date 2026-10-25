@@ -53,6 +53,12 @@ samples each location's inventory. You can pass the same choice through
 `options`, as in the example. A seed controls both inventory sampling and
 subsequent requests and returns.
 
+Use a positive integer `max_cars`, a nonnegative integer `max_move_cars`, and
+two finite nonnegative rates in each of `request_lambda` and `return_lambda`.
+Use finite rental credits and movement costs. The complete planning model
+validates the Poisson rates; neither interface validates every parameter up
+front.
+
 This is a continuing task: `step()` returns both ending flags as `False`.
 Choose a horizon in your experiment. `rental_credit` and `move_car_cost`
 control the reward. `poisson_max_value` sets how many Poisson probabilities
@@ -97,6 +103,10 @@ the mask; unmasked sampling from the global space can choose an invalid stake.
 
 `reset()` returns to `start_capital`. Pass a seed to repeat the sequence of
 bet outcomes.
+
+Use a positive integer goal, integer starting capital between zero and the
+goal, and a finite winning probability in `[0,1]`. These are caller
+preconditions; the constructor does not currently check every one of them.
 
 ## Planning and inspection
 
