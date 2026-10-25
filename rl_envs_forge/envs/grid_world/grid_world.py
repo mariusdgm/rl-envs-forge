@@ -117,12 +117,7 @@ class GridWorld(gym.Env):
             raise ValueError("rows must be a positive integer")
         if not isinstance(cols, int) or cols <= 0:
             raise ValueError("cols must be a positive integer")
-        if not (
-            isinstance(start_state, tuple)
-            and len(start_state) == 2
-            and all(isinstance(x, int) for x in start_state)
-        ):
-            raise ValueError("start_state must be a tuple of two integers")
+        GridWorld._validate_start_state(start_state, rows, cols)
         if not (
             isinstance(terminal_states, dict)
             and all(
@@ -501,6 +496,16 @@ class GridWorld(gym.Env):
 
         return self.state, reward, done, truncated, {}
 
+    @staticmethod
+    def _validate_start_state(state, rows, cols, name="start_state"):
+        if not (
+            isinstance(state, tuple) and len(state) == 2
+            and all(isinstance(x, int) for x in state)
+        ):
+            raise ValueError(f"{name} must be a tuple of two integers")
+        if not (0 <= state[0] < rows and 0 <= state[1] < cols):
+            raise ValueError(f"{name} must be within grid bounds (rows={rows}, cols={cols})")
+
     def reset(
         self, new_start_state: Optional[Tuple[int, int]] = None, *, seed=None, options=None
     ):
@@ -515,18 +520,15 @@ class GridWorld(gym.Env):
         Returns:
             tuple: The initial observation and an info dictionary.
         """
+        if new_start_state is None:
+            new_start_state = (options or {}).get("new_start_state")
+        candidate = self.start_state if new_start_state is None else new_start_state
+        self._validate_start_state(candidate, self.rows, self.cols, "new_start_state")
+        # Reject invalid starts before reseeding or changing the episode.
         super().reset(seed=seed)
         if seed is not None:
             self.seed = seed
-        if new_start_state is None:
-            new_start_state = (options or {}).get("new_start_state")
         if new_start_state is not None:
-            if (
-                not isinstance(new_start_state, tuple)
-                or len(new_start_state) != 2
-                or not all(isinstance(x, int) for x in new_start_state)
-            ):
-                raise ValueError("new_start_state must be a tuple of two integers")
             self.start_state = new_start_state
 
         self.state = self.start_state

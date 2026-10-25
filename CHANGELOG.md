@@ -9,7 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- NetworkGraph validates Friedkin-Johnsen adjacency, lambda, prejudice, and bounded control/state parameters without normalizing matrices or clipping invalid lambda values. Previously accepted configurations outside these assumptions now raise `ValueError`; the FJ formula and valid trajectories are preserved.
+- NetworkGraph FJ observations declare a nonnegative, unbounded space. Propagated states require finite real values rather than an arbitrary endpoint tolerance, while initial/reset opinions stay in `[0,1]`. The raw FJ recurrence and coefficients are preserved; numerical overflow raises instead of returning a nonfinite state.
+- GridWorld rejects out-of-grid constructor/reset starts, and GamblersProblem rejects starting capital outside its discrete observation space. Rejected resets preserve episode state and RNG state.
+- NetworkGraph validates Friedkin-Johnsen adjacency, lambda, prejudice, and bounded control/initial-state parameters without normalizing matrices or clipping invalid lambda values. Previously accepted configurations outside these assumptions now raise `ValueError`; the FJ formula and valid trajectories are preserved.
 - CartPole and PendulumDisk retain `terminated=True` when physical failure coincides with their time limit; both ending flags can now be true.
 - Jack's Car Rental clips transfers by source inventory and destination capacity, conserves cars, and charges only for actual movement. Seeded results for fully feasible transfers retain the existing request/return draw order; clipped transfers can change inventory and rewards.
 - Jack's Car Rental's legacy `build_mdp()` preserves signed keys and representative-state tuples, with corrected full expected rewards. `poisson_max_value` no longer limits either planning API.
@@ -18,8 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Strict Sphinx documentation builds resolve inherited physical-step docstrings, the Barabasi-Albert list indentation, and ambiguous Labyrinth action references without changing simulation behavior.
+- Supplied Labyrinth layouts retain manual initialization, report missing positions clearly, and avoid applying unset markers to the entire full observation.
 - PendulumDisk declares unbounded angular velocity observations, including failure-step overshoot, without clipping or changing physical dynamics.
-- NetworkGraph returns independent reset/step observations and accepts float32 FJ row-sum roundoff within four machine epsilons. Float64 validation and all existing dynamics equations are unchanged; endpoint roundoff remains a documented limitation.
+- NetworkGraph returns independent reset/step observations and accepts float32 FJ row-sum roundoff within four machine epsilons. Float64 adjacency validation and all existing dynamics equations are unchanged.
 - Maze and room generation use integer random bounds for Python versions that reject integral floats, preserving the random draws and their order.
 - The package-data rule names the actual Labyrinth sprite directory for both wheels and source distributions.
 - NetworkGraph diagnostics distinguish graph connectivity criteria, identify the actual Barabasi-Albert retry filter and fallback, and no longer advertise the unimplemented `erdos_renyi` graph alias.

@@ -82,6 +82,9 @@ class GamblersProblem(gym.Env):
         Returns:
             The initial state and additional info.
         """
+        if not self.observation_space.contains(self.start_capital):
+            raise ValueError("start_capital must be an integer between zero and goal_amount")
+        # Validation precedes reseeding so rejected resets do not alter the RNG.
         super().reset(seed=seed)
         self.state = self.start_capital
         return self.state, {}

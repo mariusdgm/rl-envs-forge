@@ -235,7 +235,7 @@ class TestGridWorld:
 
     def test_reset_to_new_starting_state(self, default_env):
         # Reset to a new starting state and ensure it's correctly set
-        new_start_state = (5, 5)
+        new_start_state = (4, 4)
         initial_state, _ = default_env.reset(new_start_state=new_start_state)
         assert (
             initial_state == new_start_state

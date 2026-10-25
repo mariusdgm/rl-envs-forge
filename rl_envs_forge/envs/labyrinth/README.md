@@ -105,6 +105,13 @@ observation, reward, terminated, truncated, info = env.step(1)
 Choose distinct traversable cells inside the layout. Set both positions before
 reading local observations or taking actions. The layout remains available as
 `env.maze.grid`; copy your input first if you plan to edit that grid separately.
+Full observations show the supplied grid without unset player/target markers.
+Stepping or rendering before both positions are set raises a diagnostic
+`RuntimeError`. Local observations also require both positions: constructing a
+local-view environment is supported, but a supplied-layout reset clears the
+positions and raises this diagnostic when it tries to return a local view.
+Reapply the manual setup after resetting; positions are never inferred from
+cell markers.
 
 ## Playing manually
 

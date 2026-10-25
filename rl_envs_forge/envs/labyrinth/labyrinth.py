@@ -209,11 +209,24 @@ class Labyrinth(gym.Env):
     def build_state_matrix(self) -> np.ndarray:
         """Sequentially build the state matrix."""
         self._state = self.maze.grid.astype(np.uint8, copy=True)
-        self._state[self.maze.target_position] = TARGET
-        self._state[self.player.position] = PLAYER
+        if self.maze.target_position is not None:
+            self._state[self.maze.target_position] = TARGET
+        if self.player.position is not None:
+            self._state[self.player.position] = PLAYER
         return self._state
 
+    def _require_initialized_positions(self):
+        """Explain the manual supplied-layout setup before using its positions."""
+        if self.player.position is None or self.maze.target_position is None:
+            raise RuntimeError(
+                "Labyrinth player and target positions are uninitialized. For a supplied "
+                "layout, after each reset use env.set_state((row, col)) and assign "
+                "env.maze.target_position = (row, col) before stepping, rendering, "
+                "or reading a local observation."
+            )
+
     def build_state_around_the_player(self, full_state) -> np.ndarray:
+        self._require_initialized_positions()
         # Get the local state around the player position
         start_row = max(0, self.player.position[0] - self.state_vision_range)
         end_row = min(self.rows, self.player.position[0] + self.state_vision_range + 1)
@@ -258,6 +271,7 @@ class Labyrinth(gym.Env):
             truncated (bool): A flag indicating if the episode was truncated.
             info (dict): Additional information about the step.
         """
+        self._require_initialized_positions()
         action = Action(action)
 
         # Initial reward
@@ -291,7 +305,7 @@ class Labyrinth(gym.Env):
 
         Args:
             player (Player): The player entity.
-            action (Action): The action the player wants to take.
+            action (rl_envs_forge.envs.labyrinth.constants.Action): The action the player wants to take.
 
         Returns:
             bool: True if the move is valid, False otherwise.
@@ -332,7 +346,7 @@ class Labyrinth(gym.Env):
         Move the agent to a new position based on the given action.
 
         Parameters:
-            action (Action): The action to be taken by the agent.
+            action (rl_envs_forge.envs.labyrinth.constants.Action): The action to be taken by the agent.
 
         Returns:
             None
@@ -384,8 +398,10 @@ class Labyrinth(gym.Env):
             process_arrow_keys (bool, optional): Whether to process directional keys for user input. Defaults to False.
 
         Returns:
-            Tuple[bool, Action]: A tuple containing a boolean value indicating if the quit event occurred and the action taken by the user.
+            tuple: The quit flag and an optional
+                :class:`~rl_envs_forge.envs.labyrinth.constants.Action` from the user.
         """
+        self._require_initialized_positions()
         self.displayer_window_size = window_size
         quit_event = False
         action = None

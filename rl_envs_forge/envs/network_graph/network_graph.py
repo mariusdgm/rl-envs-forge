@@ -340,9 +340,7 @@ class NetworkGraph(gym.Env):
             shape=(self.num_agents,),
             dtype=np.float32,
         )
-        self.observation_space = spaces.Box(
-            low=0, high=1, shape=(self.num_agents,), dtype=np.float64
-        )
+        self._update_observation_space()
 
         self.current_step = 0
         self.total_spent = 0.0
@@ -352,11 +350,26 @@ class NetworkGraph(gym.Env):
         return str(self.dynamics_model).lower() in FJ_ALIASES
 
     def _validate_fj_configuration(self):
+        # Reset states retain the unit-interval contract. Propagated states may
+        # leave it because row normalization and arithmetic are approximate.
+        validate_unit_interval(self.opinions, self.num_agents, "initial_opinions")
         validate_fj_inputs(self.opinions, self.connectivity_matrix, self.fj_lambda, self.fj_prejudice)
         validate_unit_interval(self.max_u, self.num_agents, "max_u")
         validate_unit_interval(self.desired_opinion_vector, self.num_agents, "desired_opinion")
         validate_unit_interval(self.control_resistance, self.num_agents, "control_resistance")
         self._validate_fj_initial_range(self.initial_opinion_range)
+
+    def _update_observation_space(self):
+        """Keep a fixed space for each model, including when changing models."""
+        if getattr(self, "_observation_space_uses_fj", None) != self._uses_fj:
+            # Nonnegative arithmetic preserves the lower bound. Approximately
+            # stochastic rows can amplify indefinitely, so no fixed upper
+            # roundoff allowance is valid for every supported rollout length.
+            self.observation_space = spaces.Box(
+                low=0, high=np.inf if self._uses_fj else 1,
+                shape=(self.num_agents,), dtype=np.float64,
+            )
+            self._observation_space_uses_fj = self._uses_fj
 
     @staticmethod
     def _validate_fj_initial_range(limits):
@@ -569,12 +582,13 @@ class NetworkGraph(gym.Env):
 
     def _generate_connectivity_matrix_paper_barabasi_albert(self) -> np.ndarray:
         """
-        Paper experimental generator:
-        1) BA undirected graph (N, m=ba_m)
-        2) make bidirected (two directed edges for each undirected edge)
-        3) prune randomly up to half of directed edges
-        4) accept according to ba_connectivity; otherwise use the final attempt
-           in best-effort mode or raise in strict mode.
+        Generate and filter a directed Barabasi-Albert influence matrix.
+
+        1. Build a BA undirected graph with ``ba_m`` attachments.
+        2. Make it bidirected (two directed edges per undirected edge).
+        3. Prune a random fraction of edges, limited by ``ba_prune_max_frac``.
+        4. Accept according to ``ba_connectivity``. Otherwise use the final
+           attempt in best-effort mode or raise in strict mode.
         """
         if self.num_agents < 2:
             return np.zeros((self.num_agents, self.num_agents), dtype=float)
@@ -715,6 +729,7 @@ class NetworkGraph(gym.Env):
             self._validate_fj_configuration()
         self.current_step = 0
         self.total_spent = 0.0
+        self._update_observation_space()
         return self.opinions.copy(), info
 
     def compute_dynamics(
@@ -850,6 +865,7 @@ class NetworkGraph(gym.Env):
         if self.budget is not None:
             info["remaining_budget"] = self.budget - self.total_spent
 
+        self._update_observation_space()
         return self.opinions.copy(), reward, done, truncated, info
 
     def render(self, mode="matplotlib", **kwargs):

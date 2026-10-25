@@ -105,8 +105,11 @@ the mask; unmasked sampling from the global space can choose an invalid stake.
 bet outcomes.
 
 Use a positive integer goal, integer starting capital between zero and the
-goal, and a finite winning probability in `[0,1]`. These are caller
-preconditions; the constructor does not currently check every one of them.
+goal, and a finite winning probability in `[0,1]`. Construction and reset
+validate starting capital against the observation space, including both
+terminal capitals. Invalid capital raises `ValueError` before reseeding or
+changing the current state. Winning probability remains a caller precondition;
+the constructor does not currently validate it.
 
 ## Planning and inspection
 

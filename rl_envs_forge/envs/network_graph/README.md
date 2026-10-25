@@ -26,6 +26,9 @@ The observation is a vector of `num_agents` opinions. The action is a vector of
 the same length, with each entry between zero and that node's `max_u`. You can
 set `max_u` and `desired_opinion` per node by passing arrays instead of scalars.
 `control_resistance` takes an array or `None`.
+For FJ, the declared observation space is nonnegative with no finite upper
+bound. Other models declare opinions in `[0,1]`. The FJ precision contract below
+explains why approximately stochastic input needs a broader space.
 Observations use `float64` and actions use `float32`. Observations returned by
 `reset()` and `step()` are independent copies; changing them does not change
 the simulation. Use `env.state` or `env.opinions` to inspect or explicitly edit
@@ -148,25 +151,40 @@ interval. Its assumptions are checked explicitly:
 - Initial opinions, targets, `max_u`, and control resistance must be finite and
   in `[0,1]`, with per-node vectors of the expected shape. The initial sampling
   range must satisfy `0 <= low <= high <= 1`. Fully resistant nodes are allowed.
-- Direct FJ dynamics calls also require a state and control vector of the
-  expected shape in `[0,1]`. Propagated states allow `1e-12` roundoff at the
-  endpoints; values are never clipped or changed by validation.
+- Propagated states must be finite real vectors of the expected shape. They
+  are not subject to the initial-state upper bound. Direct kernel calls accept
+  finite real states; direct rollouts still require controls, targets and
+  resistance in `[0,1]`. Values are never clipped or changed by validation.
 
-These assumptions make both control and social averaging convex combinations,
-which preserve opinion bounds in exact arithmetic. Floating-point results can
-have endpoint roundoff. Invalid lambda values raise instead of being clipped;
+An exactly row-stochastic matrix makes social averaging a convex combination,
+which preserves opinion bounds in exact arithmetic. A matrix accepted within
+the row-sum tolerance is not necessarily exactly stochastic. Invalid lambda
+values raise instead of being clipped;
 invalid matrices raise instead of being normalized. You may explicitly prepare
 a matrix with `normalize_adjacency_matrix` from `graph_utils`, checking that no
 zero rows remain.
 
-The declared observation space is exactly `[0,1]`. An endpoint update can
-exceed it by roundoff even with a float64 matrix. With float32 rows and
-`fj_lambda=1`, positive row-sum errors can accumulate; the next update can
-then fail the state validation above. The row-sum tolerance is an acceptance
-criterion, not a promise of exact boundedness for an approximately stochastic
-matrix. For endpoint-sensitive experiments, prepare and inspect the matrix
-in float64 and check the observations. No normalization or clipping is applied
-to hide this numerical limitation.
+FJ observations use `Box(0, np.inf, dtype=np.float64)`. Even float64 arithmetic
+can produce an endpoint value just above one. Float32 impulse coefficients can
+also introduce endpoint roundoff with an exact adjacency. With approximately stochastic
+rows and `fj_lambda=1`, positive row-sum errors can also accumulate under repeated
+updates: `(1 + delta) * I` multiplies the state by `1 + delta` each time.
+No fixed precision-dependent margin around `[0,1]` covers arbitrary rollout
+lengths. The environment therefore returns the raw recurrence, including
+values above one, and permits those finite states in subsequent updates.
+Nonnegative initial states, controls and coefficients preserve the lower bound.
+Overflow or a nonfinite FJ result raises `FloatingPointError` rather than
+returning an invalid observation. Initial opinions, reset states and assignment
+through `env.state` retain the `[0,1]` restriction.
+
+For endpoint-sensitive experiments, explicitly prepare a float64 copy with
+`normalize_adjacency_matrix(A.astype(np.float64))` and inspect its row sums.
+This reduces coefficient error; it does not guarantee exact floating-point
+boundedness or change the matrix supplied to an existing environment. The
+environment never normalizes user matrices or clips FJ opinions. A wrapper that
+scales observations needs its own explicit scale rather than a finite FJ space
+maximum. Recreate wrappers after changing the dynamics model; the environment
+refreshes its model-specific space on the next reset or successful step.
 
 Every generated graph is checked against the FJ requirements too. In particular,
 the default random graph is generally unnormalized and can be rejected. Choose

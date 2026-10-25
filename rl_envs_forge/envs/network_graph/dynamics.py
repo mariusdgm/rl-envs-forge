@@ -40,13 +40,20 @@ def validate_fj_adjacency(adjacency_matrix, size):
 
 
 def validate_fj_inputs(state, adjacency_matrix, fj_lambda, prejudice):
+    """Validate a finite real propagated state and bounded FJ parameters.
+
+    Approximate stochastic matrices need not preserve [0, 1] under repeated
+    updates. Initial opinions are bounded separately by NetworkGraph.
+    """
     state = np.asarray(state)
-    if state.ndim != 1 or state.size == 0:
-        raise ValueError('FJ state must be a nonempty one-dimensional vector')
+    if not (
+        state.ndim == 1 and state.size > 0
+        and (np.issubdtype(state.dtype, np.number) or state.dtype == np.bool_)
+        and np.isrealobj(state) and np.all(np.isfinite(state))
+    ):
+        raise ValueError('FJ state must be a nonempty one-dimensional finite real vector')
     size = state.size
     validate_fj_adjacency(adjacency_matrix, size)
-    # Permit roundoff from an earlier valid update; never clip the state.
-    validate_unit_interval(state, size, 'state', atol=1e-12)
     validate_unit_interval(fj_lambda, size, 'fj_lambda', allow_scalar=True)
     validate_unit_interval(prejudice, size, 'prejudice')
 
@@ -82,8 +89,14 @@ def friedkin_johnsen_step(state, *, adjacency_matrix, fj_lambda, prejudice):
     lam = np.asarray(fj_lambda, dtype=float)
     if lam.ndim == 0:
         lam = np.full_like(state, float(lam), dtype=float)
-    social = adjacency_matrix @ state
-    return lam * social + (1.0 - lam) * np.asarray(prejudice, dtype=float)
+    # Preserve the recurrence and its rounding. Report numerical overflow rather
+    # than returning an invalid observation or silently repairing the model.
+    with np.errstate(over='raise', invalid='raise'):
+        social = adjacency_matrix @ state
+        result = lam * social + (1.0 - lam) * np.asarray(prejudice, dtype=float)
+    if not np.all(np.isfinite(result)):
+        raise FloatingPointError('FJ update produced a nonfinite state; inspect matrix row sums and rollout length')
+    return result
 
 
 def hegselmann_krause_step(state, *, adjacency_matrix, hk_epsilon, hk_include_self=True):

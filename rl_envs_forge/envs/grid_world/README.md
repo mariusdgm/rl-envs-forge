@@ -112,9 +112,12 @@ start without reseeding. To change the start, use
 `reset(new_start_state=(2, 2))` or
 `reset(options={"new_start_state": (2, 2)})`; that cell becomes the start for
 later resets too.
-Choose starts, walls, terminals, and jump destinations inside the grid, with
-a traversable start. Reset checks the start's tuple format but does not reject
-out-of-grid coordinates. Keep configured rewards finite.
+Choose starts, walls, terminals, and jump destinations inside the grid. The
+constructor and reset require a start tuple of two integers satisfying
+`0 <= row < rows` and `0 <= column < cols`. An invalid start raises `ValueError`
+before resetting the episode or reseeding. In-grid terminal and wall starts
+retain their existing absorbing transitions; choose a traversable nonterminal
+start for navigation. Keep configured rewards finite.
 
 For planning algorithms, `env.mdp` maps `(state, action)` to possible
 `(next_state, reward, terminated, probability)` outcomes. These outcomes are the
