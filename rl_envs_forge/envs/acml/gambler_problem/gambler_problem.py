@@ -13,6 +13,7 @@ class GamblersProblem(gym.Env):
         goal_amount: int = 100,
         win_probability: float = 0.4,
         start_capital: int = 1,
+        strict_actions: bool = False,
     ):
         """
         Initialize the environment.
@@ -20,12 +21,15 @@ class GamblersProblem(gym.Env):
         Args:
             goal_amount (int): The goal capital amount to be achieved.
             win_probability (float): Probability of winning a bet.
+            strict_actions (bool): Reject stakes outside feasible_actions().
+                Defaults to the existing permissive action behavior.
         """
         self.goal_amount = goal_amount
         self.win_probability = win_probability
         self.start_capital = start_capital
+        self.strict_actions = strict_actions
 
-        # Action space: bet an amount from 0 to the current capital
+        # Fixed global action space; state-feasible stakes are exposed separately.
         # Observation space: current capital amount
         self.action_space = gym.spaces.Discrete(goal_amount + 1)
         self.observation_space = gym.spaces.Discrete(goal_amount + 1)
@@ -33,7 +37,7 @@ class GamblersProblem(gym.Env):
         self.state = None
         self.reset()
 
-    def step(self, action: int) -> Tuple[int, float, bool, dict]:
+    def step(self, action: int) -> Tuple[int, float, bool, bool, dict]:
         """
         Execute one time step within the environment.
 
@@ -44,6 +48,8 @@ class GamblersProblem(gym.Env):
             Tuple containing the new state, reward, done flag, and additional info.
         """
         assert self.action_space.contains(action), "Invalid action"
+        if self.strict_actions and action not in self.feasible_actions():
+            raise ValueError(f"Stake {action} is not feasible at capital {self.state}")
 
         done = False
         reward = 0
@@ -98,9 +104,7 @@ class GamblersProblem(gym.Env):
         t_r_dict = {}
 
         for state in range(1, self.goal_amount):  # States from 1 to goal_amount - 1
-            for action in range(
-                1, min(state, self.goal_amount - state) + 1
-            ):  # Possible bets
+            for action in self.feasible_actions(state):
                 # Winning scenario
                 win_state = min(state + action, self.goal_amount)
                 win_reward = 1 if win_state == self.goal_amount else 0
@@ -122,3 +126,20 @@ class GamblersProblem(gym.Env):
                 }
 
         return t_r_dict
+
+    def feasible_actions(self, state=None) -> tuple:
+        """Textbook stakes at a capital level; terminal states have no stakes.
+
+        Zero stakes and overbets remain accepted by step() unless strict_actions
+        is enabled. This helper uses the same feasible set as build_mdp().
+        """
+        state = self.state if state is None else state
+        if not isinstance(state, (int, np.integer)) or not 0 <= state <= self.goal_amount:
+            raise ValueError("capital must be an integer between zero and goal_amount")
+        return tuple(range(1, min(state, self.goal_amount - state) + 1))
+
+    def action_mask(self, state=None) -> np.ndarray:
+        """Return a fresh boolean mask over the unchanged global action space."""
+        mask = np.zeros(self.action_space.n, dtype=bool)
+        mask[list(self.feasible_actions(state))] = True
+        return mask

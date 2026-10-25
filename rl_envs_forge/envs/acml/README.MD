@@ -82,6 +82,19 @@ at zero capital or the goal. Keep stakes between one and
 `min(capital, goal_amount - capital)` for the textbook problem: the declared
 action space is broader and does not enforce this state-dependent bound.
 
+`env.feasible_actions()` returns the textbook stakes at the current capital;
+pass a capital value to inspect another state. `env.action_mask()` returns a
+fresh boolean mask over the fixed global action space. The helper and mask
+include exactly the stakes represented by `build_mdp()`. Neither includes zero
+stakes, and terminal states have no feasible stakes.
+
+For example, at capital 2 with a goal of 5, feasible stakes are `(1, 2)`, while
+the global action space still contains `0` through `5`. By default, `step()`
+accepts zero stakes and overbets. Set
+`strict_actions=True` to raise `ValueError` for a state-infeasible stake before
+consuming randomness or changing capital. In that mode, select actions using
+the mask; unmasked sampling from the global space can choose an invalid stake.
+
 `reset()` returns to `start_capital`. Pass a seed to repeat the sequence of
 bet outcomes.
 

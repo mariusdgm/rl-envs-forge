@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- NetworkGraph validates Friedkin-Johnsen adjacency, lambda, prejudice, and bounded control/state parameters without normalizing matrices or clipping invalid lambda values. Previously accepted configurations outside these assumptions now raise `ValueError`; the FJ formula and valid trajectories are preserved.
+- CartPole and PendulumDisk retain `terminated=True` when physical failure coincides with their time limit; both ending flags can now be true.
 - Jack's Car Rental clips transfers by source inventory and destination capacity, conserves cars, and charges only for actual movement. Seeded results for fully feasible transfers retain the existing request/return draw order; clipped transfers can change inventory and rewards.
 - Jack's Car Rental's legacy `build_mdp()` preserves signed keys and representative-state tuples, with corrected full expected rewards. `poisson_max_value` no longer limits either planning API.
 - GridWorld interprets `slip_distribution` as a normalized global directional distribution, conditioned on excluding the intended action after failure. Invalid, empty, and single-direction distributions now raise `ValueError`.
@@ -16,11 +18,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- NetworkGraph diagnostics distinguish graph connectivity criteria, identify the actual Barabasi-Albert retry filter and fallback, and no longer advertise the unimplemented `erdos_renyi` graph alias.
 - Jack's Car Rental aggregates saturated Poisson request/return tails, including zero rates, and builds the default legacy model without a support-index error.
 - GridWorld uses the same reward-bearing outcomes for simulation, `mdp`, `transition_probs`, and `P`. Special transitions execute only on intended-action success; slips use ordinary movement. Adding or replacing a special transition refreshes every model without consuming random draws.
 
 ### Added
 
+- NetworkGraph offers opt-in `strict_connectivity` and an additional `connectivity_requirement`, preserving default generation distributions, retry behavior, and random draw order.
+- GamblersProblem exposes state-feasible stakes through `feasible_actions()` and `action_mask()`, with optional `strict_actions` validation. Its default action space and permissive behavior remain unchanged.
 - Jack's Car Rental `build_transition_model()` returns a lazy snapshot of complete transition probabilities and conditional mean rewards, keyed by Gymnasium action indices, without allocating a full transition tensor.
 
 ## [5.23.0] - 2026.10.20

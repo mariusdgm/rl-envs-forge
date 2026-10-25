@@ -54,7 +54,9 @@ linearly from one at upright to zero at an absolute angle of pi. Adding
 Angles are wrapped to `[-pi, pi]`. The episode terminates if angular velocity
 leaves `[-15*pi, 15*pi]`, or if the absolute angle exceeds a supplied
 `angle_termination`. `episode_length_limit` defaults to 1000 steps and returns
-`truncated=True` when reached. Stop on either ending flag.
+`truncated=True` when reached. Physical failure sets `terminated=True`
+independently, so both flags can be true on the same transition. Stop on either
+ending flag.
 
 `info` contains angular acceleration (`alpha_dot_dot`), the input (`force`),
 and the step count (`steps`).

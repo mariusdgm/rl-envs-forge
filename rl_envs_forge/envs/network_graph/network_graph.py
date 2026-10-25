@@ -8,7 +8,10 @@ from .graph_utils import (
     compute_laplacian,
     compute_eigenvector_centrality,
 )
-from .dynamics import rollout_dynamics
+from .dynamics import (
+    FJ_ALIASES, rollout_dynamics, validate_fj_adjacency,
+    validate_fj_inputs, validate_unit_interval,
+)
 
 
 class NetworkGraph(gym.Env):
@@ -39,7 +42,7 @@ class NetworkGraph(gym.Env):
         nonlinear_beta=2.0,
         repulsion_epsilon=0.25,
         repulsion_strength=0.5,
-        graph_model: str = "random",  # aliases: "random", "erdos_renyi", "barabasi_albert"
+        graph_model: str = "random",  # supported: "random", "barabasi_albert"
         ba_m: int = 2,
         ba_prune_max_frac: float = 0.5,
         ba_qsc_tol: float = 1e-8,
@@ -55,6 +58,8 @@ class NetworkGraph(gym.Env):
         terminal_reward=0.0,
         terminate_when_converged: bool = True,
         seed=None,
+        strict_connectivity: bool = False,
+        connectivity_requirement: str | None = None,
     ):
         """Initializes the Network Opinion Dynamics environment.
 
@@ -134,6 +139,12 @@ class NetworkGraph(gym.Env):
                 'nonlinearinfluence' (saturating pairwise influence), and
                 'repulsion' (attractive for small disagreement, repulsive for
                 large disagreement). Defaults to 'laplacian'.
+            fj_lambda (float | np.ndarray): FJ susceptibility, a scalar or a
+                vector of shape (num_agents,) with finite values in [0,1].
+            fj_prejudice (np.ndarray | None): FJ anchor opinions, a finite
+                vector in [0,1]. None uses each episode's initial opinions.
+                FJ also requires a finite nonnegative row-stochastic adjacency
+                matrix; invalid inputs raise rather than being normalized.
             budget (float | None, optional): An optional total budget for control
                 effort over an entire episode. The environment does not enforce
                 this budget but tracks spending against it. Defaults to None.
@@ -160,6 +171,11 @@ class NetworkGraph(gym.Env):
             seed (int | None, optional): A seed for the random number generator
                 to ensure reproducibility of graph generation and initial
                 opinion sampling. Defaults to None.
+            strict_connectivity (bool): Raise instead of accepting a graph that
+                fails its connectivity criterion. Defaults to best effort.
+            connectivity_requirement (str | None): Optional additional graph
+                criterion: 'no_isolated_nodes', 'weak', or 'strong'. Checked
+                after generation, without resampling or altering its distribution.
 
         Raises:
             ValueError: If `t_s` is not a positive value or does not evenly
@@ -171,10 +187,27 @@ class NetworkGraph(gym.Env):
         self.seed = seed
         super().reset(seed=seed)
 
+        self.dynamics_model = dynamics_model
+        if connectivity_matrix is not None and self._uses_fj:
+            connectivity_matrix = np.asarray(connectivity_matrix)
+            if connectivity_matrix.ndim != 2 or connectivity_matrix.shape[0] != connectivity_matrix.shape[1]:
+                raise ValueError("FJ adjacency must be a square matrix")
         if connectivity_matrix is not None:
             self.num_agents = connectivity_matrix.shape[0]
         else:
             self.num_agents = num_agents
+
+        if self._uses_fj:
+            validate_unit_interval(fj_lambda, self.num_agents, "fj_lambda", allow_scalar=True)
+            validate_unit_interval(max_u, self.num_agents, "max_u", allow_scalar=True)
+            validate_unit_interval(desired_opinion, self.num_agents, "desired_opinion", allow_scalar=True)
+            if fj_prejudice is not None:
+                validate_unit_interval(fj_prejudice, self.num_agents, "prejudice")
+            if initial_opinions is not None:
+                validate_unit_interval(initial_opinions, self.num_agents, "initial_opinions")
+            if control_resistance is not None:
+                validate_unit_interval(control_resistance, self.num_agents, "control_resistance")
+            self._validate_fj_initial_range(initial_opinion_range)
 
         self.connection_prob_range = connection_prob_range
         self.use_weighted_edges = use_weighted_edges
@@ -218,7 +251,6 @@ class NetworkGraph(gym.Env):
         self.initial_opinions = initial_opinions
         self.control_resistance = control_resistance
         self.bidirectional_prob = bidirectional_prob
-        self.dynamics_model = dynamics_model
         self.fj_lambda = fj_lambda
         self.fj_prejudice = fj_prejudice
         self._fj_prejudice_user_provided = fj_prejudice is not None
@@ -234,6 +266,15 @@ class NetworkGraph(gym.Env):
         self.ba_qsc_tol = float(ba_qsc_tol)
         self.ba_max_tries = int(ba_max_tries)
         self.ba_connectivity = str(ba_connectivity)
+        self.strict_connectivity = strict_connectivity
+        self.connectivity_requirement = connectivity_requirement
+        if connectivity_requirement not in (None, "no_isolated_nodes", "weak", "strong"):
+            raise ValueError("connectivity_requirement must be no_isolated_nodes, weak, strong, or None")
+        if connectivity_matrix is None and self.graph_model == "barabasi_albert":
+            if (self.ba_connectivity or "paper").lower() not in ("paper", "no_singleton_sink", "strong", "strongly_connected"):
+                raise ValueError(f"Unknown ba_connectivity mode: {self.ba_connectivity}")
+            if self.ba_max_tries < 0:
+                raise ValueError("ba_max_tries must be nonnegative")
 
         self.budget = budget
         self.max_steps = max_steps
@@ -251,8 +292,16 @@ class NetworkGraph(gym.Env):
             graph_connection_params=graph_connection_params,
         )
 
-        if not nx.is_connected(nx.from_numpy_array(self.connectivity_matrix)):
-            print("Warning: The generated graph is not fully connected.")
+        if self._uses_fj:
+            try:
+                validate_fj_adjacency(self.connectivity_matrix, self.num_agents)
+            except ValueError as error:
+                source = "supplied matrix" if connectivity_matrix is not None else f"generated {self.graph_model!r} matrix"
+                raise ValueError(
+                    f"{error}. The {source} is incompatible with FJ; "
+                    "supply a valid row-stochastic matrix or change graph settings."
+                ) from error
+        self._check_connectivity_contract(connectivity_matrix is not None)
 
         # Laplacian and centrality
         self.L = compute_laplacian(self.connectivity_matrix)
@@ -282,6 +331,9 @@ class NetworkGraph(gym.Env):
         else:
             self.control_resistance = np.zeros(self.num_agents)
 
+        if self._uses_fj:
+            self._validate_fj_configuration()
+
         self.action_space = spaces.Box(
             low=np.zeros(self.num_agents, dtype=np.float32),
             high=self.max_u,
@@ -294,6 +346,23 @@ class NetworkGraph(gym.Env):
 
         self.current_step = 0
         self.total_spent = 0.0
+
+    @property
+    def _uses_fj(self):
+        return str(self.dynamics_model).lower() in FJ_ALIASES
+
+    def _validate_fj_configuration(self):
+        validate_fj_inputs(self.opinions, self.connectivity_matrix, self.fj_lambda, self.fj_prejudice)
+        validate_unit_interval(self.max_u, self.num_agents, "max_u")
+        validate_unit_interval(self.desired_opinion_vector, self.num_agents, "desired_opinion")
+        validate_unit_interval(self.control_resistance, self.num_agents, "control_resistance")
+        self._validate_fj_initial_range(self.initial_opinion_range)
+
+    @staticmethod
+    def _validate_fj_initial_range(limits):
+        validate_unit_interval(limits, 2, "initial_opinion_range")
+        if limits[0] > limits[1]:
+            raise ValueError("FJ initial_opinion_range must satisfy low <= high")
 
     def _apply_weights_to_binary_connectivity(
         self, connectivity_matrix: np.ndarray
@@ -311,6 +380,28 @@ class NetworkGraph(gym.Env):
                 if A[i, j] == 1:
                     A[i, j] = self.np_random.uniform(*self.weight_range)
         return A
+
+    def _check_connectivity_contract(self, supplied):
+        A = self.connectivity_matrix
+        G = nx.from_numpy_array(A, create_using=nx.DiGraph)
+        criteria = []
+        if not supplied and self.graph_model == "barabasi_albert":
+            criteria.append((self.ba_connectivity or "paper").lower())
+        if self.connectivity_requirement is not None:
+            criteria.append(self.connectivity_requirement)
+        elif not criteria:
+            criteria.append("weak" if supplied else "no_isolated_nodes")
+        failed = [mode for mode in criteria if not self._passes_connectivity_filter(G, A, mode)]
+        if failed:
+            message = f"Graph does not satisfy connectivity criterion: {', '.join(failed)}."
+            if self.strict_connectivity:
+                raise ValueError(message)
+            print(f"Warning: {message} Accepting graph in best-effort mode.")
+        elif not nx.is_weakly_connected(G):
+            print(
+                "Warning: Graph has multiple weakly connected components; "
+                f"accepted criterion {criteria!r} does not require weak connectivity."
+            )
 
     def _generate_probability_matrix(
         self, graph_connection_distribution: str, graph_connection_params: dict | None
@@ -388,13 +479,15 @@ class NetworkGraph(gym.Env):
         self, graph_connection_distribution: str, graph_connection_params: dict | None
     ) -> np.ndarray:
         """The full current random-graph path, unchanged."""
+        if self.num_agents < 2:
+            raise ValueError("random graph generation requires num_agents >= 2 to avoid isolated nodes")
         probs = self._generate_probability_matrix(
             graph_connection_distribution, graph_connection_params
         )
         G = self._build_graph_from_probs(probs)
         A = nx.to_numpy_array(G)
 
-        # Ensure at least weak connectivity (actually: no isolated nodes)
+        # Repair isolated nodes only; this does not ensure weak connectivity.
         if isinstance(G, nx.DiGraph):
             G2 = nx.DiGraph(A)
         else:
@@ -452,7 +545,13 @@ class NetworkGraph(gym.Env):
 
     def _passes_ba_connectivity_filter(self, G_dir: nx.DiGraph, A: np.ndarray) -> bool:
         mode = (self.ba_connectivity or "paper").lower()
+        return self._passes_connectivity_filter(G_dir, A, mode)
 
+    def _passes_connectivity_filter(self, G_dir, A, mode):
+        if mode == "no_isolated_nodes":
+            return all(G_dir.degree(node) > 0 for node in G_dir)
+        if mode == "weak":
+            return nx.is_weakly_connected(G_dir)
         if mode == "paper":
             return self._laplacian_has_single_zero_eig(A, tol=self.ba_qsc_tol)
 
@@ -466,7 +565,7 @@ class NetworkGraph(gym.Env):
         if mode in ("strong", "strongly_connected"):
             return nx.is_strongly_connected(G_dir)
 
-        raise ValueError(f"Unknown ba_connectivity mode: {self.ba_connectivity}")
+        raise ValueError(f"Unknown connectivity mode: {mode}")
 
     def _generate_connectivity_matrix_paper_barabasi_albert(self) -> np.ndarray:
         """
@@ -474,7 +573,8 @@ class NetworkGraph(gym.Env):
         1) BA undirected graph (N, m=ba_m)
         2) make bidirected (two directed edges for each undirected edge)
         3) prune randomly up to half of directed edges
-        4) accept only if Laplacian has exactly one eigenvalue at 0 (quasi-strongly connected)
+        4) accept according to ba_connectivity; otherwise use the final attempt
+           in best-effort mode or raise in strict mode.
         """
         if self.num_agents < 2:
             return np.zeros((self.num_agents, self.num_agents), dtype=float)
@@ -519,23 +619,23 @@ class NetworkGraph(gym.Env):
 
             A = nx.to_numpy_array(G_dir, dtype=float)
 
-            # 4) Filter by quasi-strong connectivity check (single zero eigenvalue of Laplacian)
-            # last_A = A
-            # if self._laplacian_has_single_zero_eig(A, tol=self.ba_qsc_tol):
-            #     return A
-
-            # 4) Stronger condition to avoid single sink SCCs
+            # 4) Apply the selected acceptance criterion without changing draws.
             last_A = A
             if self._passes_ba_connectivity_filter(G_dir, A):
                 return A
 
-        # If we failed to satisfy the condition within ba_max_tries, return last sample with a warning.
-        # (Better to not hard-fail and "break nothing".)
+        message = (
+            f"barabasi_albert exhausted {self.ba_max_tries} attempts for "
+            f"ba_connectivity={self.ba_connectivity!r}"
+        )
+        if self.strict_connectivity:
+            raise ValueError(message)
         if last_A is None:
             last_A = np.zeros((self.num_agents, self.num_agents), dtype=float)
-        print(
-            f"Warning: paper_ba generator failed to find single-zero-eig Laplacian in {self.ba_max_tries} tries; using last sample."
-        )
+            fallback = "zero matrix (no attempts)"
+        else:
+            fallback = "last sample"
+        print(f"Warning: {message}; using {fallback} in best-effort mode.")
         return last_A
 
     def _to_paper_row_stochastic(self, A: np.ndarray) -> np.ndarray:
@@ -576,6 +676,8 @@ class NetworkGraph(gym.Env):
         """
         Setter for opinions, allowing assignment via self.state.
         """
+        if self._uses_fj:
+            validate_unit_interval(value, self.num_agents, "state")
         self.opinions = np.array(value)
 
     def reset(self, randomize_opinions=False, *, seed=None, options=None):
@@ -609,6 +711,8 @@ class NetworkGraph(gym.Env):
             # Default FJ prejudice tracks the episode's initial opinions.
             self.fj_prejudice = self.opinions.copy()
 
+        if self._uses_fj:
+            self._validate_fj_configuration()
         self.current_step = 0
         self.total_spent = 0.0
         return self.opinions, info

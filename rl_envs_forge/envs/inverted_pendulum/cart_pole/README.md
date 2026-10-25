@@ -54,7 +54,9 @@ reward that decreases linearly with the absolute pole angle. Adding
 The episode terminates if the cart leaves `[-2.4, 2.4]` or the pole angle
 leaves `[-0.2, 0.2]`. `angle_termination` can impose a tighter angle limit.
 `episode_length_limit` defaults to 1000 steps; reaching it returns
-`truncated=True`. Stop on either ending flag, as in the example.
+`truncated=True`. Physical failure sets `terminated=True` independently of the
+horizon, so both flags are true if failure occurs on the last allowed step.
+Stop on either ending flag, as in the example.
 
 `info` includes the cart and angular accelerations (`x_acc`, `theta_acc`),
 applied `force`, and step count (`steps`).

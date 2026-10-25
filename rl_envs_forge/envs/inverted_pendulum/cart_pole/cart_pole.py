@@ -161,9 +161,6 @@ class CartPole(gym.Env):
         self.current_step += 1
         truncated = self.current_step >= self.episode_length_limit
 
-        if truncated:
-            done = False
-
         info = {
             "truncated": truncated,
             "x_acc": x_acc,
