@@ -37,6 +37,16 @@ The state is `(cars_at_A, cars_at_B)`. Action indices run from zero to
 positive moves cars from A to B, negative from B to A, and zero leaves them
 in place. With the settings above, action `3` means no transfer.
 
+Transfers are clipped by the overnight limit, the cars available at the source,
+and the free capacity at the destination. Only cars actually transferred incur
+a movement charge. Moving into a full location, or moving from an empty one,
+therefore moves no cars and costs nothing. Transfers conserve inventory.
+
+The day proceeds in this order: transfer cars, fulfill rental requests from the
+available stock, then accept returns up to each location's remaining capacity.
+Each location always holds between zero and `max_cars` cars. Requests above the
+available stock generate no additional rentals or income.
+
 `reset(option="equal")` splits the initial inventory evenly using
 `max_cars // 2` at each location. `reset(option="random")`, the default,
 samples each location's inventory. You can pass the same choice through
@@ -46,7 +56,8 @@ subsequent requests and returns.
 This is a continuing task: `step()` returns both ending flags as `False`.
 Choose a horizon in your experiment. `rental_credit` and `move_car_cost`
 control the reward. `poisson_max_value` sets how many Poisson probabilities
-are precomputed for the planning helper.
+are precomputed in the legacy point-probability table. It does not truncate the
+simulator or either planning API.
 
 ## Gambler's Problem
 
@@ -77,11 +88,56 @@ bet outcomes.
 ## Planning and inspection
 
 The Gambler's Problem provides win and loss outcomes with probabilities for
-each valid state and stake. Jack's Car Rental uses signed transfers as keys
-and aggregates expected rewards, retaining one representative next state per
-pair. Planning methods that need a full transition distribution will need a
-fuller car-rental model. Set `poisson_max_value` to at least `max_cars` when
-using that helper, which enumerates request and return counts up to `max_cars`.
+each valid state and stake.
+
+For Jack's Car Rental, use `build_transition_model()` for stochastic planning:
+
+```python
+# Build a model without changing the environment's inventory.
+car_env = JacksCarRental(max_cars=10, max_move_cars=3)
+model = car_env.build_transition_model()
+state, action = (5, 5), car_env.max_move_cars  # No overnight transfer.
+outcomes = model[(state, action)]
+expected_daily_reward = model.expected_reward(state, action)
+assert abs(sum(outcome[3] for outcome in outcomes) - 1) < 1e-12
+```
+
+The model maps `(state, action_index)` to an immutable tuple of
+`(next_state, conditional_expected_reward, False, probability)` outcomes.
+Action indices match `step()`. The reward is the expected daily reward given
+that destination, including the actual transfer cost; it may be fractional even
+when sampled rewards are integers. Weight these rewards by their probabilities
+to recover `expected_daily_reward`. The model describes all next-state
+probabilities and conditional mean rewards, rather than the distribution of
+individual rental revenues.
+
+All request counts at least as large as the available inventory are combined
+into the saturated rental event. Likewise, return counts that fill the remaining
+capacity are combined into the full-location event. These events include the
+entire Poisson tail, including for zero rates; the model does not discard and
+renormalize a finite prefix.
+
+The model snapshots its parameters without changing inventory or consuming
+random draws. Changing the environment afterward does not change that snapshot;
+build a new model to reflect new parameters. It stores small per-location tables
+and computes transition rows on demand. At capacity `C` and `K` actions, building
+the model takes `O(C^3)` time and `O(C^2)` memory; querying one row takes `O(C^2)`
+time and space. Iterating its keys is lazy. Materializing all rows would require
+`O(K*C^4)` space, so keep the default 20-car model lazy.
+
+`build_mdp()` remains available with its original signed-transfer keys and
+`(representative_next_state, expected_reward, False)` values. Its representative
+state is the inventory after the feasible transfer, corresponding to no requests
+or returns. The expected reward now includes all saturated request tails and
+actual movement costs. This helper retains its approximation of the next state;
+use the complete model when a planner needs transition probabilities. Neither
+helper requires `poisson_max_value >= max_cars`.
+
+Reseeding still repeats sampled days. The request and return draw order is
+unchanged, and feasible transfers retain their existing seeded results. Inventory
+and reward trajectories change when a request is clipped by source inventory or
+destination capacity, because movement charges now use the executed transfer
+and destinations cannot temporarily overflow.
 
 Use `env.render()` to print the state, or `env.render(mode="ansi")` to get a
 string. The examples in the [algorithm repository](https://github.com/mariusdgm/phd-rl-algos)

@@ -9,12 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Jack's Car Rental clips transfers by source inventory and destination capacity, conserves cars, and charges only for actual movement. Seeded results for fully feasible transfers retain the existing request/return draw order; clipped transfers can change inventory and rewards.
+- Jack's Car Rental's legacy `build_mdp()` preserves signed keys and representative-state tuples, with corrected full expected rewards. `poisson_max_value` no longer limits either planning API.
 - GridWorld interprets `slip_distribution` as a normalized global directional distribution, conditioned on excluding the intended action after failure. Invalid, empty, and single-direction distributions now raise `ValueError`.
 - GridWorld includes terminal and wall self-loops in every planning representation. Custom slips and special transitions can produce different seeded stochastic trajectories; ordinary deterministic movement and default uniform slip ordering are preserved.
 
 ### Fixed
 
+- Jack's Car Rental aggregates saturated Poisson request/return tails, including zero rates, and builds the default legacy model without a support-index error.
 - GridWorld uses the same reward-bearing outcomes for simulation, `mdp`, `transition_probs`, and `P`. Special transitions execute only on intended-action success; slips use ordinary movement. Adding or replacing a special transition refreshes every model without consuming random draws.
+
+### Added
+
+- Jack's Car Rental `build_transition_model()` returns a lazy snapshot of complete transition probabilities and conditional mean rewards, keyed by Gymnasium action indices, without allocating a full transition tensor.
 
 ## [5.23.0] - 2026.10.20
 
