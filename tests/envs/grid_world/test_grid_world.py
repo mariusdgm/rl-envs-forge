@@ -211,8 +211,8 @@ class TestGridWorld:
             ({"rewards": {}}, None),  # rewards can be an empty dictionary
             (
                 {"slip_distribution": {}},
-                None,
-            ),  # slip_distribution can be an empty dictionary
+                ValueError,
+            ),  # an explicitly supplied distribution must sum to one
         ],
     )
     def test_invalid_args(self, kwargs, expected_exception):

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- GridWorld interprets `slip_distribution` as a normalized global directional distribution, conditioned on excluding the intended action after failure. Invalid, empty, and single-direction distributions now raise `ValueError`.
+- GridWorld includes terminal and wall self-loops in every planning representation. Custom slips and special transitions can produce different seeded stochastic trajectories; ordinary deterministic movement and default uniform slip ordering are preserved.
+
+### Fixed
+
+- GridWorld uses the same reward-bearing outcomes for simulation, `mdp`, `transition_probs`, and `P`. Special transitions execute only on intended-action success; slips use ordinary movement. Adding or replacing a special transition refreshes every model without consuming random draws.
+
 ## [5.23.0] - 2026.10.20
 
 ### Added
