@@ -1137,8 +1137,8 @@ class TestNetworkGraph:
             connectivity_matrix=np.array(
                 [
                     [0.0, 1.0, 0.0, 0.0],
-                    [1.0, 0.0, 1.0, 0.0],
-                    [0.0, 1.0, 0.0, 1.0],
+                    [0.5, 0.0, 0.5, 0.0],
+                    [0.0, 0.5, 0.0, 0.5],
                     [0.0, 0.0, 1.0, 0.0],
                 ],
                 dtype=float,
@@ -1160,6 +1160,7 @@ class TestNetworkGraph:
             dynamics_model="friedkinjohnsen",
             fj_lambda=np.zeros(3),
             seed=321,
+            connectivity_matrix=(np.ones((3, 3)) - np.eye(3)) / 2,
         )
         opinions_a, _ = env.reset(randomize_opinions=True)
         np.testing.assert_allclose(env.fj_prejudice, opinions_a, atol=1e-12, rtol=1e-12)
@@ -1194,8 +1195,8 @@ class TestNetworkGraph:
             connectivity_matrix=np.array(
                 [
                     [0.0, 1.0, 0.0, 0.0],
-                    [1.0, 0.0, 1.0, 0.0],
-                    [0.0, 1.0, 0.0, 1.0],
+                    [0.5, 0.0, 0.5, 0.0],
+                    [0.0, 0.5, 0.0, 0.5],
                     [0.0, 0.0, 1.0, 0.0],
                 ],
                 dtype=float,
@@ -1218,6 +1219,7 @@ class TestNetworkGraph:
             dynamics_model="friedkinjohnsen",
             fj_lambda=np.zeros(3),
             seed=321,
+            connectivity_matrix=(np.ones((3, 3)) - np.eye(3)) / 2,
         )
 
         opinions_a, _ = env.reset(randomize_opinions=True)
@@ -1246,6 +1248,7 @@ class TestNetworkGraph:
             fj_lambda=np.zeros(3),
             fj_prejudice=prejudice,
             seed=123,
+            connectivity_matrix=(np.ones((3, 3)) - np.eye(3)) / 2,
         )
 
         env.reset(randomize_opinions=True)

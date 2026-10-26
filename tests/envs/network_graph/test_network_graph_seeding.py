@@ -57,6 +57,10 @@ def test_reset_seed_only_restarts_opinion_sampling(seed, graph_config):
 @pytest.mark.parametrize("custom_prejudice", [False, True])
 def test_seeded_reset_replays_controlled_trajectory(dynamics_model, custom_prejudice):
     prejudice = np.linspace(0.1, 0.9, 10) if custom_prejudice else None
+    graph_config = (
+        {"connectivity_matrix": (np.ones((10, 10)) - np.eye(10)) / 9}
+        if dynamics_model == "friedkinjohnsen" else {}
+    )
     env = NetworkGraph(
         seed=999,
         dynamics_model=dynamics_model,
@@ -66,6 +70,7 @@ def test_seeded_reset_replays_controlled_trajectory(dynamics_model, custom_preju
         terminate_when_converged=False,
         use_delta_shaping=True,
         delta_lambda=0.5,
+        **graph_config,
     )
     actions = [np.full(10, value, dtype=np.float32) for value in (0.025, 0.075, 0.05)]
 

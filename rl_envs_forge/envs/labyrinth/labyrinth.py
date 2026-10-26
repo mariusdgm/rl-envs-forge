@@ -80,7 +80,7 @@ class Labyrinth(gym.Env):
         if self.maze_layout_predetermined is not None:
             self.rows, self.cols = self.maze_layout_predetermined.shape
 
-        self._state = np.ones((rows, cols), dtype=np.uint8) * WALL
+        self._state = np.ones((self.rows, self.cols), dtype=np.uint8) * WALL
         self.state_vision_range = state_vision_range
 
         super().reset(seed=seed)
@@ -93,7 +93,7 @@ class Labyrinth(gym.Env):
 
         if state_vision_range is None:
             self.observation_space = gym.spaces.Box(
-                low=0, high=4, shape=(rows, cols), dtype=np.uint8
+                low=0, high=4, shape=(self.rows, self.cols), dtype=np.uint8
             )
         else:
             assert (
@@ -110,6 +110,8 @@ class Labyrinth(gym.Env):
                 "wall_collision_reward": -1,
                 "target_reached_reward": 10,
             }
+        else:
+            self.reward_schema = reward_schema.copy()
 
         #### Setup maze factory settings ####
         self.maze_nr_desired_rooms = maze_nr_desired_rooms
@@ -206,12 +208,25 @@ class Labyrinth(gym.Env):
 
     def build_state_matrix(self) -> np.ndarray:
         """Sequentially build the state matrix."""
-        self._state = self.maze.grid.copy()
-        self._state[self.maze.target_position] = TARGET
-        self._state[self.player.position] = PLAYER
+        self._state = self.maze.grid.astype(np.uint8, copy=True)
+        if self.maze.target_position is not None:
+            self._state[self.maze.target_position] = TARGET
+        if self.player.position is not None:
+            self._state[self.player.position] = PLAYER
         return self._state
 
+    def _require_initialized_positions(self):
+        """Explain the manual supplied-layout setup before using its positions."""
+        if self.player.position is None or self.maze.target_position is None:
+            raise RuntimeError(
+                "Labyrinth player and target positions are uninitialized. For a supplied "
+                "layout, after each reset use env.set_state((row, col)) and assign "
+                "env.maze.target_position = (row, col) before stepping, rendering, "
+                "or reading a local observation."
+            )
+
     def build_state_around_the_player(self, full_state) -> np.ndarray:
+        self._require_initialized_positions()
         # Get the local state around the player position
         start_row = max(0, self.player.position[0] - self.state_vision_range)
         end_row = min(self.rows, self.player.position[0] + self.state_vision_range + 1)
@@ -256,6 +271,7 @@ class Labyrinth(gym.Env):
             truncated (bool): A flag indicating if the episode was truncated.
             info (dict): Additional information about the step.
         """
+        self._require_initialized_positions()
         action = Action(action)
 
         # Initial reward
@@ -289,7 +305,7 @@ class Labyrinth(gym.Env):
 
         Args:
             player (Player): The player entity.
-            action (Action): The action the player wants to take.
+            action (rl_envs_forge.envs.labyrinth.constants.Action): The action the player wants to take.
 
         Returns:
             bool: True if the move is valid, False otherwise.
@@ -330,7 +346,7 @@ class Labyrinth(gym.Env):
         Move the agent to a new position based on the given action.
 
         Parameters:
-            action (Action): The action to be taken by the agent.
+            action (rl_envs_forge.envs.labyrinth.constants.Action): The action to be taken by the agent.
 
         Returns:
             None
@@ -382,8 +398,10 @@ class Labyrinth(gym.Env):
             process_arrow_keys (bool, optional): Whether to process directional keys for user input. Defaults to False.
 
         Returns:
-            Tuple[bool, Action]: A tuple containing a boolean value indicating if the quit event occurred and the action taken by the user.
+            tuple: The quit flag and an optional
+                :class:`~rl_envs_forge.envs.labyrinth.constants.Action` from the user.
         """
+        self._require_initialized_positions()
         self.displayer_window_size = window_size
         quit_event = False
         action = None

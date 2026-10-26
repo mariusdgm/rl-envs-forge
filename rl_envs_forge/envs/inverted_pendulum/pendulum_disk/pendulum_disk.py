@@ -48,8 +48,10 @@ class PendulumDisk(gym.Env):
         # Define action and observation space
         self.action_space = spaces.Box(low=-3.0, high=3.0, shape=(1,), dtype=np.float32)
         self.observation_space = spaces.Box(
-            low=np.array([-np.pi, -15 * np.pi]),
-            high=np.array([np.pi, 15 * np.pi]),
+            # Failure is reported after the Euler update, so its velocity can
+            # overshoot the failure threshold. Starting velocity is configurable.
+            low=np.array([-np.pi, -np.inf]),
+            high=np.array([np.pi, np.inf]),
             shape=(2,),
             dtype=np.float64,
         )
@@ -107,6 +109,15 @@ class PendulumDisk(gym.Env):
         return np.array(self.state, dtype=np.float64), {}
 
     def step(self, action):
+        """Apply one Euler update and evaluate reward and episode endings.
+
+        Args:
+            action (numpy.ndarray): A float32 voltage vector of shape ``(1,)``.
+
+        Returns:
+            tuple: Observation, reward, physical termination, horizon truncation,
+                and an info dictionary. Both ending flags can be true.
+        """
         assert self.action_space.contains(action), f"{action} ({type(action)}) invalid"
 
         state = self.state
@@ -153,9 +164,6 @@ class PendulumDisk(gym.Env):
 
         self.current_step += 1
         truncated = self.current_step >= self.episode_length_limit
-
-        if truncated:
-            done = False
 
         info = {
             "truncated": truncated,

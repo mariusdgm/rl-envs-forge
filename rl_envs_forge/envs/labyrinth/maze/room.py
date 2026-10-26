@@ -37,7 +37,7 @@ class RoomFactory:
         """
         self.seed = seed
         if self.seed is None:
-            self.seed = random.randint(0, 1e6)
+            self.seed = random.randint(0, 1_000_000)
         self.room_seed = self.seed
 
         self.py_random = random.Random(self.seed)
@@ -221,7 +221,7 @@ class RoomFactory:
         """
 
         min_ring_width = 1
-        max_ring_width = min(rows, cols) // 1.75
+        max_ring_width = int(min(rows, cols) // 1.75)
         if max_ring_width <= min_ring_width:
             ring_width = min_ring_width
         else:
@@ -345,7 +345,7 @@ class Room(ABC):
 
         self.seed = seed
         if self.seed is None:
-            self.seed = random.randint(0, 1e6)
+            self.seed = random.randint(0, 1_000_000)
 
         self.np_random = np.random.RandomState(self.seed)
         self.py_random = random.Random(self.seed)

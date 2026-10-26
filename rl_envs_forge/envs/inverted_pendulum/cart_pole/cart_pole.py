@@ -106,6 +106,15 @@ class CartPole(gym.Env):
         return np.array(self.state, dtype=np.float64), {}
 
     def step(self, action):
+        """Apply one Euler update and evaluate reward and episode endings.
+
+        Args:
+            action (numpy.ndarray): A float32 force vector of shape ``(1,)``.
+
+        Returns:
+            tuple: Observation, reward, physical termination, horizon truncation,
+                and an info dictionary. Both ending flags can be true.
+        """
         assert self.action_space.contains(action), f"{action} ({type(action)}) invalid"
 
         state = self.state
@@ -160,9 +169,6 @@ class CartPole(gym.Env):
 
         self.current_step += 1
         truncated = self.current_step >= self.episode_length_limit
-
-        if truncated:
-            done = False
 
         info = {
             "truncated": truncated,

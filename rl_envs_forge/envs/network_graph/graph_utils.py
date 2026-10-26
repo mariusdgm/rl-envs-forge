@@ -13,6 +13,10 @@ def normalize_adjacency_matrix(A):
 
 # Compute Laplacian
 def compute_laplacian(adjacency_matrix):
+    # Promote before summing/subtracting: unsigned off-diagonal negatives wrap.
+    # Leave floating-point and signed inputs on their original arithmetic path.
+    if np.issubdtype(np.asarray(adjacency_matrix).dtype, np.unsignedinteger):
+        adjacency_matrix = np.asarray(adjacency_matrix, dtype=np.float64)
     degree_matrix = np.diag(np.sum(adjacency_matrix, axis=1))
     laplacian = degree_matrix - adjacency_matrix
     return laplacian

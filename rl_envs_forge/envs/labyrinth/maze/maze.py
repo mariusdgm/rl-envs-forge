@@ -82,7 +82,7 @@ class MazeFactory:
 
         self.seed = seed
         if self.seed is None:
-            self.seed = random.randint(0, 1e6)
+            self.seed = random.randint(0, 1_000_000)
         self.py_random = random.Random(self.seed)
         self.np_random = np.random.RandomState(self.seed)
 
@@ -246,7 +246,7 @@ class Maze:
 
         self.seed = seed
         if self.seed is None:
-            self.seed = random.randint(0, 1e6)
+            self.seed = random.randint(0, 1_000_000)
         self.py_random = random.Random(self.seed)
 
         self.grid = np.ones((rows, cols), dtype=int) * WALL

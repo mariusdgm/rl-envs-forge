@@ -147,7 +147,7 @@ class KArmedBandit(gym.Env):
         self.arm_params = arm_params
 
         self.action_space = gym.spaces.Discrete(k)
-        self.observation_space = gym.spaces.Discrete(1)
+        self.observation_space = gym.spaces.Discrete(k)
         
         self.arms = None
         self._init_arms()

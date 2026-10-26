@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.0.0] - 2026.10.26
+
+This major version acknowledges the
+intentional observation-space, validation, and stochastic-model changes below.
+
+### Changed
+
+- NetworkGraph Laplacian/DeGroot observations use a nonnegative space with no finite upper bound, accommodating accumulated endpoint roundoff without changing states, impulses, matrix exponentials or rewards. Wrappers requiring finite observation bounds need an explicit scale; observation-space sampling changes, while simulation and action RNG streams are preserved.
+- Declare Python 3.10–3.12 support, matching the NumPy 1.x dependency range. Python 3.13 is excluded pending a separately validated numerical-stack update.
+- Declare Matplotlib directly and require versions below 3.10, which removed the RGB canvas method used by the existing GridWorld renderer.
+- Install Sphinx and its theme through the optional `docs` extra, and expose a `test` extra. Remove unused Python Graphviz, TOML, and external Napoleon dependencies; the diagram regeneration script still needs the external Graphviz application.
+- Preserve automatic main-branch tagging and PyPI publishing after Python 3.10, 3.11, and 3.12 checks on Linux and Windows, slow tests, documentation, citation, source-archive, and isolated-install checks. Publish the validated artifacts, restrict write permissions and publishing credentials to the release jobs, and make same-commit retries skip existing PyPI files.
+- NetworkGraph FJ observations declare a nonnegative, unbounded space. Propagated states require finite real values rather than an arbitrary endpoint tolerance, while initial/reset opinions stay in `[0,1]`. The raw FJ recurrence and coefficients are preserved; numerical overflow raises instead of returning a nonfinite state.
+- GridWorld rejects out-of-grid constructor/reset starts, and GamblersProblem rejects starting capital outside its discrete observation space. Rejected resets preserve episode state and RNG state.
+- NetworkGraph validates Friedkin-Johnsen adjacency, lambda, prejudice, and bounded control/initial-state parameters without normalizing matrices or clipping invalid lambda values. Previously accepted configurations outside these assumptions now raise `ValueError`; the FJ formula and valid trajectories are preserved.
+- CartPole and PendulumDisk retain `terminated=True` when physical failure coincides with their time limit; both ending flags can now be true.
+- Jack's Car Rental clips transfers by source inventory and destination capacity, conserves cars, and charges only for actual movement. Seeded results for fully feasible transfers retain the existing request/return draw order; clipped transfers can change inventory and rewards.
+- Jack's Car Rental's legacy `build_mdp()` preserves signed keys and representative-state tuples, with corrected full expected rewards. `poisson_max_value` no longer limits either planning API.
+- GridWorld interprets `slip_distribution` as a normalized global directional distribution, conditioned on excluding the intended action after failure. Invalid, empty, and single-direction distributions now raise `ValueError`.
+- GridWorld includes terminal and wall self-loops in every planning representation. Custom slips and special transitions can produce different seeded stochastic trajectories; ordinary deterministic movement and default uniform slip ordering are preserved.
+
+### Fixed
+
+- NetworkGraph promotes unsigned adjacency to float64 before Laplacian degree sums and subtraction, preventing wrapped negative entries and nonfinite binary-graph trajectories. Floating-point adjacency arithmetic is unchanged.
+- Jack's Car Rental's complete transition model and Gambler feasible-action helpers canonicalize validated Python/NumPy integers before arithmetic or indexing, including uint64 inputs. Floating-point inputs remain invalid; ordinary integer results and random draws are unchanged.
+- Labyrinth full observations use the declared uint8 dtype and supplied-layout dimensions, and custom reward schemas are assigned correctly.
+- KArmedBandit's observation space includes its returned arm indices. NetworkGraph's observation dtype matches its float64 dynamics, and integer adjacency inputs retain sampled fractional weights.
+- GridWorld distinguishes configured wall-collision rewards from boundary-collision rewards.
+- Strict Sphinx documentation builds resolve inherited physical-step docstrings, the Barabasi-Albert list indentation, and ambiguous Labyrinth action references without changing simulation behavior.
+- Supplied Labyrinth layouts retain manual initialization, report missing positions clearly, and avoid applying unset markers to the entire full observation.
+- PendulumDisk declares unbounded angular velocity observations, including failure-step overshoot, without clipping or changing physical dynamics.
+- NetworkGraph returns independent reset/step observations and accepts float32 FJ row-sum roundoff within four machine epsilons. Float64 adjacency validation and all existing dynamics equations are unchanged.
+- Maze and room generation use integer random bounds for Python versions that reject integral floats, preserving the random draws and their order.
+- The package-data rule names the actual Labyrinth sprite directory for both wheels and source distributions.
+- NetworkGraph diagnostics distinguish graph connectivity criteria, identify the actual Barabasi-Albert retry filter and fallback, and no longer advertise the unimplemented `erdos_renyi` graph alias.
+- Jack's Car Rental aggregates saturated Poisson request/return tails, including zero rates, and builds the default legacy model without a support-index error.
+- GridWorld uses the same reward-bearing outcomes for simulation, `mdp`, `transition_probs`, and `P`. Special transitions execute only on intended-action success; slips use ordinary movement. Adding or replacing a special transition refreshes every model without consuming random draws.
+
+### Added
+
+- Include tests, test configuration, the dependency lock, documentation sources, citation metadata, and CI configuration in source distributions. Add an isolated artifact validation command and a repository-based `CITATION.cff` without an invented archival identifier.
+- NetworkGraph offers opt-in `strict_connectivity` and an additional `connectivity_requirement`, preserving default generation distributions, retry behavior, and random draw order.
+- GamblersProblem exposes state-feasible stakes through `feasible_actions()` and `action_mask()`, with optional `strict_actions` validation. Its default action space and permissive behavior remain unchanged.
+- Jack's Car Rental `build_transition_model()` returns a lazy snapshot of complete transition probabilities and conditional mean rewards, keyed by Gymnasium action indices, without allocating a full transition tensor.
+
 ## [5.23.0] - 2026.10.20
 
 ### Added

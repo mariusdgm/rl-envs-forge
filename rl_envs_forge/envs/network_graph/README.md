@@ -26,6 +26,14 @@ The observation is a vector of `num_agents` opinions. The action is a vector of
 the same length, with each entry between zero and that node's `max_u`. You can
 set `max_u` and `desired_opinion` per node by passing arrays instead of scalars.
 `control_resistance` takes an array or `None`.
+For Laplacian/DeGroot and FJ, the declared observation space is nonnegative
+with no finite upper bound. Other models declare opinions in `[0,1]`.
+The numerical contracts below explain why raw updates need a broader space
+even when the mathematical model preserves the unit interval.
+Observations use `float64` and actions use `float32`. Observations returned by
+`reset()` and `step()` are independent copies; changing them does not change
+the simulation. Use `env.state` or `env.opinions` to inspect or explicitly edit
+the live state.
 
 ## Choosing a network
 
@@ -34,12 +42,51 @@ By default, the environment generates a random graph. Use
 choose how connection probabilities are sampled. `graph_connection_params`
 accepts `mean` and `std` for the normal distribution, or `scale` for the
 exponential distribution. Set `bidirectional_prob=1.0` for an undirected graph.
+Random generation repairs nodes with no incident edges. In a directed graph,
+this counts incoming and outgoing edges together; it does not guarantee an
+outgoing edge, weak connectivity, or strong connectivity. Random graphs retain
+binary edges even when `use_weighted_edges=True`.
+Random generation requires at least two nodes; supply a matrix explicitly for
+a one-node model.
 
 For a Barabasi-Albert network, use `graph_model="barabasi_albert"`. `ba_m` sets
 the number of attachments for each new node, and `ba_prune_max_frac` controls
-how many directed edges may be removed. The resulting influence matrix is
-normalized by row. `ba_connectivity` selects the acceptance rule: `"paper"`,
-`"no_singleton_sink"` (the default), or `"strong"`.
+how many directed edges may be removed. For at least two nodes, `ba_m` must
+satisfy `1 <= ba_m < num_agents`, and the pruning fraction must be in `[0,1]`.
+The one-node BA path returns a zero matrix, which is incompatible with
+FJ. The resulting influence matrix is
+normalized by row, leaving rows with no outgoing edges at zero. This
+normalization is part of the Barabasi-Albert generator; it is not
+applied to supplied matrices or random graphs. `ba_connectivity` selects the
+acceptance rule:
+
+| Criterion | Meaning on the directed support of the adjacency matrix |
+| --- | --- |
+| `paper` | The row Laplacian has exactly one zero eigenvalue within `ba_qsc_tol`. |
+| `no_singleton_sink` (default) | The `paper` condition holds and every sink strongly connected component has at least two nodes. |
+| `strong` (also `strongly_connected`) | Every node can reach every other node along directed edges. |
+
+The generator tries up to `ba_max_tries` samples. By default it is best effort:
+if none passes, it warns with the selected criterion and returns the final
+sample. With zero attempts it returns a zero matrix. These fallbacks need not
+satisfy the acceptance rule.
+
+Set `strict_connectivity=True` to reject a failing graph instead. You can also
+request an additional `connectivity_requirement`:
+
+- `no_isolated_nodes`: every node has an incident edge.
+- `weak`: the graph is connected when edge direction is ignored.
+- `strong`: directed paths exist between every ordered pair of nodes.
+
+The additional requirement is checked after generation and does not change the
+draw order or trigger resampling. In best-effort mode failure produces a warning;
+strict mode raises `ValueError`. Barabasi-Albert still applies its own selected
+retry criterion as well. Without an additional requirement, strict mode checks
+the random generator's no-isolates rule, the Barabasi-Albert acceptance rule, or
+weak connectivity for a supplied matrix. These criteria are distinct: a graph
+can pass the no-isolates or sink-component checks without being strongly
+connected. `graph_model` accepts `random` and `barabasi_albert`; `erdos_renyi` is
+not an implemented alias.
 
 You can also supply a square adjacency matrix. Its size determines the number
 of agents:
@@ -70,6 +117,10 @@ In the dynamics, `adjacency[i, j]` controls how node `j` contributes to node `i`
 Supplied matrices keep their weights unless `use_weighted_edges=True`, which
 replaces entries equal to one with samples from `weight_range`. This option
 also samples weights for Barabasi-Albert graphs before row normalization.
+For unsigned integer adjacency arrays, Laplacian construction uses a float64
+copy before summing degrees and subtracting edges, so negative off-diagonal
+entries cannot wrap around. An unweighted supplied adjacency keeps its stored
+dtype. Floating-point inputs retain their existing arithmetic path.
 
 ## Opinion dynamics
 
@@ -79,9 +130,9 @@ Choose a model with `dynamics_model`:
 | --- | --- | --- |
 | `laplacian` (also `degroot`) | Continuous consensus using the graph Laplacian. | `t_s` |
 | `coca` | Neighbor influence varies with the node's current opinion. | `t_s` |
-| `friedkinjohnsen` | Mixes social influence with a fixed prejudice vector. | `fj_lambda`, `fj_prejudice` |
-| `hegselmannkrause` | Averages neighbors whose opinions are close enough. | `hk_epsilon`, `hk_include_self` |
-| `nonlinearinfluence` | Uses a saturating influence function. | `nonlinear_beta`, `t_s` |
+| `friedkinjohnsen` (also `friedkin_johnsen`, `fj`) | Mixes social influence with a fixed prejudice vector. | `fj_lambda`, `fj_prejudice` |
+| `hegselmannkrause` (also `hegselmann_krause`, `hk`) | Averages neighbors whose opinions are close enough. | `hk_epsilon`, `hk_include_self` |
+| `nonlinearinfluence` (also `nonlinear_influence`) | Uses a saturating influence function. | `nonlinear_beta`, `t_s` |
 | `repulsion` | Attracts similar opinions and pushes distant ones apart. | `repulsion_epsilon`, `repulsion_strength`, `t_s` |
 
 Each environment step applies control once, then runs propagation for
@@ -89,10 +140,96 @@ Each environment step applies control once, then runs propagation for
 `t_campaign` evenly. The Friedkin-Johnsen and Hegselmann-Krause models apply a
 discrete update at each interval.
 
-For Friedkin-Johnsen averaging, supply a matrix whose rows sum to one. You can
-prepare one with `normalize_adjacency_matrix` from `graph_utils`. If
-`fj_prejudice` is omitted, it is set to the initial opinions of each episode;
-a supplied prejudice vector stays fixed across resets.
+Laplacian/DeGroot consensus uses `L = diag(A.sum(axis=1)) - A` and repeated
+updates with `expm(-L * t_s)`, after the control impulse. With nonnegative
+weights and bounded controls and opinions, this preserves `[0,1]` in exact
+arithmetic. In floating-point arithmetic, matrix-exponential row sums and
+impulse coefficients can put endpoint opinions slightly above one, and the
+error can accumulate over repeated transitions. These aliases therefore use
+`Box(0, np.inf, dtype=np.float64)`, with a fixed space throughout an episode.
+States, intermediate states and rewards retain the raw calculation; the space
+does not introduce clipping, normalization, rounding or a numerical tolerance.
+
+Friedkin-Johnsen uses the discrete update
+`x_next = fj_lambda * (A @ x) + (1 - fj_lambda) * fj_prejudice` at every internal
+interval. Its assumptions are checked explicitly:
+
+- `A` must be a finite, real, nonnegative square matrix. Rows must sum to one,
+  checked by summing in float64 with zero relative tolerance. The absolute
+  tolerance is `4 * np.finfo(np.float32).eps` (about `4.77e-7`) for float32
+  matrices and `1e-12` for other dtypes. This admits small normalization errors
+  in single precision, including normalized and softmax-generated rows. Zero
+  rows and substantive row-sum errors remain invalid. Validation never changes
+  the supplied entries.
+- `fj_lambda` must be a scalar or a vector of shape `(num_agents,)`, with finite
+  values in `[0,1]`. `fj_prejudice` must be a vector of that shape in `[0,1]`.
+- Initial opinions, targets, `max_u`, and control resistance must be finite and
+  in `[0,1]`, with per-node vectors of the expected shape. The initial sampling
+  range must satisfy `0 <= low <= high <= 1`. Fully resistant nodes are allowed.
+- Propagated states must be finite real vectors of the expected shape. They
+  are not subject to the initial-state upper bound. Direct kernel calls accept
+  finite real states; direct rollouts still require controls, targets and
+  resistance in `[0,1]`. Values are never clipped or changed by validation.
+
+An exactly row-stochastic matrix makes social averaging a convex combination,
+which preserves opinion bounds in exact arithmetic. A matrix accepted within
+the row-sum tolerance is not necessarily exactly stochastic. Invalid lambda
+values raise instead of being clipped;
+invalid matrices raise instead of being normalized. You may explicitly prepare
+a matrix with `normalize_adjacency_matrix` from `graph_utils`, checking that no
+zero rows remain.
+
+FJ observations use `Box(0, np.inf, dtype=np.float64)`. Even float64 arithmetic
+can produce an endpoint value just above one. Float32 impulse coefficients can
+also introduce endpoint roundoff with an exact adjacency. With approximately stochastic
+rows and `fj_lambda=1`, positive row-sum errors can also accumulate under repeated
+updates: `(1 + delta) * I` multiplies the state by `1 + delta` each time.
+No fixed precision-dependent margin around `[0,1]` covers arbitrary rollout
+lengths. The environment therefore returns the raw recurrence, including
+values above one, and permits those finite states in subsequent updates.
+Nonnegative initial states, controls and coefficients preserve the lower bound.
+Overflow or a nonfinite FJ result raises `FloatingPointError` rather than
+returning an invalid observation. Initial opinions, reset states and assignment
+through `env.state` retain the `[0,1]` restriction.
+
+For endpoint-sensitive experiments, explicitly prepare a float64 copy with
+`normalize_adjacency_matrix(A.astype(np.float64))` and inspect its row sums.
+This reduces coefficient error; it does not guarantee exact floating-point
+boundedness or change the matrix supplied to an existing environment. The
+environment never normalizes user matrices or clips FJ opinions. For Laplacian,
+DeGroot and FJ, a wrapper that rescales observations using finite space bounds
+needs an explicit scale. Laplacian/DeGroot wrappers built for the former upper
+bound of one must be reconfigured; sampling their observation space now uses
+Gymnasium's distribution for an unbounded upper interval rather than a uniform
+unit interval. Simulation and action-space random streams are unchanged.
+Recreate wrappers after changing the dynamics model; the environment
+refreshes its model-specific space on the next reset or successful step.
+
+Every generated graph is checked against the FJ requirements too. In particular,
+the default random graph is generally unnormalized and can be rejected. Choose
+a valid supplied matrix or a Barabasi-Albert configuration with no zero rows;
+for example:
+
+```python
+env = NetworkGraph(
+    graph_model="barabasi_albert", ba_connectivity="strong",
+    strict_connectivity=True, dynamics_model="fj", seed=0,
+)
+```
+
+Generated matrices are validated without automatic repair for FJ. If
+`fj_prejudice` is omitted, it is set to the initial opinions of
+each episode; a supplied prejudice vector stays fixed across resets.
+
+For bounded-opinion experiments with any model, use finite nonnegative adjacency
+weights, initial opinions and targets in `[0,1]`, and controls and resistance in
+`[0,1]`. Laplacian consensus preserves this interval in exact arithmetic under
+these assumptions. COCA, HK, nonlinear influence, and repulsion retain their
+existing output clipping to `[0,1]`. Use nonnegative confidence radii
+(`hk_epsilon`, `repulsion_epsilon`), `nonlinear_beta`, and `repulsion_strength`
+for their usual interpretations. These are modeling assumptions; outside FJ,
+the constructor does not enforce all of them. For the Euler-based models,
+choose `t_s` small enough for the accuracy of the experiment.
 
 ## Rewards and episode endings
 

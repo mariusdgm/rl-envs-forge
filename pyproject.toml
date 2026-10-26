@@ -1,26 +1,57 @@
 [tool.poetry]
 name = "rl-envs-forge"
-version = "5.23.0"
+version = "6.0.0"
 description = "Environments for reinforcement learning"
 authors = ["mariusdgm <marius.dragomir.dgm@gmail.com>"]
 license = "MIT"
 readme = "README.md"
-include = ["pyproject.toml", "assets/labyrinth/sprites/*.png"]
+homepage = "https://github.com/mariusdgm/rl-envs-forge"
+repository = "https://github.com/mariusdgm/rl-envs-forge"
+documentation = "https://github.com/mariusdgm/rl-envs-forge/blob/main/docs/README.md"
+classifiers = [
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+include = [
+    "pyproject.toml",
+    { path = "CITATION.cff", format = ["sdist"] },
+    { path = "CHANGELOG.md", format = ["sdist"] },
+    { path = "poetry.lock", format = ["sdist"] },
+    { path = "pytest.ini", format = ["sdist"] },
+    { path = "tests/**/*.py", format = ["sdist"] },
+    { path = "tests/README.md", format = ["sdist"] },
+    { path = "docs/*.md", format = ["sdist"] },
+    { path = "docs/*.rst", format = ["sdist"] },
+    { path = "docs/conf.py", format = ["sdist"] },
+    { path = "docs/Makefile", format = ["sdist"] },
+    { path = "docs/make.bat", format = ["sdist"] },
+    { path = "docs/_static/.gitkeep", format = ["sdist"] },
+    { path = "docs/figures/**", format = ["sdist"] },
+    { path = "docs/diagrams/**", format = ["sdist"] },
+    { path = ".github/workflows/citd.yml", format = ["sdist"] },
+    { path = "rl_envs_forge/envs/labyrinth/display/sprites/*.png", format = ["sdist", "wheel"] },
+]
 
 [tool.poetry.dependencies]
-python = ">=3.10,<4.0"
+python = ">=3.10,<3.13"
 gymnasium = "^0.29.1"
 numpy = "^1.24.1"
 pygame = "^2.5.1"
 setuptools = "^68.0.0"
 scipy = "^1.11.2"
-sphinx = "^7.2.6"
-sphinxcontrib-napoleon = "^0.7"
-graphviz = "^0.20.1"
-toml = "^0.10.2"
+matplotlib = ">=3.4,<3.10"
 seaborn = "^0.13.0"
-sphinx-rtd-theme = "^1.3.0"
 networkx = "^3.3"
+sphinx = { version = "^7.2.6", optional = true }
+sphinx-rtd-theme = { version = "^1.3.0", optional = true }
+pytest = { version = "^7.4.1", optional = true }
+pytest-cov = { version = "^4.1.0", optional = true }
+
+[tool.poetry.extras]
+docs = ["sphinx", "sphinx-rtd-theme"]
+test = ["pytest", "pytest-cov"]
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.1"

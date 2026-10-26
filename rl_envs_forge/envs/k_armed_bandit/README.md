@@ -55,6 +55,12 @@ Gamma and beta require both parameters shown; Weibull requires `a`. For the
 lognormal distribution, `mean` and `sigma` describe the underlying normal
 distribution.
 
+Use finite parameters: standard deviations, scales, and `sigma` must be
+nonnegative, uniform bounds must satisfy `low <= high`, and beta parameters
+and Weibull shape must be positive. A positive gamma shape gives the usual
+gamma distribution. NumPy performs distribution-specific parameter checks
+when an arm is sampled.
+
 ![Arms with different reward distributions](../../../docs/figures/k_armed_bandit/different_distributions.png)
 
 ## Changing parameters over time

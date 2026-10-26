@@ -3,6 +3,8 @@ import gymnasium as gym
 import numpy as np
 from scipy.stats import poisson
 
+from .transition_model import CarRentalTransitionModel, transfer_cars
+
 
 class JacksCarRental(gym.Env):
     """
@@ -30,7 +32,7 @@ class JacksCarRental(gym.Env):
             request_lambda: The lambda values for the Poisson distribution of car rental requests. Defaults to [3, 4].
             return_lambda: The lambda values for the Poisson distribution of car returns. Defaults to [3, 2].
             init_state_option: The option for initializing the initial state. Defaults to "random".
-            poisson_max_value: The maximum value for the Poisson distribution. Defaults to 12.
+            poisson_max_value: Maximum count in the legacy point-probability table. Planning models aggregate saturated tails independently of this value. Defaults to 12.
 
         Returns:
             None
@@ -65,13 +67,9 @@ class JacksCarRental(gym.Env):
             A tuple containing the new state after moving the cars, with the number of cars at location A and location B.
             The cost of moving the cars.
         """
-        cars_at_A, cars_at_B = state
-        cars_moved = min(
-            cars_at_A if action > 0 else cars_at_B, abs(action), self.max_move_cars
+        return transfer_cars(
+            state, action, self.max_cars, self.max_move_cars, self.move_car_cost
         )
-        cars_at_A -= cars_moved * np.sign(action)
-        cars_at_B += cars_moved * np.sign(action)
-        return (max(cars_at_A, 0), max(cars_at_B, 0)), abs(action) * self.move_car_cost
 
     def _simulate_rentals_and_returns(
         self, state: Tuple[int, int]
@@ -101,15 +99,19 @@ class JacksCarRental(gym.Env):
 
         return (cars_at_A, cars_at_B), reward
 
-    def step(self, action: int) -> Tuple[Dict[int, int], float, bool, bool, dict]:
+    def step(self, action: int) -> Tuple[Tuple[int, int], float, bool, bool, dict]:
         """
         Performs a single step in the environment.
 
         Args:
-            action: The action to take.
+            action: Integer index; subtract max_move_cars for the signed transfer.
+                Positive transfers move A to B. Requests are clipped by source
+                inventory, destination capacity, and the overnight limit. Only
+                cars actually moved incur a charge.
 
         Returns:
-            A tuple containing the new state, the reward, and two boolean values indicating whether the episode is done and whether the state is terminal. The new state is represented as a dictionary. The reward is a float value. The two boolean values are False by default.
+            Observation tuple, reward, False, False, and an empty info dict.
+            Transfers precede rentals, which precede capacity-capped returns.
         """
         action = action - self.max_move_cars
         moved_state, move_cost = self._move_cars_and_calculate_cost(self.state, action)
@@ -229,79 +231,39 @@ class JacksCarRental(gym.Env):
             * self.poisson_probs["return"]["B"][return_B]
         )
 
+    def build_transition_model(self) -> CarRentalTransitionModel:
+        """Build a lazy snapshot of complete state/action transition distributions.
+
+        Keys use the same integer action indices as step(). Each value is an
+        immutable tuple of (next_state, conditional_expected_reward, False,
+        probability) outcomes. Poisson tails are aggregated at inventory and
+        capacity bounds; poisson_max_value does not truncate this model.
+        """
+        return CarRentalTransitionModel(
+            self.max_cars, self.max_move_cars, self.rental_credit,
+            self.move_car_cost, self.request_lambda, self.return_lambda,
+        )
+
     def build_mdp(self):
+        """Return the legacy representative-state planning dictionary.
+
+        Keys remain (state, signed_transfer), and values remain
+        (representative_next_state, expected_reward, False). The representative
+        state is the inventory immediately after the feasible transfer, as in
+        the original helper's zero-request/zero-return first event. Its reward
+        is now the complete expected daily reward, including saturated tails.
+
+        This is not a transition distribution. Use build_transition_model()
+        for stochastic planning and Gymnasium-indexed actions. No default-size
+        dense transition tensor is constructed by either method.
         """
-        Generates the transition and reward dictionary for the Markov Decision Process (MDP).
-
-        This method iterates over all possible states, actions, and events to calculate the
-        transition probabilities and rewards for the MDP. It takes into account the number
-        of cars at locations A and B, the number of cars moved between locations, the number
-        of cars rented and returned at each location, and the associated probabilities of
-        these events.
-
-        Returns:
-            t_r_dict (dict): A dictionary containing the transition probabilities and rewards
-                for each state and action pair. The keys are tuples representing the state and
-                action, and the values are tuples representing the next state, the probability
-                of transitioning to the next state, and the reward associated with the
-                transition.
-        """
-        t_r_dict = {}
-
-        for cars_at_A in range(self.max_cars + 1):
-            for cars_at_B in range(self.max_cars + 1):
-                state = (cars_at_A, cars_at_B)
-
-                for action in range(-self.max_move_cars, self.max_move_cars + 1):
-                    moved_state, move_cost = self._move_cars_and_calculate_cost(
-                        state, action
-                    )
-
-                    for request_A in range(0, self.max_cars + 1):
-                        for request_B in range(0, self.max_cars + 1):
-                            prob_request = (
-                                self.poisson_probs["request"]["A"][request_A]
-                                * self.poisson_probs["request"]["B"][request_B]
-                            )
-                            rentals_A = min(moved_state[0], request_A)
-                            rentals_B = min(moved_state[1], request_B)
-                            rental_reward = (rentals_A + rentals_B) * self.rental_credit
-
-                            for return_A in range(0, self.max_cars + 1):
-                                for return_B in range(0, self.max_cars + 1):
-                                    prob_return = (
-                                        self.poisson_probs["return"]["A"][return_A]
-                                        * self.poisson_probs["return"]["B"][return_B]
-                                    )
-                                    next_state = (
-                                        min(
-                                            moved_state[0] - rentals_A + return_A,
-                                            self.max_cars,
-                                        ),
-                                        min(
-                                            moved_state[1] - rentals_B + return_B,
-                                            self.max_cars,
-                                        ),
-                                    )
-                                    prob_total = prob_request * prob_return
-                                    reward = rental_reward - move_cost
-
-                                    if (state, action) in t_r_dict:
-                                        (
-                                            existing_state,
-                                            existing_reward,
-                                            existing_done,
-                                        ) = t_r_dict[(state, action)]
-                                        t_r_dict[(state, action)] = (
-                                            existing_state,
-                                            existing_reward + prob_total * reward,
-                                            existing_done,
-                                        )
-                                    else:
-                                        t_r_dict[(state, action)] = (
-                                            next_state,
-                                            prob_total * reward,
-                                            False,
-                                        )
-
-        return t_r_dict
+        model = self.build_transition_model()
+        legacy = {}
+        for state, action_index in model:
+            action = action_index - self.max_move_cars
+            legacy[(state, action)] = (
+                self._move_cars_and_calculate_cost(state, action)[0],
+                model.expected_reward(state, action_index),
+                False,
+            )
+        return legacy

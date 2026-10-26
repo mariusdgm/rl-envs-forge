@@ -63,7 +63,7 @@ class Player:
         Calculate the potential next position based on the current position and the specified action.
 
         Parameters:
-            action (Action): The action to take.
+            action (rl_envs_forge.envs.labyrinth.constants.Action): The action to take.
 
         Returns:
             Tuple[int, int]: The potential next position.

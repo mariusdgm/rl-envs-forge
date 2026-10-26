@@ -1,6 +1,62 @@
 import numpy as np
 from scipy.linalg import expm
 
+FJ_ALIASES = frozenset(('friedkinjohnsen', 'friedkin_johnsen', 'fj'))
+
+
+def validate_unit_interval(value, size, name, allow_scalar=False, atol=0.0):
+    """Validate real finite FJ parameters without changing their values."""
+    array = np.asarray(value)
+    if not (
+        (np.issubdtype(array.dtype, np.number) or array.dtype == np.bool_)
+        and np.isrealobj(array)
+        and (array.shape == (size,) or (allow_scalar and array.ndim == 0))
+        and np.all(np.isfinite(array))
+        and np.all((array >= -atol) & (array <= 1 + atol))
+    ):
+        scalar_note = ' or a scalar' if allow_scalar else ''
+        raise ValueError(f'FJ {name} must have shape ({size},){scalar_note}, with finite values in [0, 1]')
+
+
+def validate_fj_adjacency(adjacency_matrix, size):
+    """Require a nonnegative finite row-stochastic matrix; never normalize it."""
+    matrix = np.asarray(adjacency_matrix)
+    if not (
+        matrix.shape == (size, size) and size > 0
+        and (np.issubdtype(matrix.dtype, np.number) or matrix.dtype == np.bool_)
+        and np.isrealobj(matrix) and np.all(np.isfinite(matrix))
+        and np.all(matrix >= 0)
+    ):
+        raise ValueError('FJ adjacency must be a square, finite, real, nonnegative matrix')
+    # Float64 accumulation exposes rounding already present in float32 entries.
+    # Allow a small single-precision normalization error, retaining the existing
+    # tolerance for float64 and other storage types. Never change the entries.
+    row_atol = 4 * np.finfo(np.float32).eps if matrix.dtype == np.float32 else 1e-12
+    if not np.allclose(matrix.sum(axis=1, dtype=np.float64), 1.0, rtol=0, atol=row_atol):
+        raise ValueError(
+            f'FJ adjacency must be row-stochastic (row sums 1, atol={row_atol:g}); '
+            'no automatic normalization is performed'
+        )
+
+
+def validate_fj_inputs(state, adjacency_matrix, fj_lambda, prejudice):
+    """Validate a finite real propagated state and bounded FJ parameters.
+
+    Approximate stochastic matrices need not preserve [0, 1] under repeated
+    updates. Initial opinions are bounded separately by NetworkGraph.
+    """
+    state = np.asarray(state)
+    if not (
+        state.ndim == 1 and state.size > 0
+        and (np.issubdtype(state.dtype, np.number) or state.dtype == np.bool_)
+        and np.isrealobj(state) and np.all(np.isfinite(state))
+    ):
+        raise ValueError('FJ state must be a nonempty one-dimensional finite real vector')
+    size = state.size
+    validate_fj_adjacency(adjacency_matrix, size)
+    validate_unit_interval(fj_lambda, size, 'fj_lambda', allow_scalar=True)
+    validate_unit_interval(prejudice, size, 'prejudice')
+
 
 def apply_impulse_control(current_state, control_action, desired_opinion_vector, control_resistance):
     effective_control = control_action * (1 - control_resistance)
@@ -29,12 +85,18 @@ def coca_step(state, *, adjacency_matrix, t_s):
 
 
 def friedkin_johnsen_step(state, *, adjacency_matrix, fj_lambda, prejudice):
+    validate_fj_inputs(state, adjacency_matrix, fj_lambda, prejudice)
     lam = np.asarray(fj_lambda, dtype=float)
     if lam.ndim == 0:
         lam = np.full_like(state, float(lam), dtype=float)
-    lam = np.clip(lam, 0.0, 1.0)
-    social = adjacency_matrix @ state
-    return lam * social + (1.0 - lam) * np.asarray(prejudice, dtype=float)
+    # Preserve the recurrence and its rounding. Report numerical overflow rather
+    # than returning an invalid observation or silently repairing the model.
+    with np.errstate(over='raise', invalid='raise'):
+        social = adjacency_matrix @ state
+        result = lam * social + (1.0 - lam) * np.asarray(prejudice, dtype=float)
+    if not np.all(np.isfinite(result)):
+        raise FloatingPointError('FJ update produced a nonfinite state; inspect matrix row sums and rollout length')
+    return result
 
 
 def hegselmann_krause_step(state, *, adjacency_matrix, hk_epsilon, hk_include_self=True):
@@ -113,7 +175,7 @@ def step_once(model, state, *, adjacency_matrix, L, t_s, desired_opinion_vector=
         return laplacian_step(state, L=L, t_s=t_s, expL_ts=expL_ts, default_t_s=default_t_s)
     if model == 'coca':
         return coca_step(state, adjacency_matrix=adjacency_matrix, t_s=t_s)
-    if model in ('friedkinjohnsen', 'friedkin_johnsen', 'fj'):
+    if model in FJ_ALIASES:
         if fj_lambda is None:
             raise ValueError('friedkinjohnsen dynamics requires fj_lambda')
         if prejudice is None:
@@ -141,6 +203,12 @@ def rollout_dynamics(current_state, control_action, *, dynamics_model, adjacency
                      desired_opinion_vector, control_resistance, expL_ts=None, default_t_s=None,
                      fj_lambda=None, prejudice=None, hk_epsilon=None, hk_include_self=True,
                      nonlinear_beta=None, repulsion_epsilon=None, repulsion_strength=None):
+    if str(dynamics_model).lower() in FJ_ALIASES:
+        validate_fj_inputs(current_state, adjacency_matrix, fj_lambda, prejudice)
+        size = np.asarray(current_state).size
+        validate_unit_interval(control_action, size, 'control_action')
+        validate_unit_interval(desired_opinion_vector, size, 'desired_opinion')
+        validate_unit_interval(control_resistance, size, 'control_resistance')
     controlled_state = apply_impulse_control(current_state, control_action, desired_opinion_vector, control_resistance)
     intermediate_states = [controlled_state.copy()]
     num_steps = int(round(t_campaign / t_s))

@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+message: "If you use rl-envs-forge in your research, please cite this software."
+type: software
+title: rl-envs-forge
+version: 6.0.0
+authors:
+  - family-names: Dragomir
+    given-names: Marius
+    email: marius.dragomir.dgm@gmail.com
+repository-code: "https://github.com/mariusdgm/rl-envs-forge"
+url: "https://github.com/mariusdgm/rl-envs-forge"
+license: MIT
