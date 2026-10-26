@@ -49,7 +49,7 @@ def main():
 
     blocks = {
         'manifest': python_block('release-checks', 'Record validated release artifacts'),
-        'validation': python_block('validation', 'Require every validation job to pass'),
+        'validation': python_block('test', 'Require every validation job to pass'),
         'tag': python_block('tag', 'Create or reuse version tag'),
         'verify': python_block('deploy', 'Verify release identity and checksums'),
     }
@@ -70,11 +70,12 @@ def main():
             self.assertEqual(jobs['compatibility']['strategy']['matrix'],
                              {'os': ['ubuntu-latest', 'windows-latest'],
                               'python': ['3.10', '3.11', '3.12']})
-            self.assertEqual(set(jobs['validation']['needs']),
+            self.assertEqual(jobs['test']['name'], 'test')
+            self.assertEqual(set(jobs['test']['needs']),
                              {'compatibility', 'slow-tests', 'release-checks'})
-            self.assertEqual(jobs['validation']['if'], 'always()')
+            self.assertEqual(jobs['test']['if'], 'always()')
             for job in ('tag', 'deploy'):
-                self.assertIn('validation', jobs[job]['needs'])
+                self.assertIn('test', jobs[job]['needs'])
                 self.assertIn('release-checks', jobs[job]['needs'])
             self.assertIn('tag', jobs['deploy']['needs'])
 
@@ -120,7 +121,7 @@ def main():
             self.assertEqual(download['with']['digest-mismatch'], 'error')
 
         def test_validation_gate_requires_success_from_every_job(self):
-            results = {name: {'result': 'success'} for name in jobs['validation']['needs']}
+            results = {name: {'result': 'success'} for name in jobs['test']['needs']}
             self.execute('validation', {'RESULTS': json.dumps(results)})
             for name in results:
                 for status in ('failure', 'cancelled', 'skipped'):

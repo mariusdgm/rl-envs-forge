@@ -111,8 +111,9 @@ jobs:
           path: dist/*
           if-no-files-found: error
 
-  validation:
-    name: validation
+  test:
+    # Preserve the original required-check name while aggregating the matrix.
+    name: test
     needs: [compatibility, slow-tests, release-checks]
     if: always()
     runs-on: ubuntu-latest
@@ -132,7 +133,7 @@ jobs:
           PY
 
   tag:
-    needs: [validation, release-checks]
+    needs: [test, release-checks]
     if: >-
       github.event_name == 'push' &&
       github.ref == 'refs/heads/main' &&
@@ -184,7 +185,7 @@ jobs:
           PY
 
   deploy:
-    needs: [validation, release-checks, tag]
+    needs: [test, release-checks, tag]
     if: >-
       github.event_name == 'push' &&
       github.ref == 'refs/heads/main' &&
