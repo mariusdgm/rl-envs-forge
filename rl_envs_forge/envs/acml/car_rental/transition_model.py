@@ -101,6 +101,10 @@ class CarRentalTransitionModel(Mapping):
             and 0 <= action <= 2 * self.max_move_cars
         ):
             raise KeyError((state, action))
+        # NumPy uint64 mixed with Python integers can promote to float64.
+        # Canonicalize only after validation so fractional inputs stay invalid.
+        state = tuple(int(cars) for cars in state)
+        action = int(action)
         return transfer_cars(
             state, action - self.max_move_cars, self.max_cars,
             self.max_move_cars, self.move_car_cost,

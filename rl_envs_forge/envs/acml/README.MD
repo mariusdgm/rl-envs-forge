@@ -93,6 +93,9 @@ pass a capital value to inspect another state. `env.action_mask()` returns a
 fresh boolean mask over the fixed global action space. The helper and mask
 include exactly the stakes represented by `build_mdp()`. Neither includes zero
 stakes, and terminal states have no feasible stakes.
+These helpers accept Python and NumPy integer capital, including unsigned
+integers. Floating-point capital is invalid even when it is a whole number.
+Inspection leaves the stored observation and random stream unchanged.
 
 For example, at capital 2 with a goal of 5, feasible stakes are `(1, 2)`, while
 the global action space still contains `0` through `5`. By default, `step()`
@@ -136,6 +139,10 @@ when sampled rewards are integers. Weight these rewards by their probabilities
 to recover `expected_daily_reward`. The model describes all next-state
 probabilities and conditional mean rewards, rather than the distribution of
 individual rental revenues.
+State components and action indices for this model must be Python or NumPy
+integers in their declared ranges. After validation, the model converts them
+to Python integers for transfer arithmetic and table indexing, including
+unsigned inputs. Floating-point values, including `1.0`, are invalid.
 
 All request counts at least as large as the available inventory are combined
 into the saturated rental event. Likewise, return counts that fill the remaining

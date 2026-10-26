@@ -26,9 +26,10 @@ The observation is a vector of `num_agents` opinions. The action is a vector of
 the same length, with each entry between zero and that node's `max_u`. You can
 set `max_u` and `desired_opinion` per node by passing arrays instead of scalars.
 `control_resistance` takes an array or `None`.
-For FJ, the declared observation space is nonnegative with no finite upper
-bound. Other models declare opinions in `[0,1]`. The FJ precision contract below
-explains why approximately stochastic input needs a broader space.
+For Laplacian/DeGroot and FJ, the declared observation space is nonnegative
+with no finite upper bound. Other models declare opinions in `[0,1]`.
+The numerical contracts below explain why raw updates need a broader space
+even when the mathematical model preserves the unit interval.
 Observations use `float64` and actions use `float32`. Observations returned by
 `reset()` and `step()` are independent copies; changing them does not change
 the simulation. Use `env.state` or `env.opinions` to inspect or explicitly edit
@@ -116,6 +117,10 @@ In the dynamics, `adjacency[i, j]` controls how node `j` contributes to node `i`
 Supplied matrices keep their weights unless `use_weighted_edges=True`, which
 replaces entries equal to one with samples from `weight_range`. This option
 also samples weights for Barabasi-Albert graphs before row normalization.
+For unsigned integer adjacency arrays, Laplacian construction uses a float64
+copy before summing degrees and subtracting edges, so negative off-diagonal
+entries cannot wrap around. An unweighted supplied adjacency keeps its stored
+dtype. Floating-point inputs retain their existing arithmetic path.
 
 ## Opinion dynamics
 
@@ -134,6 +139,16 @@ Each environment step applies control once, then runs propagation for
 `t_campaign` using intervals of `t_s`. `t_s` must be positive and divide
 `t_campaign` evenly. The Friedkin-Johnsen and Hegselmann-Krause models apply a
 discrete update at each interval.
+
+Laplacian/DeGroot consensus uses `L = diag(A.sum(axis=1)) - A` and repeated
+updates with `expm(-L * t_s)`, after the control impulse. With nonnegative
+weights and bounded controls and opinions, this preserves `[0,1]` in exact
+arithmetic. In floating-point arithmetic, matrix-exponential row sums and
+impulse coefficients can put endpoint opinions slightly above one, and the
+error can accumulate over repeated transitions. These aliases therefore use
+`Box(0, np.inf, dtype=np.float64)`, with a fixed space throughout an episode.
+States, intermediate states and rewards retain the raw calculation; the space
+does not introduce clipping, normalization, rounding or a numerical tolerance.
 
 Friedkin-Johnsen uses the discrete update
 `x_next = fj_lambda * (A @ x) + (1 - fj_lambda) * fj_prejudice` at every internal
@@ -181,9 +196,13 @@ For endpoint-sensitive experiments, explicitly prepare a float64 copy with
 `normalize_adjacency_matrix(A.astype(np.float64))` and inspect its row sums.
 This reduces coefficient error; it does not guarantee exact floating-point
 boundedness or change the matrix supplied to an existing environment. The
-environment never normalizes user matrices or clips FJ opinions. A wrapper that
-scales observations needs its own explicit scale rather than a finite FJ space
-maximum. Recreate wrappers after changing the dynamics model; the environment
+environment never normalizes user matrices or clips FJ opinions. For Laplacian,
+DeGroot and FJ, a wrapper that rescales observations using finite space bounds
+needs an explicit scale. Laplacian/DeGroot wrappers built for the former upper
+bound of one must be reconfigured; sampling their observation space now uses
+Gymnasium's distribution for an unbounded upper interval rather than a uniform
+unit interval. Simulation and action-space random streams are unchanged.
+Recreate wrappers after changing the dynamics model; the environment
 refreshes its model-specific space on the next reset or successful step.
 
 Every generated graph is checked against the FJ requirements too. In particular,

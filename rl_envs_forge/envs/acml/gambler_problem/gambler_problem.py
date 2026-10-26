@@ -139,6 +139,7 @@ class GamblersProblem(gym.Env):
         state = self.state if state is None else state
         if not isinstance(state, (int, np.integer)) or not 0 <= state <= self.goal_amount:
             raise ValueError("capital must be an integer between zero and goal_amount")
+        state = int(state)
         return tuple(range(1, min(state, self.goal_amount - state) + 1))
 
     def action_mask(self, state=None) -> np.ndarray:

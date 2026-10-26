@@ -361,15 +361,16 @@ class NetworkGraph(gym.Env):
 
     def _update_observation_space(self):
         """Keep a fixed space for each model, including when changing models."""
-        if getattr(self, "_observation_space_uses_fj", None) != self._uses_fj:
-            # Nonnegative arithmetic preserves the lower bound. Approximately
-            # stochastic rows can amplify indefinitely, so no fixed upper
-            # roundoff allowance is valid for every supported rollout length.
+        unbounded = self._uses_fj or str(self.dynamics_model).lower() in ("laplacian", "degroot")
+        if getattr(self, "_observation_space_unbounded", None) != unbounded:
+            # Consensus matrix exponentials and impulse coefficients can also
+            # accumulate endpoint roundoff. Preserve raw states rather than
+            # projecting them or imposing a rollout-dependent upper tolerance.
             self.observation_space = spaces.Box(
-                low=0, high=np.inf if self._uses_fj else 1,
+                low=0, high=np.inf if unbounded else 1,
                 shape=(self.num_agents,), dtype=np.float64,
             )
-            self._observation_space_uses_fj = self._uses_fj
+            self._observation_space_unbounded = unbounded
 
     @staticmethod
     def _validate_fj_initial_range(limits):

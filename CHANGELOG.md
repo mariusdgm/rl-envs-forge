@@ -14,6 +14,7 @@ intentional observation-space, validation, and stochastic-model changes below.
 
 ### Changed
 
+- NetworkGraph Laplacian/DeGroot observations use a nonnegative space with no finite upper bound, accommodating accumulated endpoint roundoff without changing states, impulses, matrix exponentials or rewards. Wrappers requiring finite observation bounds need an explicit scale; observation-space sampling changes, while simulation and action RNG streams are preserved.
 - Declare Python 3.10–3.12 support, matching the NumPy 1.x dependency range. Python 3.13 is excluded pending a separately validated numerical-stack update.
 - Declare Matplotlib directly and require versions below 3.10, which removed the RGB canvas method used by the existing GridWorld renderer.
 - Install Sphinx and its theme through the optional `docs` extra, and expose a `test` extra. Remove unused Python Graphviz, TOML, and external Napoleon dependencies; the diagram regeneration script still needs the external Graphviz application.
@@ -29,6 +30,8 @@ intentional observation-space, validation, and stochastic-model changes below.
 
 ### Fixed
 
+- NetworkGraph promotes unsigned adjacency to float64 before Laplacian degree sums and subtraction, preventing wrapped negative entries and nonfinite binary-graph trajectories. Floating-point adjacency arithmetic is unchanged.
+- Jack's Car Rental's complete transition model and Gambler feasible-action helpers canonicalize validated Python/NumPy integers before arithmetic or indexing, including uint64 inputs. Floating-point inputs remain invalid; ordinary integer results and random draws are unchanged.
 - Labyrinth full observations use the declared uint8 dtype and supplied-layout dimensions, and custom reward schemas are assigned correctly.
 - KArmedBandit's observation space includes its returned arm indices. NetworkGraph's observation dtype matches its float64 dynamics, and integer adjacency inputs retain sampled fractional weights.
 - GridWorld distinguishes configured wall-collision rewards from boundary-collision rewards.

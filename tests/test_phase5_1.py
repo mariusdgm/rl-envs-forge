@@ -170,7 +170,7 @@ def test_fj_overflow_raises_before_environment_state_or_counters_change():
 
 def test_model_changes_refresh_the_space_without_changing_other_models():
     env = NetworkGraph(connectivity_matrix=np.eye(2), seed=0)
-    assert np.all(env.observation_space.high == 1)
+    assert np.isposinf(env.observation_space.high).all()
     env.dynamics_model = "fj"
     assert env.observation_space.contains(env.step(np.zeros(2, np.float32))[0])
     assert np.isposinf(env.observation_space.high).all()
