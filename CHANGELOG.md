@@ -7,9 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Proposed next version: `6.0.0rc1`, followed by `6.0.0` after validation. The
-existing `v5.23.0` tag must not be reused. Version metadata remains `5.23.0`
-until the release version is approved. A major version acknowledges the
+## [6.0.0] - 2026.10.26
+
+This major version acknowledges the
 intentional observation-space, validation, and stochastic-model changes below.
 
 ### Changed
@@ -18,7 +18,7 @@ intentional observation-space, validation, and stochastic-model changes below.
 - Declare Python 3.10–3.12 support, matching the NumPy 1.x dependency range. Python 3.13 is excluded pending a separately validated numerical-stack update.
 - Declare Matplotlib directly and require versions below 3.10, which removed the RGB canvas method used by the existing GridWorld renderer.
 - Install Sphinx and its theme through the optional `docs` extra, and expose a `test` extra. Remove unused Python Graphviz, TOML, and external Napoleon dependencies; the diagram regeneration script still needs the external Graphviz application.
-- Replace automatic tagging and publishing with validation-only CI for Python 3.10, 3.11, and 3.12 on Linux and Windows, plus documentation, citation, source-archive, and isolated-install checks.
+- Preserve automatic main-branch tagging and PyPI publishing after Python 3.10, 3.11, and 3.12 checks on Linux and Windows, slow tests, documentation, citation, source-archive, and isolated-install checks. Publish the validated artifacts, restrict write permissions and publishing credentials to the release jobs, and make same-commit retries skip existing PyPI files.
 - NetworkGraph FJ observations declare a nonnegative, unbounded space. Propagated states require finite real values rather than an arbitrary endpoint tolerance, while initial/reset opinions stay in `[0,1]`. The raw FJ recurrence and coefficients are preserved; numerical overflow raises instead of returning a nonfinite state.
 - GridWorld rejects out-of-grid constructor/reset starts, and GamblersProblem rejects starting capital outside its discrete observation space. Rejected resets preserve episode state and RNG state.
 - NetworkGraph validates Friedkin-Johnsen adjacency, lambda, prejudice, and bounded control/initial-state parameters without normalizing matrices or clipping invalid lambda values. Previously accepted configurations outside these assumptions now raise `ValueError`; the FJ formula and valid trajectories are preserved.

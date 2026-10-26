@@ -1,9 +1,19 @@
-name: Compatibility and release checks
+name: CI/CD Workflow
 
-on: [push, pull_request, workflow_dispatch]
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  # Retain pending main releases as well as the currently running publication.
+  queue: max
+  cancel-in-progress: false
 
 env:
   SDL_VIDEODRIVER: dummy
@@ -43,6 +53,9 @@ jobs:
 
   release-checks:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.release-metadata.outputs.version }}
+      artifact-id: ${{ steps.distributions.outputs.artifact-id }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -55,3 +68,176 @@ jobs:
       - run: python -m sphinx -E -b html -W --keep-going docs docs/_build/html
       - run: python -m build
       - run: python tests/release_candidate_checks.py --artifacts dist --output docs/_build/release-ci --install
+      - name: Record validated release artifacts
+        id: release-metadata
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          python - <<'PY'
+          from email.parser import BytesParser
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          import re
+          import tomllib
+          import zipfile
+
+          project = tomllib.loads(Path('pyproject.toml').read_text())['tool']['poetry']
+          version = project['version']
+          if not re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+(?:(?:a|b|rc)[0-9]+)?', version):
+              raise SystemExit('Release version must be a three-part version, optionally with a/b/rc suffix')
+          paths = sorted(Path('dist').iterdir())
+          expected = {f'rl_envs_forge-{version}-py3-none-any.whl', f'rl_envs_forge-{version}.tar.gz'}
+          if {path.name for path in paths} != expected:
+              raise SystemExit('dist must contain exactly the current-version wheel and sdist')
+          wheel = next(path for path in paths if path.suffix == '.whl')
+          with zipfile.ZipFile(wheel) as archive:
+              metadata = BytesParser().parsebytes(archive.read(next(
+                  name for name in archive.namelist() if name.endswith('.dist-info/METADATA'))))
+          if metadata['Name'] != project['name'] or metadata['Version'] != version:
+              raise SystemExit('Wheel identity differs from pyproject.toml')
+          manifest = {'version': version, 'source_sha': os.environ['SOURCE_SHA'],
+                      'files': {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in paths}}
+          Path('dist/release-manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write(f'version={version}\n')
+          PY
+      - name: Retain validated distributions
+        id: distributions
+        uses: actions/upload-artifact@v7
+        with:
+          name: python-distributions-${{ github.run_id }}-${{ github.run_attempt }}
+          path: dist/*
+          if-no-files-found: error
+
+  validation:
+    name: validation
+    needs: [compatibility, slow-tests, release-checks]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every validation job to pass
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          results = json.loads(os.environ['RESULTS'])
+          failed = [name for name, job in results.items() if job['result'] != 'success']
+          if failed:
+              raise SystemExit(f'Validation did not succeed: {failed}')
+          print('All compatibility, slow-test and release checks passed')
+          PY
+
+  tag:
+    needs: [validation, release-checks]
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      github.repository == 'mariusdgm/rl-envs-forge' &&
+      !github.event.deleted
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Create or reuse version tag
+        env:
+          RELEASE_VERSION: ${{ needs.release-checks.outputs.version }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import os
+          import re
+          import subprocess
+
+          if (os.environ['GITHUB_EVENT_NAME'] != 'push' or
+                  os.environ['GITHUB_REF'] != 'refs/heads/main' or
+                  os.environ['GITHUB_REPOSITORY'] != 'mariusdgm/rl-envs-forge'):
+              raise SystemExit('Tag creation is restricted to trusted main-branch pushes')
+          version = os.environ['RELEASE_VERSION']
+          if not re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+(?:(?:a|b|rc)[0-9]+)?', version):
+              raise SystemExit('Invalid release version')
+          sha = os.environ['GITHUB_SHA']
+          ref = f'refs/tags/v{version}'
+          existing = subprocess.run(['git', 'show-ref', '--verify', '--quiet', ref])
+          if existing.returncode == 0:
+              target = subprocess.check_output(['git', 'rev-parse', f'{ref}^{{commit}}'], text=True).strip()
+              if target != sha:
+                  raise SystemExit(f'{ref} already points to another commit; increment the version')
+              print(f'{ref} already points to this commit; allowing an idempotent publishing retry')
+          elif existing.returncode == 1:
+              subprocess.run(['gh', 'api', '--method', 'POST',
+                              f'repos/{os.environ["GITHUB_REPOSITORY"]}/git/refs',
+                              '-f', f'ref={ref}', '-f', f'sha={sha}'], check=True)
+          else:
+              raise SystemExit('Could not check existing release tags')
+          PY
+
+  deploy:
+    needs: [validation, release-checks, tag]
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      github.repository == 'mariusdgm/rl-envs-forge' &&
+      !github.event.deleted
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.10'
+      - name: Install the existing Poetry publisher
+        run: python -m pip install poetry==1.6.1
+      - name: Download the distributions validated by this run
+        uses: actions/download-artifact@v8
+        with:
+          artifact-ids: ${{ needs.release-checks.outputs.artifact-id }}
+          path: dist
+          digest-mismatch: error
+      - name: Verify release identity and checksums
+        env:
+          RELEASE_VERSION: ${{ needs.release-checks.outputs.version }}
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+
+          directory = Path('dist')
+          manifest = json.loads((directory / 'release-manifest.json').read_text())
+          version = os.environ['RELEASE_VERSION']
+          if manifest['version'] != version or manifest['source_sha'] != os.environ['GITHUB_SHA']:
+              raise SystemExit('Release artifacts do not match the validated version/commit')
+          expected = {f'rl_envs_forge-{version}-py3-none-any.whl', f'rl_envs_forge-{version}.tar.gz'}
+          if set(manifest['files']) != expected or {p.name for p in directory.iterdir()} != expected | {'release-manifest.json'}:
+              raise SystemExit('Unexpected release artifact set')
+          for name, checksum in manifest['files'].items():
+              if hashlib.sha256((directory / name).read_bytes()).hexdigest() != checksum:
+                  raise SystemExit(f'Release artifact checksum mismatch: {name}')
+          print(f'Verified wheel and sdist for v{version} at {manifest["source_sha"]}')
+          PY
+      - name: Publish validated distributions to PyPI
+        env:
+          POETRY_HTTP_BASIC_PYPI_USERNAME: ${{ secrets.PYPI_USERNAME }}
+          POETRY_HTTP_BASIC_PYPI_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+        run: |
+          test -n "$POETRY_HTTP_BASIC_PYPI_USERNAME" || { echo 'PYPI_USERNAME is not configured'; exit 1; }
+          test -n "$POETRY_HTTP_BASIC_PYPI_PASSWORD" || { echo 'PYPI_PASSWORD is not configured'; exit 1; }
+          poetry publish --no-interaction --skip-existing
